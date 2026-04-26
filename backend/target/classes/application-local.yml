@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Local development profile  →  run with:  --spring.profiles.active=local
+#  Requires:  docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+spring:
+  datasource:
+    url:      jdbc:postgresql://localhost:5432/magizhchi_share
+    username: postgres
+    password: happy
+  jpa:
+    hibernate:
+      ddl-auto: update          # auto-create/migrate schema in dev
+    show-sql: false
+
+  data:
+    redis:
+      host:     localhost
+      port:     6379
+      password: redis_secret
+
+aws:
+  region:          ap-south-1
+  access-key-id:   test          # LocalStack ignores credentials
+  secret-access-key: test
+  s3:
+    bucket-name:   magizhchi-share-dev
+    endpoint:      http://localhost:4566   # LocalStack S3 endpoint
+
+otp:
+  mock: true   # logs OTP to console instead of sending real SMS
+
+logging:
+  level:
+    com.magizhchi: DEBUG
+    org.springframework.security: WARN

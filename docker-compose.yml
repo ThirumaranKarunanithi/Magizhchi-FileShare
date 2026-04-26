@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Magizhchi Share – local development infrastructure
+#  Start with: docker compose up -d
+#  Stop  with: docker compose down
+#  Wipe data : docker compose down -v
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: magizhchi-share-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       magizhchi_share
+      POSTGRES_USER:     magizhchi
+      POSTGRES_PASSWORD: magizhchi_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U magizhchi -d magizhchi_share"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: magizhchi-share-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis_secret --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_secret", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── LocalStack (S3 mock — optional, comment out if using real AWS) ──────────
+  localstack:
+    image: localstack/localstack:3
+    container_name: magizhchi-share-localstack
+    restart: unless-stopped
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: ap-south-1
+      LOCALSTACK_HOST: localhost
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./infra/localstack-init.sh:/etc/localstack/init/ready.d/init.sh:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:

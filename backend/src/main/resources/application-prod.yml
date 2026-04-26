@@ -1,0 +1,102 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Production profile — values come from Railway environment variables.
+# Never commit real secrets here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+spring:
+  datasource:
+    url:      jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host:     ${REDIS_HOST}
+      port:     ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout:  3000ms
+
+  jpa:
+    hibernate:
+      ddl-auto: update      # keeps schema in sync; switch to validate after first deploy
+    show-sql: false
+
+  servlet:
+    multipart:
+      max-file-size:    500MB
+      max-request-size: 2GB
+      enabled: true
+
+# ── JWT ────────────────────────────────────────────────────────────────────
+jwt:
+  secret:             ${JWT_SECRET}
+  expiration-ms:      86400000     # 24 h
+  refresh-expiry-ms:  604800000    # 7 days
+
+# ── AWS S3 ─────────────────────────────────────────────────────────────────
+aws:
+  region:             ${AWS_REGION}
+  access-key-id:      ${AWS_ACCESS_KEY_ID}
+  secret-access-key:  ${AWS_SECRET_ACCESS_KEY}
+  s3:
+    bucket-name:                 ${AWS_S3_BUCKET}
+    presigned-url-expiry-minutes: 60
+
+# ── OTP / Twilio ────────────────────────────────────────────────────────────
+otp:
+  length:                    6
+  expiry-minutes:            10
+  max-attempts:              3
+  rate-limit-window-minutes: 60
+  rate-limit-max-sends:      5
+  mock: false                     # ← real SMS in production
+
+twilio:
+  account-sid:  ${TWILIO_ACCOUNT_SID}
+  auth-token:   ${TWILIO_AUTH_TOKEN}
+  from-number:  ${TWILIO_FROM}
+
+# ── CORS ───────────────────────────────────────────────────────────────────
+cors:
+  allowed-origins: ${CORS_ORIGINS}   # e.g. https://magizhchi-share.vercel.app
+
+# ── Connection / Privacy ───────────────────────────────────────────────────
+app:
+  connection:
+    daily-request-limit: 15
+
+# ── File constraints ───────────────────────────────────────────────────────
+file:
+  max-size-bytes: 524288000   # 500 MB
+  allowed-types:
+    - image/jpeg
+    - image/png
+    - image/gif
+    - image/webp
+    - image/svg+xml
+    - video/mp4
+    - video/quicktime
+    - video/x-msvideo
+    - video/webm
+    - application/pdf
+    - application/msword
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - application/vnd.ms-excel
+    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    - application/zip
+    - application/x-rar-compressed
+    - application/x-7z-compressed
+    - text/plain
+    - audio/mpeg
+    - audio/wav
+
+# ── Logging ────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.magizhchi.share:          INFO
+    org.springframework.security: WARN
+    org.springframework.web:      WARN

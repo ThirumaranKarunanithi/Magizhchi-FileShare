@@ -1,0 +1,120 @@
+spring:
+  application:
+    name: magizhchi-share
+
+  # ── Database ────────────────────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:magizhchi_share}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:password}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: public
+
+  # ── Redis (OTP cache, presence, rate-limiting) ───────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
+  # ── File upload limits ───────────────────────────────────────
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 2GB      # folder uploads can contain many files
+      enabled: true
+
+# ── Server ─────────────────────────────────────────────────────
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# ── JWT ────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:magizhchi-share-super-secret-key-change-in-production-2024}
+  expiration-ms: ${JWT_EXPIRY_MS:86400000}        # 24 hours
+  refresh-expiry-ms: ${JWT_REFRESH_MS:604800000}   # 7 days
+
+# ── AWS S3 ─────────────────────────────────────────────────────
+aws:
+  region: ${AWS_REGION:ap-south-1}
+  access-key-id: ${AWS_ACCESS_KEY_ID:}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+  s3:
+    bucket-name: ${AWS_S3_BUCKET:magizhchi-share}
+    presigned-url-expiry-minutes: 60
+    # endpoint: override for LocalStack — set in application-local.yml
+
+# ── OTP ────────────────────────────────────────────────────────
+otp:
+  length: 6
+  expiry-minutes: 10
+  max-attempts: 3
+  rate-limit-window-minutes: 60
+  rate-limit-max-sends: 5
+  # Set to true in dev to skip SMS and print OTP in logs
+  mock: ${OTP_MOCK:false}
+
+# ── Twilio (SMS) ────────────────────────────────────────────────
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID:}
+  auth-token: ${TWILIO_AUTH_TOKEN:}
+  from-number: ${TWILIO_FROM:+1234567890}
+
+# ── CORS ───────────────────────────────────────────────────────
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+# ── File constraints ─────────────────────────────────────────
+file:
+  max-size-bytes: 524288000   # 500 MB
+  allowed-types:
+    - image/jpeg
+    - image/png
+    - image/gif
+    - image/webp
+    - image/svg+xml
+    - video/mp4
+    - video/quicktime
+    - video/x-msvideo
+    - video/webm
+    - application/pdf
+    - application/msword
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - application/vnd.ms-excel
+    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    - application/zip
+    - application/x-rar-compressed
+    - application/x-7z-compressed
+    - text/plain
+    - audio/mpeg
+    - audio/wav
+
+# ── Connection / Privacy ───────────────────────────────────────
+app:
+  connection:
+    daily-request-limit: 15   # max connection requests per user per 24 h
+
+# ── Logging ────────────────────────────────────────────────────
+logging:
+  level:
+    com.magizhchi.share: DEBUG
+    org.springframework.security: INFO
+    org.springframework.web.socket: INFO
