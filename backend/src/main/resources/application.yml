@@ -74,9 +74,9 @@ otp:
 
 # ── Twilio (SMS) ────────────────────────────────────────────────
 twilio:
-  account-sid: ${TWILIO_ACCOUNT_SID:}
-  auth-token: ${TWILIO_AUTH_TOKEN:}
-  from-number: ${TWILIO_FROM:+1234567890}
+  account-sid:        ${TWILIO_ACCOUNT_SID:}
+  auth-token:         ${TWILIO_AUTH_TOKEN:}
+  verify-service-sid: ${TWILIO_VERIFY_SID:}
 
 # ── CORS ───────────────────────────────────────────────────────
 cors:

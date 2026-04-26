@@ -17,32 +17,46 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * OTP orchestration service.
+ *
+ * In MOCK mode  (otp.mock=true, default in dev):
+ *   – Generates a code locally, saves to DB, prints it in the log.
+ *   – Verification reads the code back from DB (no Twilio calls).
+ *
+ * In PRODUCTION mode (otp.mock=false):
+ *   – Delegates to Twilio Verify for both send and check.
+ *   – No OTP codes are stored locally; Twilio manages the state.
+ *   – Rate limiting (Redis) is still applied on our side.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OtpService {
 
-    private final OtpCodeRepository    otpRepo;
-    private final StringRedisTemplate  redis;
-    private final SmsService           smsService;
+    private final OtpCodeRepository   otpRepo;
+    private final StringRedisTemplate redis;
+    private final SmsService          smsService;
 
-    @Value("${otp.length}")                    private int    otpLength;
-    @Value("${otp.expiry-minutes}")            private int    expiryMinutes;
-    @Value("${otp.max-attempts}")              private int    maxAttempts;
-    @Value("${otp.rate-limit-window-minutes}") private int    rateLimitWindowMinutes;
-    @Value("${otp.rate-limit-max-sends}")      private int    rateLimitMaxSends;
+    @Value("${otp.length}")                    private int     otpLength;
+    @Value("${otp.expiry-minutes}")            private int     expiryMinutes;
+    @Value("${otp.max-attempts}")              private int     maxAttempts;
+    @Value("${otp.rate-limit-window-minutes}") private int     rateLimitWindowMinutes;
+    @Value("${otp.rate-limit-max-sends}")      private int     rateLimitMaxSends;
     @Value("${otp.mock}")                      private boolean mock;
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    // ── Send ──────────────────────────────────────────────────────────────────
+
     /**
-     * Generate + send an OTP. Applies rate limiting (Redis).
-     * @param identifier Mobile number or email
-     * @param purpose    Why we are sending this OTP
+     * Send an OTP to {@code identifier} (E.164 phone or e-mail address).
+     * Applies rate limiting in Redis regardless of mode.
      */
     @Transactional
     public void sendOtp(String identifier, OtpCode.OtpPurpose purpose) {
-        // Rate-limit check via Redis counter
+
+        // Rate-limit: max N sends per window (both mock and real)
         String rateLimitKey = "otp:rate:" + identifier;
         Long sends = redis.opsForValue().increment(rateLimitKey);
         if (sends != null && sends == 1) {
@@ -53,75 +67,92 @@ public class OtpService {
                     "Too many OTP requests. Please wait before trying again.");
         }
 
-        String code = generateCode();
-        Instant now = Instant.now();
-
-        OtpCode otp = OtpCode.builder()
-                .identifier(identifier)
-                .code(code)
-                .purpose(purpose)
-                .expiresAt(now.plus(expiryMinutes, ChronoUnit.MINUTES))
-                .createdAt(now)
-                .build();
-        otpRepo.save(otp);
-
         if (mock) {
+            // ── Mock: generate locally, save to DB, log ──
+            String code = generateCode();
+            Instant now = Instant.now();
+            otpRepo.save(OtpCode.builder()
+                    .identifier(identifier)
+                    .code(code)
+                    .purpose(purpose)
+                    .expiresAt(now.plus(expiryMinutes, ChronoUnit.MINUTES))
+                    .createdAt(now)
+                    .build());
             log.warn("🔑 [OTP MOCK] {} → code={}", identifier, code);
+
         } else {
-            // Route to SMS or email based on identifier format
-            if (identifier.startsWith("+") || identifier.matches("\\d{10,15}")) {
-                smsService.sendSms(identifier,
-                        "Your Magizhchi Share verification code is: " + code +
-                        "\nExpires in " + expiryMinutes + " minutes.");
+            // ── Production: delegate to Twilio Verify ──
+            boolean isPhone = identifier.startsWith("+") || identifier.matches("\\d{10,15}");
+            if (isPhone) {
+                smsService.sendVerification(identifier);
             } else {
-                // email — delegate to email service (or log for now)
-                log.info("EMAIL OTP for {} = {}", identifier, code);
+                // e-mail OTP — Twilio Verify supports email too but requires extra setup;
+                // log for now and extend later.
+                log.info("EMAIL OTP requested for {} — not yet wired to Verify", identifier);
+                throw new AppException(HttpStatus.NOT_IMPLEMENTED,
+                        "Email OTP is not supported yet. Please use your mobile number.");
             }
         }
     }
 
+    // ── Verify ────────────────────────────────────────────────────────────────
+
     /**
-     * Verify an OTP. Throws if invalid/expired/exceeded attempts.
-     * Marks the OTP as used on success.
+     * Verify the OTP entered by the user.
+     * Throws {@link AppException} on failure; returns normally on success.
      */
     @Transactional
     public void verifyOtp(String identifier, String code, OtpCode.OtpPurpose purpose) {
-        OtpCode otp = otpRepo
-                .findTopByIdentifierAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(identifier, purpose)
-                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST,
-                        "No pending OTP found for this identifier."));
 
-        if (otp.isExpired()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "OTP has expired. Please request a new one.");
-        }
+        if (mock) {
+            // ── Mock: check DB record ──
+            OtpCode otp = otpRepo
+                    .findTopByIdentifierAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(identifier, purpose)
+                    .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST,
+                            "No pending OTP found. Please request a new code."));
 
-        if (otp.getAttempts() >= maxAttempts) {
-            throw new AppException(HttpStatus.BAD_REQUEST,
-                    "Maximum attempts exceeded. Please request a new OTP.");
-        }
+            if (otp.isExpired()) {
+                throw new AppException(HttpStatus.BAD_REQUEST,
+                        "OTP has expired. Please request a new one.");
+            }
+            if (otp.getAttempts() >= maxAttempts) {
+                throw new AppException(HttpStatus.BAD_REQUEST,
+                        "Maximum attempts exceeded. Please request a new OTP.");
+            }
 
-        otp.setAttempts(otp.getAttempts() + 1);
+            otp.setAttempts(otp.getAttempts() + 1);
 
-        if (!otp.isValid(code)) {
+            if (!otp.isValid(code)) {
+                otpRepo.save(otp);
+                int remaining = maxAttempts - otp.getAttempts();
+                throw new AppException(HttpStatus.BAD_REQUEST,
+                        "Incorrect OTP. " + remaining + " attempt(s) remaining.");
+            }
+
+            otp.setIsUsed(true);
             otpRepo.save(otp);
-            int remaining = maxAttempts - otp.getAttempts();
-            throw new AppException(HttpStatus.BAD_REQUEST,
-                    "Incorrect OTP. " + remaining + " attempt(s) remaining.");
+
+        } else {
+            // ── Production: ask Twilio Verify ──
+            boolean approved = smsService.checkVerification(identifier, code);
+            if (!approved) {
+                throw new AppException(HttpStatus.BAD_REQUEST,
+                        "Incorrect or expired OTP. Please try again or request a new code.");
+            }
         }
 
-        otp.setIsUsed(true);
-        otpRepo.save(otp);
-
-        // Clear rate-limit counter on success
+        // Clear rate-limit counter on successful verification
         redis.delete("otp:rate:" + identifier);
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String generateCode() {
         int max = (int) Math.pow(10, otpLength);
         return String.format("%0" + otpLength + "d", RANDOM.nextInt(max));
     }
 
-    /** Nightly cleanup of expired OTPs */
+    /** Nightly cleanup of expired mock OTP records (no-op in production but harmless). */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanupExpiredOtps() {
