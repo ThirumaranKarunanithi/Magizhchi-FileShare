@@ -8,18 +8,20 @@ import java.util.List;
 
 /**
  * Binds the 'file:' block from application.yml.
- * Using @ConfigurationProperties (not @Value) so YAML lists work correctly.
+ * Uses a BLOCK-list approach: all types are allowed except those in blockedTypes.
  */
 @Component
 @ConfigurationProperties(prefix = "file")
 public class FileProperties {
 
     private long maxSizeBytes = 524288000L;   // 500 MB default
-    private List<String> allowedTypes = new ArrayList<>();
 
-    public long getMaxSizeBytes()            { return maxSizeBytes; }
-    public void setMaxSizeBytes(long v)      { this.maxSizeBytes = v; }
+    /** MIME types that are explicitly blocked (executables, installers, scripts). */
+    private List<String> blockedTypes = new ArrayList<>();
 
-    public List<String> getAllowedTypes()            { return allowedTypes; }
-    public void setAllowedTypes(List<String> types)  { this.allowedTypes = types; }
+    public long getMaxSizeBytes()               { return maxSizeBytes; }
+    public void setMaxSizeBytes(long v)         { this.maxSizeBytes = v; }
+
+    public List<String> getBlockedTypes()               { return blockedTypes; }
+    public void setBlockedTypes(List<String> types)     { this.blockedTypes = types; }
 }

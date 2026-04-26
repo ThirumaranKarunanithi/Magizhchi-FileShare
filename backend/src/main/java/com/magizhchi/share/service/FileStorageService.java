@@ -133,10 +133,11 @@ public class FileStorageService {
             throw new AppException(HttpStatus.PAYLOAD_TOO_LARGE,
                     "File exceeds maximum size of " + (maxBytes / 1024 / 1024) + " MB.");
         }
-        var allowed = fileProperties.getAllowedTypes();
-        if (!allowed.isEmpty() && !allowed.contains(file.getContentType())) {
+        String ct = file.getContentType();
+        var blocked = fileProperties.getBlockedTypes();
+        if (ct != null && !blocked.isEmpty() && blocked.contains(ct)) {
             throw new AppException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                    "File type not allowed: " + file.getContentType());
+                    "This file type is not allowed: " + ct);
         }
     }
 
