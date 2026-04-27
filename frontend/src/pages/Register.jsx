@@ -33,7 +33,18 @@ export default function Register() {
       });
       setStep(2); startCountdown(60);
       toast.success('Verification code sent!');
-    } catch (msg) { setError(msg); }
+    } catch (msg) {
+      // A "Please wait N seconds" response means an OTP was already sent recently.
+      // Advance to Step 2 so the user can enter the code they already received.
+      const waitMatch = String(msg).match(/(\d+) second/i);
+      if (waitMatch) {
+        setStep(2);
+        startCountdown(parseInt(waitMatch[1], 10));
+        toast('A code was already sent — check your messages.', { icon: 'ℹ️', duration: 5000 });
+      } else {
+        setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
+      }
+    }
     finally { setLoading(false); }
   };
 
