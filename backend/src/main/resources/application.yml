@@ -67,8 +67,8 @@ otp:
   length: 6
   expiry-minutes: 10
   max-attempts: 3
-  rate-limit-window-minutes: 60
-  rate-limit-max-sends: 5
+  rate-limit-window-minutes: 15   # window resets every 15 min (was 60 — too long)
+  rate-limit-max-sends: 3         # max 3 OTPs per 15-min window
   # Set to true in dev to skip SMS and print OTP in logs
   mock: ${OTP_MOCK:false}
 

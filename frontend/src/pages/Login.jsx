@@ -25,12 +25,14 @@ export default function Login() {
       setStep(2); startCountdown(60);
       toast.success('Verification code sent!');
     } catch (msg) {
-      // A "Please wait N seconds" response means an OTP was already sent recently.
-      // Advance to Step 2 so the user can enter the code they already received.
-      const waitMatch = String(msg).match(/(\d+) second/i);
-      if (waitMatch) {
+      // Any rate-limit response (cooldown OR per-window limit) means an OTP was
+      // already sent — advance to Step 2 so the user can enter the code they have.
+      const s = String(msg);
+      const waitMatch = s.match(/(\d+) second/i);
+      const isRateLimit = waitMatch || /too many|please wait|rate.?limit/i.test(s);
+      if (isRateLimit) {
         setStep(2);
-        startCountdown(parseInt(waitMatch[1], 10));
+        startCountdown(waitMatch ? parseInt(waitMatch[1], 10) : 60);
         toast('A code was already sent — check your messages.', { icon: 'ℹ️', duration: 5000 });
       } else {
         setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
