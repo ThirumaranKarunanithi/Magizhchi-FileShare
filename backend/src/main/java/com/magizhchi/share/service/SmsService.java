@@ -105,8 +105,8 @@ public class SmsService {
         } catch (ApiException e) {
             log.warn("Twilio Verify check failed: to={}, code={}, msg={}",
                     toNumber, e.getCode(), e.getMessage());
-            int code = e.getCode() != null ? e.getCode() : -1;
-            if (code == 20404 || code == 60200) {
+            int errCode = e.getCode() != null ? e.getCode() : -1;
+            if (errCode == 20404 || errCode == 60200) {
                 // 20404 = verification not found (expired / already used / bad number)
                 // Return false so the service layer shows "Incorrect or expired OTP"
                 return false;
