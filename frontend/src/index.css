@@ -98,7 +98,7 @@
   /* ── Avatar ── */
   .avatar {
     @apply rounded-full flex-shrink-0 bg-gradient-to-br from-sky-400 to-sky-600
-           flex items-center justify-center text-white font-bold select-none;
+           flex items-center justify-center text-white font-bold select-none overflow-hidden;
   }
 
   /* ── Badge ── */

@@ -8,6 +8,7 @@ import NewGroupModal            from './NewGroupModal';
 import ProfileModal             from './ProfileModal';
 import ConnectionRequestsModal  from './ConnectionRequestsModal';
 import StorageModal             from './StorageModal';
+import Avatar                   from './Avatar';
 
 // Sentinel object representing the "Shared with Me" virtual view
 export const SHARED_WITH_ME_VIEW = Object.freeze({ id: '__shared_with_me__', type: 'SHARED_WITH_ME' });
@@ -233,12 +234,11 @@ export default function Sidebar({ selected, onSelect }) {
                   className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 text-lg"
                   title="New Group">👥</button>
 
-          <button onClick={() => setShowProfile(true)}
-                  className="w-8 h-8 avatar text-xs" title="Profile">
-            {currentUser?.profilePhotoUrl
-              ? <img src={currentUser.profilePhotoUrl} alt=""
-                     className="w-full h-full rounded-full object-cover"/>
-              : initials(currentUser?.displayName)}
+          <button onClick={() => setShowProfile(true)} title="Profile"
+                  className="rounded-full focus:outline-none focus:ring-2 focus:ring-sky-400">
+            <Avatar name={currentUser?.displayName}
+                    photoUrl={currentUser?.profilePhotoUrl}
+                    size="sm"/>
           </button>
         </div>
       </div>
@@ -326,13 +326,7 @@ export default function Sidebar({ selected, onSelect }) {
 
                   {/* User row */}
                   <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 avatar text-sm flex-shrink-0">
-                      {u.profilePhotoUrl
-                        ? <img src={u.profilePhotoUrl} alt=""
-                               className="w-full h-full rounded-full object-cover"/>
-                        : initials(u.displayName)}
-                    </div>
+                    <Avatar name={u.displayName} photoUrl={u.profilePhotoUrl} size="md"/>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
@@ -440,13 +434,17 @@ export default function Sidebar({ selected, onSelect }) {
                 <button key={conv.id} onClick={() => onSelect(conv)}
                         className={`conv-row w-full text-left
                                     ${selected?.id === conv.id ? 'active' : ''}`}>
-                  <div className={`w-11 h-11 avatar text-sm flex-shrink-0
-                                   ${conv.type === 'GROUP' ? 'rounded-xl' : ''}`}>
-                    {conv.iconUrl
-                      ? <img src={conv.iconUrl} alt=""
-                             className="w-full h-full rounded-full object-cover"/>
-                      : conv.type === 'GROUP' ? '👥' : initials(conv.name)}
-                  </div>
+                  {conv.type === 'GROUP'
+                    ? <div className="w-11 h-11 avatar rounded-xl text-sm flex-shrink-0
+                                      overflow-hidden">
+                        {conv.iconUrl
+                          ? <img src={conv.iconUrl} alt=""
+                                 className="w-full h-full object-cover rounded-xl"
+                                 onError={e => { e.target.style.display = 'none'; }}/>
+                          : '👥'}
+                      </div>
+                    : <Avatar name={conv.name} photoUrl={conv.iconUrl} size="lg"/>
+                  }
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
                       <p className="font-semibold text-sm text-slate-800 truncate">{conv.name}</p>
@@ -504,9 +502,9 @@ export default function Sidebar({ selected, onSelect }) {
 
       {/* ── Bottom profile bar ── */}
       <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-3">
-        <div className="w-8 h-8 avatar text-xs flex-shrink-0">
-          {initials(currentUser?.displayName)}
-        </div>
+        <Avatar name={currentUser?.displayName}
+                photoUrl={currentUser?.profilePhotoUrl}
+                size="sm"/>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-800 truncate">
             {currentUser?.displayName}

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import ShareModal from './ShareModal';
+import Avatar     from './Avatar';
 
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
@@ -281,15 +282,24 @@ export default function ChatWindow({ conversation }) {
       <div className="flex items-center justify-between px-6 py-4">
         {/* Conversation identity */}
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 flex-shrink-0 flex items-center justify-center
-                          bg-white/20 text-white font-bold text-sm
-                          ${conversation.type === 'GROUP' ? 'rounded-xl' : 'rounded-full'}`}>
-            {conversation.iconUrl
-              ? <img src={conversation.iconUrl} alt="" className="w-full h-full object-cover rounded-full"/>
-              : conversation.type === 'GROUP'    ? '👥'
-              : conversation.type === 'PERSONAL' ? '🗄️'
-              : initials(conversation.name)}
-          </div>
+          {conversation.type === 'GROUP' ? (
+            <div className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden
+                            bg-white/20 flex items-center justify-center text-lg">
+              {conversation.iconUrl
+                ? <img src={conversation.iconUrl} alt=""
+                       className="w-full h-full object-cover"
+                       onError={e => { e.currentTarget.style.display = 'none'; }}/>
+                : '👥'}
+            </div>
+          ) : conversation.type === 'PERSONAL' ? (
+            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-white/20
+                            flex items-center justify-center text-xl">🗄️</div>
+          ) : (
+            <Avatar name={conversation.name}
+                    photoUrl={conversation.iconUrl}
+                    size="md"
+                    className="ring-2 ring-white/30"/>
+          )}
           <div>
             <h2 className="text-white font-bold text-lg leading-tight">{conversation.name}</h2>
             <p className="text-white/70 text-xs">

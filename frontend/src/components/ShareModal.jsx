@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { users, conversations, sharing } from '../services/api';
 import toast from 'react-hot-toast';
+import Avatar from './Avatar';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -154,14 +155,7 @@ export default function ShareModal({ selectedIds, onClose }) {
                                         ${target?.id === u.id && target?.type === 'USER'
                                           ? 'bg-white/20'
                                           : 'hover:bg-white/10'}`}>
-                      <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden
-                                      bg-white/20 flex items-center justify-center
-                                      text-xs font-bold text-white">
-                        {u.profilePhotoUrl
-                          ? <img src={u.profilePhotoUrl} alt=""
-                                 className="w-full h-full object-cover"/>
-                          : initials(u.displayName)}
-                      </div>
+                      <Avatar name={u.displayName} photoUrl={u.profilePhotoUrl} size="sm"/>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-white truncate">{u.displayName}</p>
                         {u.mobileNumber && (
@@ -240,13 +234,17 @@ export default function ShareModal({ selectedIds, onClose }) {
           {target && (
             <div className="mx-6 mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
                  style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)' }}>
-              <div className={`w-8 h-8 flex-shrink-0 overflow-hidden bg-white/20
-                               flex items-center justify-center text-xs font-bold text-white
-                               ${target.type === 'GROUP' ? 'rounded-xl' : 'rounded-full'}`}>
-                {target.photoUrl
-                  ? <img src={target.photoUrl} alt="" className="w-full h-full object-cover"/>
-                  : target.type === 'GROUP' ? '👥' : initials(target.name)}
-              </div>
+              {target.type === 'GROUP'
+                ? <div className="w-8 h-8 rounded-xl flex-shrink-0 bg-white/20
+                                  flex items-center justify-center overflow-hidden text-base">
+                    {target.photoUrl
+                      ? <img src={target.photoUrl} alt=""
+                             className="w-full h-full object-cover"
+                             onError={e => { e.currentTarget.style.display='none'; }}/>
+                      : '👥'}
+                  </div>
+                : <Avatar name={target.name} photoUrl={target.photoUrl} size="sm"/>
+              }
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{target.name}</p>
                 <p className="text-xs text-white/50">

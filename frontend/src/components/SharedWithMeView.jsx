@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { sharing, files as filesApi } from '../services/api';
+import Avatar from './Avatar';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -204,12 +205,7 @@ export default function SharedWithMeView() {
 
                   {/* Who */}
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-full flex-shrink-0 bg-white/20
-                                    flex items-center justify-center text-xs font-bold text-white overflow-hidden">
-                      {who.photo
-                        ? <img src={who.photo} alt="" className="w-full h-full object-cover"/>
-                        : initials(who.name)}
-                    </div>
+                    <Avatar name={who.name} photoUrl={who.photo} size="xs"/>
                     <span className="text-xs text-white/70 truncate">{who.name || '—'}</span>
                   </div>
 
