@@ -2,6 +2,7 @@ package com.magizhchi.share.controller;
 
 import com.magizhchi.share.dto.response.FileMessageResponse;
 import com.magizhchi.share.model.User;
+import com.magizhchi.share.service.ConversationService;
 import com.magizhchi.share.service.FileMessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +24,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FileController {
 
-    private final FileMessageService fileService;
+    private final FileMessageService  fileService;
+    private final ConversationService convService;
 
     /** Upload a single file (optionally with a caption). */
     @PostMapping("/send/{conversationId}")
@@ -68,6 +70,17 @@ public class FileController {
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(Map.of("url",
                 fileService.getThumbnailUrl(id, user.getId())));
+    }
+
+    /**
+     * Search files by filename or caption across all conversations the caller is a member of.
+     * GET /api/files/search?q=invoice
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<FileMessageResponse>> search(
+            @RequestParam String q,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(convService.searchFiles(user.getId(), q));
     }
 
     @DeleteMapping("/{id}")

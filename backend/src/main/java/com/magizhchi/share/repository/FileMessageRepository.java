@@ -39,4 +39,22 @@ public interface FileMessageRepository extends JpaRepository<FileMessage, Long> 
     /** Top N largest files uploaded by a user (for breakdown view) */
     @Query("SELECT fm FROM FileMessage fm WHERE fm.sender.id = :uid AND fm.isDeleted = false ORDER BY fm.fileSizeBytes DESC")
     List<FileMessage> findTopFilesBySize(@Param("uid") Long userId, Pageable pageable);
+
+    /**
+     * Full-text file search for a user — returns files from every conversation
+     * the user is an active member of, matching on filename OR caption.
+     */
+    @Query("""
+        SELECT fm FROM FileMessage fm
+        JOIN ConversationMember cm ON cm.conversation = fm.conversation
+        WHERE cm.user.id = :uid
+          AND cm.isActive = true
+          AND fm.isDeleted = false
+          AND (LOWER(fm.originalFileName) LIKE LOWER(CONCAT('%', :q, '%'))
+            OR LOWER(fm.caption)          LIKE LOWER(CONCAT('%', :q, '%')))
+        ORDER BY fm.sentAt DESC
+        """)
+    Page<FileMessage> searchForUser(@Param("uid") Long userId,
+                                    @Param("q")   String query,
+                                    Pageable pageable);
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { conversations, users, connections, storage } from '../services/api';
+import { conversations, users, connections, storage, files as filesApi } from '../services/api';
 import { subscribeToUserNotifications } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -79,7 +79,9 @@ export default function Sidebar({ selected, onSelect }) {
 
   const [convList,         setConvList]         = useState([]);
   const [search,           setSearch]           = useState('');
+  const [searchMode,       setSearchMode]       = useState('people'); // 'people' | 'files'
   const [searchRes,        setSearchRes]        = useState([]);
+  const [fileSearchRes,    setFileSearchRes]    = useState([]);
   const [searching,        setSearching]        = useState(false);
   const [showGroup,        setShowGroup]        = useState(false);
   const [showProfile,      setShowProfile]      = useState(false);
@@ -218,6 +220,7 @@ export default function Sidebar({ selected, onSelect }) {
 
   // ── User search ──────────────────────────────────────────────────────────
   useEffect(() => {
+    if (searchMode !== 'people') return;
     if (search.trim().length < 2) { setSearchRes([]); return; }
     const t = setTimeout(() => {
       setSearching(true);
@@ -227,7 +230,21 @@ export default function Sidebar({ selected, onSelect }) {
         .finally(() => setSearching(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, searchMode]);
+
+  // ── File search ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (searchMode !== 'files') return;
+    if (search.trim().length < 2) { setFileSearchRes([]); return; }
+    const t = setTimeout(() => {
+      setSearching(true);
+      filesApi.search(search.trim())
+        .then(r => setFileSearchRes(r.data))
+        .catch(console.error)
+        .finally(() => setSearching(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search, searchMode]);
 
   // ── Conversation open (clears unread badge + records open time) ─────────
   const openDirect = async (userId) => {
@@ -317,10 +334,17 @@ export default function Sidebar({ selected, onSelect }) {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col h-screen">
+    <div className="w-80 flex-shrink-0 border-r border-sky-100 flex flex-col h-screen"
+         style={{
+           backgroundColor: '#e0f2fe',
+           backgroundImage:
+             'linear-gradient(rgba(255,255,255,0.55) 1px, transparent 1px),' +
+             'linear-gradient(90deg, rgba(255,255,255,0.55) 1px, transparent 1px)',
+           backgroundSize: '22px 22px',
+         }}>
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-sky-100 bg-white/60 backdrop-blur-sm">
         <div className="flex items-center">
           <img src="/logo.png" alt="Magizhchi Box"
                className="h-9 select-none"
@@ -368,22 +392,22 @@ export default function Sidebar({ selected, onSelect }) {
 
         {/* My Storage */}
         <button onClick={openMyStorage} disabled={loadingStorage}
-                className={`flex-1 flex flex-col items-center justify-center gap-2
-                            aspect-square rounded-2xl border transition-all group
+                className={`flex-1 flex items-center gap-2.5 px-3 py-2.5
+                            rounded-2xl border transition-all group
                             ${selected?.type === 'PERSONAL'
                               ? 'bg-sky-500 border-sky-500 shadow-md'
-                              : 'bg-gradient-to-br from-sky-50 to-indigo-50 border-sky-100 hover:border-sky-300 hover:shadow-sm'}`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center
-                           text-2xl shadow-sm
-                           ${selected?.type === 'PERSONAL' ? 'bg-white/20' : 'bg-white border border-sky-100'}`}>
-            {loadingStorage ? <span className="animate-spin text-base">⏳</span> : '🗄️'}
+                              : 'bg-white/70 border-sky-100 hover:border-sky-300 hover:bg-white/90 hover:shadow-sm'}`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center
+                           text-lg flex-shrink-0 shadow-sm
+                           ${selected?.type === 'PERSONAL' ? 'bg-white/20' : 'bg-sky-50 border border-sky-100'}`}>
+            {loadingStorage ? <span className="animate-spin text-sm">⏳</span> : '🗄️'}
           </div>
-          <div className="text-center px-1">
-            <p className={`text-xs font-bold leading-tight
+          <div className="min-w-0 text-left">
+            <p className={`text-xs font-bold leading-tight truncate
                            ${selected?.type === 'PERSONAL' ? 'text-white' : 'text-slate-800'}`}>
               My Storage
             </p>
-            <p className={`text-[10px] leading-tight mt-0.5
+            <p className={`text-[10px] leading-tight mt-0.5 truncate
                            ${selected?.type === 'PERSONAL' ? 'text-white/70' : 'text-slate-400'}`}>
               {currentUser?.displayName
                 ? `${currentUser.displayName.split(' ')[0]}'s space`
@@ -394,30 +418,30 @@ export default function Sidebar({ selected, onSelect }) {
 
         {/* Shared with Me */}
         <button onClick={() => { onSelect(SHARED_WITH_ME_VIEW); setUnreadShares(0); }}
-                className={`flex-1 flex flex-col items-center justify-center gap-2 relative
-                            aspect-square rounded-2xl border transition-all group
+                className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 relative
+                            rounded-2xl border transition-all group
                             ${selected?.type === 'SHARED_WITH_ME'
                               ? 'bg-violet-500 border-violet-500 shadow-md'
-                              : 'bg-gradient-to-br from-violet-50 to-purple-50 border-violet-100 hover:border-violet-300 hover:shadow-sm'}`}>
+                              : 'bg-white/70 border-violet-100 hover:border-violet-300 hover:bg-white/90 hover:shadow-sm'}`}>
           {/* unread badge */}
           {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME' && (
-            <span className="absolute top-2 right-2 min-w-[18px] h-[18px] rounded-full
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full
                              bg-violet-500 text-white text-[9px] font-bold
-                             flex items-center justify-center px-1">
+                             flex items-center justify-center px-1 shadow-sm">
               {unreadShares > 9 ? '9+' : unreadShares}
             </span>
           )}
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center
-                           text-2xl shadow-sm
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'bg-white/20' : 'bg-white border border-violet-100'}`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center
+                           text-lg flex-shrink-0 shadow-sm
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'bg-white/20' : 'bg-violet-50 border border-violet-100'}`}>
             🔗
           </div>
-          <div className="text-center px-1">
-            <p className={`text-xs font-bold leading-tight
+          <div className="min-w-0 text-left">
+            <p className={`text-xs font-bold leading-tight truncate
                            ${selected?.type === 'SHARED_WITH_ME' ? 'text-white' : 'text-slate-800'}`}>
               Shared with Me
             </p>
-            <p className={`text-[10px] leading-tight mt-0.5
+            <p className={`text-[10px] leading-tight mt-0.5 truncate
                            ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-slate-400'}`}>
               {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
                 ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''}`
@@ -429,9 +453,28 @@ export default function Sidebar({ selected, onSelect }) {
       </div>
 
       {/* ── Search ── */}
-      <div className="px-3 pb-2 border-b border-slate-100">
+      <div className="px-3 pb-2 border-b border-sky-100 space-y-2">
+        {/* Mode toggle */}
+        <div className="flex gap-1 bg-slate-100 p-0.5 rounded-xl">
+          {[
+            { key: 'people', icon: '👤', label: 'People' },
+            { key: 'files',  icon: '🔍', label: 'Files'  },
+          ].map(m => (
+            <button key={m.key}
+                    onClick={() => { setSearchMode(m.key); setSearch(''); setSearchRes([]); setFileSearchRes([]); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl
+                                text-xs font-semibold transition-all
+                                ${searchMode === m.key
+                                  ? 'bg-white text-slate-800 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-600'}`}>
+              <span>{m.icon}</span>{m.label}
+            </button>
+          ))}
+        </div>
         <input className="input !py-2 !text-sm"
-               placeholder="Search users by name, phone or email…"
+               placeholder={searchMode === 'files'
+                 ? 'Search by file name or description…'
+                 : 'Search users by name, phone or email…'}
                value={search}
                onChange={e => setSearch(e.target.value)}/>
       </div>
@@ -439,7 +482,59 @@ export default function Sidebar({ selected, onSelect }) {
       {/* ── Results ── */}
       <div className="flex-1 overflow-y-auto">
 
-        {search.trim().length >= 2 ? (
+        {search.trim().length >= 2 && searchMode === 'files' ? (
+          /* ── File search results ── */
+          <div>
+            {searching && <p className="text-xs text-slate-400 px-4 py-2">Searching…</p>}
+            {!searching && fileSearchRes.length === 0 && (
+              <p className="text-sm text-slate-400 px-4 py-4 text-center">No files found</p>
+            )}
+            {fileSearchRes.map(f => (
+              <button key={f.id}
+                      onClick={() => {
+                        // Open the conversation this file belongs to
+                        const existing = convList.find(c => c.id === f.conversationId);
+                        if (existing) {
+                          onSelect(existing);
+                          markOpened(existing.id);
+                          setUnreadCounts(prev => { const m = new Map(prev); m.delete(existing.id); return m; });
+                        }
+                      }}
+                      className="w-full flex items-start gap-3 px-4 py-3
+                                 border-b border-slate-50 hover:bg-slate-50 text-left">
+                {/* File icon */}
+                <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-100
+                                flex items-center justify-center text-lg flex-shrink-0">
+                  {f.category === 'IMAGE'    ? '🖼️' :
+                   f.category === 'VIDEO'    ? '🎬' :
+                   f.category === 'AUDIO'    ? '🎵' :
+                   f.category === 'DOCUMENT' ? '📄' :
+                   f.category === 'ARCHIVE'  ? '🗜️' : '📎'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {/* File name */}
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {f.originalFileName}
+                  </p>
+                  {/* Caption / description */}
+                  {f.caption && (
+                    <p className="text-xs text-slate-500 truncate mt-0.5">
+                      "{f.caption}"
+                    </p>
+                  )}
+                  {/* Sender + conversation */}
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">
+                    <span className="font-medium text-sky-600">{f.senderName}</span>
+                    {f.conversationName && f.conversationName !== f.senderName && (
+                      <span className="text-slate-300"> · {f.conversationName}</span>
+                    )}
+                    <span className="text-slate-300"> · {new Date(f.sentAt).toLocaleDateString()}</span>
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : search.trim().length >= 2 ? (
           /* ── User search results ── */
           <div>
             {searching && <p className="text-xs text-slate-400 px-4 py-2">Searching…</p>}
@@ -645,8 +740,8 @@ export default function Sidebar({ selected, onSelect }) {
         const textColor = pct >= 90 ? 'text-red-500' : pct >= 70 ? 'text-amber-500' : 'text-green-600';
         return (
           <button onClick={() => setShowStorage(true)}
-                  className="mx-3 mb-2 px-3 py-2.5 rounded-xl border border-slate-100
-                             bg-slate-50 hover:bg-sky-50 hover:border-sky-200
+                  className="mx-3 mb-2 px-3 py-2.5 rounded-xl border border-sky-100
+                             bg-white/60 hover:bg-white/80 hover:border-sky-200
                              transition-all text-left group w-[calc(100%-24px)]"
                   title="Click to see storage breakdown">
             <div className="flex items-center justify-between mb-1.5">
@@ -671,7 +766,7 @@ export default function Sidebar({ selected, onSelect }) {
       })()}
 
       {/* ── Bottom profile bar ── */}
-      <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-3">
+      <div className="px-4 py-3 border-t border-sky-100 bg-white/60 backdrop-blur-sm flex items-center gap-3">
         <Avatar name={currentUser?.displayName}
                 photoUrl={currentUser?.profilePhotoUrl}
                 size="sm"/>

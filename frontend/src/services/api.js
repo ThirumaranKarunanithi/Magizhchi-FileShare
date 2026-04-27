@@ -112,6 +112,7 @@ export const sharing = {
 
 // ── Files ────────────────────────────────────────────────────────────────────
 export const files = {
+  search:       q               => api.get('/api/files/search', { params: { q } }),
   send:         (cid, formData)  => api.post(`/api/files/send/${cid}`, formData),
   sendFolder:   (cid, formData, onProgress) =>
                   api.post(`/api/files/send-folder/${cid}`, formData, {

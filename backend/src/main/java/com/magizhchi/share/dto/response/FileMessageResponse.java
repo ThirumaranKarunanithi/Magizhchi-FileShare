@@ -17,6 +17,7 @@ public class FileMessageResponse {
     private String  category;       // IMAGE | VIDEO | DOCUMENT | AUDIO | ARCHIVE | OTHER
     private String  caption;
     private String  folderPath;     // non-null when file came from a folder upload
+    private String  conversationName; // display name of the conversation (for search results)
     private boolean hasThumbnail;
     private String  downloadUrl;    // populated on-demand
     private String  thumbnailUrl;   // populated on-demand

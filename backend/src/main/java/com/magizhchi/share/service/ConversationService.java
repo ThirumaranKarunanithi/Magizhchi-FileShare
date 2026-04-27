@@ -268,6 +268,10 @@ public class ConversationService {
     }
 
     FileMessageResponse toMessageResponse(FileMessage fm) {
+        return toMessageResponse(fm, null);
+    }
+
+    FileMessageResponse toMessageResponse(FileMessage fm, String conversationName) {
         return FileMessageResponse.builder()
                 .id(fm.getId())
                 .conversationId(fm.getConversation().getId())
@@ -281,7 +285,36 @@ public class ConversationService {
                 .caption(fm.getCaption())
                 .folderPath(fm.getFolderPath())
                 .hasThumbnail(fm.getThumbnailKey() != null)
+                .conversationName(conversationName)
                 .sentAt(fm.getSentAt())
                 .build();
+    }
+
+    /**
+     * Search files across all conversations the user is a member of.
+     * Matches on filename or caption (case-insensitive).
+     * Returns at most 30 results, newest first.
+     */
+    @Transactional(readOnly = true)
+    public List<FileMessageResponse> searchFiles(Long userId, String q) {
+        if (q == null || q.isBlank()) return List.of();
+        return msgRepo.searchForUser(userId, q.trim(), PageRequest.of(0, 30))
+                .stream()
+                .map(fm -> {
+                    // Resolve a human-friendly conversation name for DIRECT convs
+                    Conversation conv = fm.getConversation();
+                    String convName;
+                    if (conv.getType() == Conversation.ConversationType.DIRECT) {
+                        convName = conv.getMembers().stream()
+                                .filter(m -> m.getIsActive() && !m.getUser().getId().equals(userId))
+                                .findFirst()
+                                .map(m -> m.getUser().getDisplayName())
+                                .orElse(conv.getName());
+                    } else {
+                        convName = conv.getName();
+                    }
+                    return toMessageResponse(fm, convName);
+                })
+                .toList();
     }
 }
