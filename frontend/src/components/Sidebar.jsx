@@ -363,73 +363,69 @@ export default function Sidebar({ selected, onSelect }) {
         </div>
       </div>
 
-      {/* ── My Storage ── */}
-      <div className="px-3 pt-3 pb-2">
+      {/* ── My Storage + Shared with Me (square cards, side by side) ── */}
+      <div className="px-3 pt-3 pb-2 flex gap-2">
+
+        {/* My Storage */}
         <button onClick={openMyStorage} disabled={loadingStorage}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border
-                            transition-all group
+                className={`flex-1 flex flex-col items-center justify-center gap-2
+                            aspect-square rounded-2xl border transition-all group
                             ${selected?.type === 'PERSONAL'
                               ? 'bg-sky-500 border-sky-500 shadow-md'
-                              : 'bg-gradient-to-r from-sky-50 to-indigo-50 border-sky-100 hover:border-sky-300 hover:shadow-sm'}`}>
+                              : 'bg-gradient-to-br from-sky-50 to-indigo-50 border-sky-100 hover:border-sky-300 hover:shadow-sm'}`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center
-                           text-xl flex-shrink-0 shadow-sm
+                           text-2xl shadow-sm
                            ${selected?.type === 'PERSONAL' ? 'bg-white/20' : 'bg-white border border-sky-100'}`}>
-            {loadingStorage ? <span className="animate-spin text-sm">⏳</span> : '🗄️'}
+            {loadingStorage ? <span className="animate-spin text-base">⏳</span> : '🗄️'}
           </div>
-          <div className="flex-1 min-w-0 text-left">
-            <p className={`text-sm font-bold truncate
+          <div className="text-center px-1">
+            <p className={`text-xs font-bold leading-tight
                            ${selected?.type === 'PERSONAL' ? 'text-white' : 'text-slate-800'}`}>
               My Storage
             </p>
-            <p className={`text-xs truncate
+            <p className={`text-[10px] leading-tight mt-0.5
                            ${selected?.type === 'PERSONAL' ? 'text-white/70' : 'text-slate-400'}`}>
               {currentUser?.displayName
-                ? `${currentUser.displayName.split(' ')[0]}'s personal space`
-                : 'Your personal file space'}
+                ? `${currentUser.displayName.split(' ')[0]}'s space`
+                : 'Personal space'}
             </p>
           </div>
-          <span className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5
-                            ${selected?.type === 'PERSONAL' ? 'text-white/70' : 'text-sky-400'}`}>›</span>
         </button>
-      </div>
 
-      {/* ── Shared with Me ── */}
-      <div className="px-3 pb-2">
+        {/* Shared with Me */}
         <button onClick={() => { onSelect(SHARED_WITH_ME_VIEW); setUnreadShares(0); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border
-                            transition-all group
+                className={`flex-1 flex flex-col items-center justify-center gap-2 relative
+                            aspect-square rounded-2xl border transition-all group
                             ${selected?.type === 'SHARED_WITH_ME'
                               ? 'bg-violet-500 border-violet-500 shadow-md'
-                              : 'bg-gradient-to-r from-violet-50 to-purple-50 border-violet-100 hover:border-violet-300 hover:shadow-sm'}`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center
-                           text-xl flex-shrink-0 shadow-sm
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'bg-white/20' : 'bg-white border border-violet-100'}`}>
-            🔗
-          </div>
-          <div className="flex-1 min-w-0 text-left">
-            <p className={`text-sm font-bold truncate
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white' : 'text-slate-800'}`}>
-              Shared with Me
-            </p>
-            <p className={`text-xs truncate
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-slate-400'}`}>
-              {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
-                ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''} shared`
-                : 'Files others have shared'}
-            </p>
-          </div>
+                              : 'bg-gradient-to-br from-violet-50 to-purple-50 border-violet-100 hover:border-violet-300 hover:shadow-sm'}`}>
+          {/* unread badge */}
           {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME' && (
-            <span className="flex-shrink-0 min-w-[20px] h-5 rounded-full
-                             bg-violet-500 text-white text-[10px] font-bold
+            <span className="absolute top-2 right-2 min-w-[18px] h-[18px] rounded-full
+                             bg-violet-500 text-white text-[9px] font-bold
                              flex items-center justify-center px-1">
               {unreadShares > 9 ? '9+' : unreadShares}
             </span>
           )}
-          {(unreadShares === 0 || selected?.type === 'SHARED_WITH_ME') && (
-            <span className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5
-                              ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-violet-400'}`}>›</span>
-          )}
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center
+                           text-2xl shadow-sm
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'bg-white/20' : 'bg-white border border-violet-100'}`}>
+            🔗
+          </div>
+          <div className="text-center px-1">
+            <p className={`text-xs font-bold leading-tight
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white' : 'text-slate-800'}`}>
+              Shared with Me
+            </p>
+            <p className={`text-[10px] leading-tight mt-0.5
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-slate-400'}`}>
+              {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
+                ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''}`
+                : 'Shared files'}
+            </p>
+          </div>
         </button>
+
       </div>
 
       {/* ── Search ── */}
