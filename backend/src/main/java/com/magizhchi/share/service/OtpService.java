@@ -20,14 +20,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * OTP orchestration service.
  *
- * In MOCK mode  (otp.mock=true, default in dev):
- *   – Generates a code locally, saves to DB, prints it in the log.
- *   – Verification reads the code back from DB (no Twilio calls).
+ * Phone (E.164) identifiers:
+ *   MOCK  — generate locally, save to DB, print in logs.
+ *   PROD  — delegate send + check to Twilio Verify (stateless on our side).
  *
- * In PRODUCTION mode (otp.mock=false):
- *   – Delegates to Twilio Verify for both send and check.
- *   – No OTP codes are stored locally; Twilio manages the state.
- *   – Rate limiting (Redis) is still applied on our side.
+ * Email identifiers (login only — registration always requires a phone):
+ *   MOCK  — generate locally, save to DB, print in logs.
+ *   PROD  — generate locally, save to DB, send via SMTP (never touches Twilio).
+ *
+ * Rate limiting (Redis) is applied to every identifier regardless of mode.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class OtpService {
     private final OtpCodeRepository   otpRepo;
     private final StringRedisTemplate redis;
     private final SmsService          smsService;
+    private final EmailService        emailService;
 
     @Value("${otp.length}")                    private int     otpLength;
     @Value("${otp.expiry-minutes}")            private int     expiryMinutes;
@@ -51,29 +53,24 @@ public class OtpService {
 
     /**
      * Send an OTP to {@code identifier} (E.164 phone or e-mail address).
-     * Applies rate limiting in Redis regardless of mode.
+     * Applies Redis rate limiting regardless of channel or mode.
      */
     @Transactional
     public void sendOtp(String identifier, OtpCode.OtpPurpose purpose) {
 
-        // ── Per-send cooldown: enforce a minimum 60-second gap between sends ──
-        // Uses SET NX EX (setIfAbsent) which is atomic — eliminates the race
-        // condition where two concurrent requests both pass hasKey() before either
-        // has written the key.  Only the first caller gets true; every subsequent
-        // caller within the 60-second window gets false → rate-limited.
+        // ── Per-send cooldown (atomic SET NX EX — race-condition-safe) ──────
         String cooldownKey = "otp:cooldown:" + identifier;
-        Boolean acquired = redis.opsForValue().setIfAbsent(cooldownKey, "1", 60, TimeUnit.SECONDS);
-        if (!Boolean.TRUE.equals(acquired)) {
-            // Key already existed — we are within the cooldown window
-            Long ttl = redis.getExpire(cooldownKey, TimeUnit.SECONDS);
+        Boolean acquired = redis.opsForValue()
+                .setIfAbsent(cooldownKey, "1", 60, TimeUnit.SECONDS);
+        if (Boolean.FALSE.equals(acquired)) {
+            Long ttl  = redis.getExpire(cooldownKey, TimeUnit.SECONDS);
             long wait = (ttl != null && ttl > 0) ? ttl : 60;
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS,
                     "Please wait " + wait + " second" + (wait == 1 ? "" : "s") +
                     " before requesting a new code.");
         }
-        // acquired == true → cooldown key just set; this is the first call in this window
 
-        // ── Rate-limit: max N sends per window (both mock and real) ──
+        // ── Per-window rate limit ─────────────────────────────────────────────
         String rateLimitKey = "otp:rate:" + identifier;
         Long sends = redis.opsForValue().increment(rateLimitKey);
         if (sends != null && sends == 1) {
@@ -84,73 +81,29 @@ public class OtpService {
                     "Too many OTP requests. Please wait before trying again.");
         }
 
-        if (mock) {
-            // ── Mock: generate locally, save to DB, log ──
-            String code = generateCode();
-            Instant now = Instant.now();
-            otpRepo.save(OtpCode.builder()
-                    .identifier(identifier)
-                    .code(code)
-                    .purpose(purpose)
-                    .expiresAt(now.plus(expiryMinutes, ChronoUnit.MINUTES))
-                    .createdAt(now)
-                    .build());
-            log.warn("🔑 [OTP MOCK] {} → code={}", identifier, code);
-
+        // ── Route by identifier type ──────────────────────────────────────────
+        if (isEmail(identifier)) {
+            sendEmailOtp(identifier, purpose);
         } else {
-            // ── Production: delegate to Twilio Verify ──
-            boolean isPhone = identifier.startsWith("+") || identifier.matches("\\d{10,15}");
-            if (isPhone) {
-                smsService.sendVerification(identifier);
-            } else {
-                // e-mail OTP — Twilio Verify supports email too but requires extra setup;
-                // log for now and extend later.
-                log.info("EMAIL OTP requested for {} — not yet wired to Verify", identifier);
-                throw new AppException(HttpStatus.NOT_IMPLEMENTED,
-                        "Email OTP is not supported yet. Please use your mobile number.");
-            }
+            sendPhoneOtp(identifier, purpose);
         }
     }
 
     // ── Verify ────────────────────────────────────────────────────────────────
 
     /**
-     * Verify the OTP entered by the user.
-     * Throws {@link AppException} on failure; returns normally on success.
+     * Verify the OTP code entered by the user.
+     * Email OTPs always use the DB path.
+     * Phone OTPs use Twilio in production, DB in mock mode.
      */
     @Transactional
     public void verifyOtp(String identifier, String code, OtpCode.OtpPurpose purpose) {
 
-        if (mock) {
-            // ── Mock: check DB record ──
-            OtpCode otp = otpRepo
-                    .findTopByIdentifierAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(identifier, purpose)
-                    .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST,
-                            "No pending OTP found. Please request a new code."));
-
-            if (otp.isExpired()) {
-                throw new AppException(HttpStatus.BAD_REQUEST,
-                        "OTP has expired. Please request a new one.");
-            }
-            if (otp.getAttempts() >= maxAttempts) {
-                throw new AppException(HttpStatus.BAD_REQUEST,
-                        "Maximum attempts exceeded. Please request a new OTP.");
-            }
-
-            otp.setAttempts(otp.getAttempts() + 1);
-
-            if (!otp.isValid(code)) {
-                otpRepo.save(otp);
-                int remaining = maxAttempts - otp.getAttempts();
-                throw new AppException(HttpStatus.BAD_REQUEST,
-                        "Incorrect OTP. " + remaining + " attempt(s) remaining.");
-            }
-
-            otp.setIsUsed(true);
-            otpRepo.save(otp);
-
+        if (mock || isEmail(identifier)) {
+            // DB-based verification (mock SMS, or email OTP in any mode)
+            verifyFromDb(identifier, code, purpose);
         } else {
-            // ── Production: ask Twilio Verify ──
+            // Production phone: ask Twilio Verify
             boolean approved = smsService.checkVerification(identifier, code);
             if (!approved) {
                 throw new AppException(HttpStatus.BAD_REQUEST,
@@ -160,16 +113,88 @@ public class OtpService {
 
         // Clear rate-limit counter on successful verification
         redis.delete("otp:rate:" + identifier);
+        redis.delete("otp:cooldown:" + identifier);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private boolean isEmail(String identifier) {
+        return identifier != null && identifier.contains("@");
+    }
+
+    /** Phone OTP: Twilio in prod, DB-logged in mock. */
+    private void sendPhoneOtp(String identifier, OtpCode.OtpPurpose purpose) {
+        if (mock) {
+            saveToDb(identifier, purpose, generateCode(), true);
+        } else {
+            smsService.sendVerification(identifier);
+        }
+    }
+
+    /**
+     * Email OTP: always generate + save to DB.
+     * In mock mode, log the code; in production, send via SMTP.
+     */
+    private void sendEmailOtp(String identifier, OtpCode.OtpPurpose purpose) {
+        String code = generateCode();
+        saveToDb(identifier, purpose, code, mock); // log only in mock
+
+        if (!mock) {
+            emailService.sendOtp(identifier, code, expiryMinutes);
+        }
+    }
+
+    /** Persist OTP to DB; log the code when {@code logCode} is true (mock). */
+    private void saveToDb(String identifier, OtpCode.OtpPurpose purpose,
+                          String code, boolean logCode) {
+        Instant now = Instant.now();
+        otpRepo.save(OtpCode.builder()
+                .identifier(identifier)
+                .code(code)
+                .purpose(purpose)
+                .expiresAt(now.plus(expiryMinutes, ChronoUnit.MINUTES))
+                .createdAt(now)
+                .build());
+        if (logCode) {
+            log.warn("🔑 [OTP MOCK] {} → code={}", identifier, code);
+        }
+    }
+
+    /** Validate an OTP stored in DB (email or mock-phone). */
+    private void verifyFromDb(String identifier, String code, OtpCode.OtpPurpose purpose) {
+        OtpCode otp = otpRepo
+                .findTopByIdentifierAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(identifier, purpose)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST,
+                        "No pending OTP found. Please request a new code."));
+
+        if (otp.isExpired()) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "OTP has expired. Please request a new one.");
+        }
+        if (otp.getAttempts() >= maxAttempts) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Maximum attempts exceeded. Please request a new OTP.");
+        }
+
+        otp.setAttempts(otp.getAttempts() + 1);
+
+        if (!otp.isValid(code)) {
+            otpRepo.save(otp);
+            int remaining = maxAttempts - otp.getAttempts();
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Incorrect OTP. " + remaining + " attempt(s) remaining.");
+        }
+
+        otp.setIsUsed(true);
+        otpRepo.save(otp);
+    }
 
     private String generateCode() {
         int max = (int) Math.pow(10, otpLength);
         return String.format("%0" + otpLength + "d", RANDOM.nextInt(max));
     }
 
-    /** Nightly cleanup of expired mock OTP records (no-op in production but harmless). */
+    /** Nightly cleanup of expired OTP records. */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanupExpiredOtps() {

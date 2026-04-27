@@ -25,16 +25,18 @@ export default function Login() {
       setStep(2); startCountdown(60);
       toast.success('Verification code sent!');
     } catch (msg) {
-      // Any rate-limit response (cooldown OR per-window limit) means an OTP was
-      // already sent — advance to Step 2 so the user can enter the code they have.
       const s = String(msg);
-      const waitMatch = s.match(/(\d+) second/i);
-      const isRateLimit = waitMatch || /too many|please wait|rate.?limit/i.test(s);
-      if (isRateLimit) {
+      // "Please wait N seconds" = our Redis cooldown fired, meaning an OTP WAS
+      // already sent successfully before. Advance to Step 2 so the user can
+      // enter the code they already have.
+      const waitMatch = s.match(/please wait (\d+) second/i);
+      if (waitMatch) {
         setStep(2);
-        startCountdown(waitMatch ? parseInt(waitMatch[1], 10) : 60);
+        startCountdown(parseInt(waitMatch[1], 10));
         toast('A code was already sent — check your messages.', { icon: 'ℹ️', duration: 5000 });
       } else {
+        // Twilio 20429, invalid number, service down, etc. — no OTP was sent,
+        // stay on Step 1 and show the error.
         setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
       }
     }
@@ -147,7 +149,11 @@ export default function Login() {
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}
                     placeholder="+91 9876543210 or you@example.com"
+                    autoComplete="username"
                     autoFocus/>
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    📱 Mobile → OTP via SMS &nbsp;·&nbsp; 📧 Email → OTP via email
+                  </p>
                 </div>
 
                 <button
@@ -200,7 +206,7 @@ export default function Login() {
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Enter verification code</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  A 6-digit code was sent to<br/>
+                  A 6-digit code was sent {identifier.includes('@') ? 'to' : 'via SMS to'}<br/>
                   <span className="font-semibold text-gray-700">{identifier}</span>
                 </p>
               </div>

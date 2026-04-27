@@ -34,16 +34,18 @@ export default function Register() {
       setStep(2); startCountdown(60);
       toast.success('Verification code sent!');
     } catch (msg) {
-      // Any rate-limit response (cooldown OR per-window limit) means an OTP was
-      // already sent — advance to Step 2 so the user can enter the code they have.
       const s = String(msg);
-      const waitMatch = s.match(/(\d+) second/i);
-      const isRateLimit = waitMatch || /too many|please wait|rate.?limit/i.test(s);
-      if (isRateLimit) {
+      // "Please wait N seconds" = our Redis cooldown fired, meaning an OTP WAS
+      // already sent successfully before. Advance to Step 2 so the user can
+      // enter the code they already have.
+      const waitMatch = s.match(/please wait (\d+) second/i);
+      if (waitMatch) {
         setStep(2);
-        startCountdown(waitMatch ? parseInt(waitMatch[1], 10) : 60);
+        startCountdown(parseInt(waitMatch[1], 10));
         toast('A code was already sent — check your messages.', { icon: 'ℹ️', duration: 5000 });
       } else {
+        // Twilio 20429, invalid number, service down, etc. — no OTP was sent,
+        // stay on Step 1 and show the error.
         setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
       }
     }

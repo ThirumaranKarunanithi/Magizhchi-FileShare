@@ -30,6 +30,23 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
 
+  # ── Email (OTP + notifications) ─────────────────────────────
+  mail:
+    host:     ${MAIL_HOST:smtp.gmail.com}
+    port:     ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        connectiontimeout: 5000
+        timeout: 5000
+        writetimeout: 5000
+
   # ── File upload limits ───────────────────────────────────────
   servlet:
     multipart:
@@ -68,7 +85,7 @@ otp:
   expiry-minutes: 10
   max-attempts: 3
   rate-limit-window-minutes: 15   # window resets every 15 min (was 60 — too long)
-  rate-limit-max-sends: 3         # max 3 OTPs per 15-min window
+  rate-limit-max-sends: 5         # max 5 OTPs per 15-min window (60s cooldown already prevents rapid sends)
   # Set to true in dev to skip SMS and print OTP in logs
   mock: ${OTP_MOCK:false}
 
