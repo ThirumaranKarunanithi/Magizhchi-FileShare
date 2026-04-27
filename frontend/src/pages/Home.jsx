@@ -70,25 +70,25 @@ function EmptyState() {
           boxShadow: '0 8px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)',
         }}
       >
-        {/* App icon */}
-        <div className="flex items-center gap-4">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{
-              background: 'rgba(255,255,255,0.18)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-            }}
-          >
-            <span className="text-3xl">📂</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-extrabold text-white leading-tight tracking-tight">
-              Magizhchi Share
-            </h1>
-            <p className="text-sky-100/80 text-xs font-medium mt-0.5">
-              Secure Cloud Storage, Simplified
-            </p>
+        {/* Logo */}
+        <div className="flex justify-center">
+          <img src="/logo.png" alt="Magizhchi Box"
+               className="h-20 select-none drop-shadow-xl"
+               style={{ filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.2))' }}
+               onError={e => {
+                 e.currentTarget.style.display = 'none';
+                 document.getElementById('logo-fallback-empty').style.display = 'flex';
+               }}/>
+          <div id="logo-fallback-empty"
+               className="hidden items-center gap-3">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                 style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <span className="text-3xl">📂</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-extrabold text-white">Magizhchi Box</h1>
+              <p className="text-sky-100/80 text-xs mt-0.5">Secure Cloud Storage, Simplified</p>
+            </div>
           </div>
         </div>
 

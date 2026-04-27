@@ -254,9 +254,18 @@ export default function Sidebar({ selected, onSelect }) {
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📂</span>
-          <span className="font-bold text-slate-800">Magizhchi Share</span>
+        <div className="flex items-center">
+          <img src="/logo.png" alt="Magizhchi Box"
+               className="h-9 select-none"
+               onError={e => {
+                 e.currentTarget.style.display = 'none';
+                 document.getElementById('logo-fallback-sidebar').style.display = 'flex';
+               }}/>
+          <div id="logo-fallback-sidebar"
+               className="hidden items-center gap-2">
+            <span className="text-xl">📂</span>
+            <span className="font-bold text-slate-800">Magizhchi Box</span>
+          </div>
         </div>
         <div className="flex items-center gap-1">
 
