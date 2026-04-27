@@ -44,9 +44,10 @@ export default function StorageModal({ onClose }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
          onClick={onClose}>
-      <div className="w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
+      <div className="w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col"
            style={{
              background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 40%, #0ea5e9 100%)',
+             maxHeight: '88vh',
            }}
            onClick={e => e.stopPropagation()}>
 
@@ -57,7 +58,7 @@ export default function StorageModal({ onClose }) {
                backgroundSize: '20px 20px',
              }}/>
 
-        <div className="relative z-10">
+        <div className="relative z-10 flex flex-col flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between px-6 pt-5 pb-4">
             <div>
@@ -75,7 +76,9 @@ export default function StorageModal({ onClose }) {
           {loading ? (
             <div className="px-6 pb-6 text-center text-white/60 text-sm">Loading…</div>
           ) : data && (
-            <div className="px-6 pb-2">
+            <div className="px-6 pb-2 flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* ── Fixed: main storage bar ── */}
+              <div className="flex-shrink-0">
               <div className="rounded-2xl p-4 mb-4"
                    style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
                 <div className="flex justify-between items-end mb-2">
@@ -119,6 +122,10 @@ export default function StorageModal({ onClose }) {
                   </button>
                 ))}
               </div>
+              </div>{/* end flex-shrink-0 fixed section */}
+
+              {/* ── Scrollable tab content ── */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
 
               {/* Tab: Overview */}
               {activeTab === 'Overview' && (
@@ -191,6 +198,8 @@ export default function StorageModal({ onClose }) {
                   ))}
                 </div>
               )}
+
+              </div>{/* end scrollable tab content */}
             </div>
           )}
         </div>
