@@ -4,6 +4,7 @@ import { subscribeToConversation } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import ShareModal from './ShareModal';
 
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ export default function ChatWindow({ conversation }) {
 
   // folder upload progress: null | { done: number, total: number }
   const [folderProgress, setFolderProgress] = useState(null);
+  const [showShare,      setShowShare]      = useState(false);
 
   // ── Load files ──────────────────────────────────────────────────────────────
   const loadFiles = useCallback(async (p = 0, prepend = false) => {
@@ -384,6 +386,12 @@ export default function ChatWindow({ conversation }) {
                 ⬇ Download
               </button>
               <button
+                onClick={() => setShowShare(true)}
+                className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all"
+                style={{ background: 'rgba(139,92,246,0.35)', border: '1px solid rgba(167,139,250,0.5)' }}>
+                🔗 Share
+              </button>
+              <button
                 onClick={async () => {
                   if (!window.confirm(`Delete ${selected.size} file(s)?`)) return;
                   for (const id of [...selected]) {
@@ -519,6 +527,18 @@ export default function ChatWindow({ conversation }) {
                           ⬇
                         </button>
                         {isMine && (
+                          <button
+                            onClick={() => {
+                              setSelected(new Set([msg.id]));
+                              setShowShare(true);
+                            }}
+                            title="Share"
+                            className="p-2 rounded-lg transition-all text-sm"
+                            style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>
+                            🔗
+                          </button>
+                        )}
+                        {isMine && (
                           <button onClick={() => handleDelete(msg.id)} title="Delete"
                                   className="p-2 rounded-lg bg-red-50 hover:bg-red-100
                                              text-red-500 transition-all text-sm">
@@ -553,6 +573,14 @@ export default function ChatWindow({ conversation }) {
         </div>
       )}
       </div>{/* end z-10 wrapper */}
+
+      {/* ── Share modal ── */}
+      {showShare && (
+        <ShareModal
+          selectedIds={selected}
+          onClose={() => setShowShare(false)}
+        />
+      )}
     </div>
   );
 }

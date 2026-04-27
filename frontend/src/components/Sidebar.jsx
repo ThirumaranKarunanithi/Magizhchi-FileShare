@@ -9,6 +9,9 @@ import ProfileModal             from './ProfileModal';
 import ConnectionRequestsModal  from './ConnectionRequestsModal';
 import StorageModal             from './StorageModal';
 
+// Sentinel object representing the "Shared with Me" virtual view
+export const SHARED_WITH_ME_VIEW = Object.freeze({ id: '__shared_with_me__', type: 'SHARED_WITH_ME' });
+
 function fmtStorage(bytes) {
   if (!bytes) return '0 B';
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -267,6 +270,34 @@ export default function Sidebar({ selected, onSelect }) {
           </div>
           <span className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5
                             ${selected?.type === 'PERSONAL' ? 'text-white/70' : 'text-sky-400'}`}>›</span>
+        </button>
+      </div>
+
+      {/* ── Shared with Me ── */}
+      <div className="px-3 pb-2">
+        <button onClick={() => onSelect(SHARED_WITH_ME_VIEW)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border
+                            transition-all group
+                            ${selected?.type === 'SHARED_WITH_ME'
+                              ? 'bg-violet-500 border-violet-500 shadow-md'
+                              : 'bg-gradient-to-r from-violet-50 to-purple-50 border-violet-100 hover:border-violet-300 hover:shadow-sm'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center
+                           text-xl flex-shrink-0 shadow-sm
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'bg-white/20' : 'bg-white border border-violet-100'}`}>
+            🔗
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className={`text-sm font-bold truncate
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white' : 'text-slate-800'}`}>
+              Shared with Me
+            </p>
+            <p className={`text-xs truncate
+                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-slate-400'}`}>
+              Files others have shared
+            </p>
+          </div>
+          <span className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5
+                            ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-violet-400'}`}>›</span>
         </button>
       </div>
 

@@ -34,6 +34,7 @@ public class FileMessageService {
     private final ConversationService          convService;
     private final ConnectionService            connService;
     private final SimpMessagingTemplate        messagingTemplate;
+    private final SharingService               sharingService;
 
     /**
      * Upload a file, create the FileMessage record, and push a WebSocket event
@@ -240,8 +241,11 @@ public class FileMessageService {
         if (msg.getIsDeleted()) {
             throw new AppException(HttpStatus.GONE, "This file has been deleted.");
         }
-        if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(
-                msg.getConversation().getId(), userId)) {
+        // Allow access if user is a conversation member OR the file was shared with them
+        boolean isMember = memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(
+                msg.getConversation().getId(), userId);
+        boolean isShared = !isMember && sharingService.hasAccess(messageId, userId);
+        if (!isMember && !isShared) {
             throw new AppException(HttpStatus.FORBIDDEN, "Access denied.");
         }
         return msg;

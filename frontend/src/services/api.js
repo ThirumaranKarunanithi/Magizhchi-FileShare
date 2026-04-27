@@ -83,6 +83,18 @@ export const storage = {
   usage: () => api.get('/api/storage/usage'),
 };
 
+// ── Sharing ──────────────────────────────────────────────────────────────────
+export const sharing = {
+  /** Share files: { resourceIds, shareType, targetId, permission } */
+  create:       (body)     => api.post('/api/share', body),
+  /** Files shared directly or via a group with the current user */
+  sharedWithMe: ()         => api.get('/api/share/shared-with-me'),
+  /** Files the current user has shared with others */
+  sharedByMe:   ()         => api.get('/api/share/shared-by-me'),
+  /** Revoke a share by its ID */
+  revoke:       (shareId)  => api.delete(`/api/share/${shareId}`),
+};
+
 // ── Files ────────────────────────────────────────────────────────────────────
 export const files = {
   send:         (cid, formData)  => api.post(`/api/files/send/${cid}`, formData),

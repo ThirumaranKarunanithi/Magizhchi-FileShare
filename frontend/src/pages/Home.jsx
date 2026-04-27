@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import Sidebar    from '../components/Sidebar';
-import ChatWindow from '../components/ChatWindow';
+import Sidebar, { SHARED_WITH_ME_VIEW } from '../components/Sidebar';
+import ChatWindow        from '../components/ChatWindow';
+import SharedWithMeView from '../components/SharedWithMeView';
 import { connectSocket, disconnectSocket } from '../services/socket';
 
 export default function Home() {
@@ -17,7 +18,9 @@ export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">
       <Sidebar selected={selectedConv} onSelect={setSelectedConv}/>
-      {selectedConv ? (
+      {selectedConv?.type === 'SHARED_WITH_ME' ? (
+        <SharedWithMeView key="shared-with-me"/>
+      ) : selectedConv ? (
         <ChatWindow key={selectedConv.id} conversation={selectedConv}/>
       ) : (
         <EmptyState/>
