@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface SharedResourceRepository extends JpaRepository<SharedResource, Long> {
 
-    // ── Shared with me (direct user shares) ──────────────────────────────
+    // Shared with me (direct user shares)
 
     @Query("""
         SELECT sr FROM SharedResource sr
@@ -25,7 +25,7 @@ public interface SharedResourceRepository extends JpaRepository<SharedResource, 
     List<SharedResource> findDirectSharesWithUser(@Param("userId") Long userId,
                                                   @Param("now") Instant now);
 
-    // ── Shared with me (via group membership) ────────────────────────────
+    // Shared with me (via group membership)
 
     @Query("""
         SELECT sr FROM SharedResource sr
@@ -43,7 +43,7 @@ public interface SharedResourceRepository extends JpaRepository<SharedResource, 
     List<SharedResource> findGroupSharesWithUser(@Param("userId") Long userId,
                                                  @Param("now") Instant now);
 
-    // ── Shared by me ─────────────────────────────────────────────────────
+    // Shared by me
 
     @Query("""
         SELECT sr FROM SharedResource sr
@@ -54,7 +54,41 @@ public interface SharedResourceRepository extends JpaRepository<SharedResource, 
         """)
     List<SharedResource> findSharedByUser(@Param("ownerId") Long ownerId);
 
-    // ── Duplicate check ───────────────────────────────────────────────────
+    // Context: all active USER shares between two users (bidirectional)
+
+    @Query("""
+        SELECT sr FROM SharedResource sr
+        JOIN FETCH sr.fileMessage fm
+        JOIN FETCH sr.owner
+        WHERE sr.shareType = 'USER'
+          AND sr.revoked = false
+          AND (sr.expiresAt IS NULL OR sr.expiresAt > :now)
+          AND (
+              (sr.owner.id = :userId AND sr.targetUser.id = :otherId)
+           OR (sr.owner.id = :otherId AND sr.targetUser.id = :userId)
+          )
+        ORDER BY sr.createdAt DESC
+        """)
+    List<SharedResource> findSharesBetweenUsers(@Param("userId") Long userId,
+                                                @Param("otherId") Long otherId,
+                                                @Param("now") Instant now);
+
+    // Context: all active GROUP shares for a group (any member can see)
+
+    @Query("""
+        SELECT sr FROM SharedResource sr
+        JOIN FETCH sr.fileMessage fm
+        JOIN FETCH sr.owner
+        WHERE sr.shareType = 'GROUP'
+          AND sr.targetGroup.id = :groupId
+          AND sr.revoked = false
+          AND (sr.expiresAt IS NULL OR sr.expiresAt > :now)
+        ORDER BY sr.createdAt DESC
+        """)
+    List<SharedResource> findSharesForGroup(@Param("groupId") Long groupId,
+                                            @Param("now") Instant now);
+
+    // Duplicate check
 
     Optional<SharedResource> findByFileMessageIdAndTargetUserIdAndRevokedFalse(
             Long fileMessageId, Long targetUserId);
@@ -62,7 +96,7 @@ public interface SharedResourceRepository extends JpaRepository<SharedResource, 
     Optional<SharedResource> findByFileMessageIdAndTargetGroupIdAndRevokedFalse(
             Long fileMessageId, Long targetGroupId);
 
-    // ── Access check (for download permission) ───────────────────────────
+    // Access check (for download permission)
 
     @Query("""
         SELECT COUNT(sr) > 0 FROM SharedResource sr

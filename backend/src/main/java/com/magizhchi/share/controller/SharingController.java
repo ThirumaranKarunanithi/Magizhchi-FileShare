@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.bind.annotation.RequestParam;
+
 import java.util.List;
 
 @RestController
@@ -49,6 +51,35 @@ public class SharingController {
     public ResponseEntity<List<SharedResourceResponse>> sharedByMe(
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(sharingService.getSharedByMe(user.getId()));
+    }
+
+    /**
+     * GET /api/share/in-conversation/{conversationId}
+     * Returns all shares visible inside a conversation, determined server-side by the
+     * conversation type. Works for both the sharer and the recipient — no extra params needed.
+     */
+    @GetMapping("/in-conversation/{conversationId}")
+    public ResponseEntity<List<SharedResourceResponse>> inConversation(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long conversationId) {
+        return ResponseEntity.ok(
+                sharingService.getSharesInConversation(user.getId(), conversationId));
+    }
+
+    /**
+     * GET /api/share/context?shareType=USER&targetId={userId}
+     * GET /api/share/context?shareType=GROUP&targetId={groupId}
+     * Returns all shares visible inside a specific conversation:
+     *   USER  → bidirectional shares between the caller and another user
+     *   GROUP → all shares made to that group (caller must be a member)
+     */
+    @GetMapping("/context")
+    public ResponseEntity<List<SharedResourceResponse>> contextShares(
+            @AuthenticationPrincipal User user,
+            @RequestParam String shareType,
+            @RequestParam Long targetId) {
+        return ResponseEntity.ok(
+                sharingService.getContextShares(user.getId(), shareType, targetId));
     }
 
     /**

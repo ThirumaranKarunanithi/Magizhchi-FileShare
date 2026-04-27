@@ -93,6 +93,19 @@ export const sharing = {
   sharedByMe:   ()         => api.get('/api/share/shared-by-me'),
   /** Revoke a share by its ID */
   revoke:       (shareId)  => api.delete(`/api/share/${shareId}`),
+  /**
+   * Shares visible inside a conversation.
+   * shareType: 'USER' (direct) or 'GROUP'
+   * targetId:  the other user's ID (USER) or the conversation ID (GROUP)
+   */
+  context: (shareType, targetId) =>
+    api.get('/api/share/context', { params: { shareType, targetId } }),
+  /**
+   * All shares visible in a conversation — works for both sharer and recipient.
+   * The server resolves the conversation type so no extra params are needed.
+   */
+  inConversation: (conversationId) =>
+    api.get(`/api/share/in-conversation/${conversationId}`),
 };
 
 // ── Files ────────────────────────────────────────────────────────────────────

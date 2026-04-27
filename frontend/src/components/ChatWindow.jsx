@@ -79,8 +79,10 @@ export default function ChatWindow({ conversation }) {
   // folder upload progress: null | { done: number, total: number }
   const [folderProgress, setFolderProgress] = useState(null);
   const [showShare,      setShowShare]      = useState(false);
-  // Set of fileMessageIds that the current user has already shared with someone
-  const [sharedFileIds,  setSharedFileIds]  = useState(new Set());
+  // Map<fileMessageId, SharedResourceResponse[]> — files the current user shared, with targets
+  const [sharedFilesMap, setSharedFilesMap] = useState(new Map());
+  // Shares visible inside this specific conversation (bidirectional for DIRECT, group-wide for GROUP)
+  const [contextShares,  setContextShares]  = useState([]);
 
   // ── Load files ──────────────────────────────────────────────────────────────
   const loadFiles = useCallback(async (p = 0, prepend = false) => {
@@ -106,10 +108,27 @@ export default function ChatWindow({ conversation }) {
     setHasMore(true);
     setSelected(new Set());
     loadFiles(0, false);
-    // Load which files the current user has shared so we can highlight them
+    // Build Map<fileMessageId, shares[]> so each row knows WHO the file was shared with
     sharing.sharedByMe()
-      .then(r => setSharedFileIds(new Set(r.data.map(s => s.fileMessageId))))
+      .then(r => {
+        const map = new Map();
+        r.data.forEach(s => {
+          const list = map.get(s.fileMessageId) ?? [];
+          list.push(s);
+          map.set(s.fileMessageId, list);
+        });
+        setSharedFilesMap(map);
+      })
       .catch(() => {});
+    // Load shares visible in this conversation — works for both sharer and recipient.
+    // Uses conversationId only; the server resolves the type internally.
+    if (conversation.type === 'DIRECT' || conversation.type === 'GROUP') {
+      sharing.inConversation(conversation.id)
+        .then(r => setContextShares(r.data))
+        .catch(() => setContextShares([]));
+    } else {
+      setContextShares([]);
+    }
   }, [conversation.id]); // eslint-disable-line
 
   // ── Real-time ───────────────────────────────────────────────────────────────
@@ -416,6 +435,135 @@ export default function ChatWindow({ conversation }) {
         {/* File rows */}
         <div className="flex-1 overflow-y-auto">
 
+          {/* ── Shared-in-this-space section ── */}
+          {contextShares.length > 0 && (
+            <div>
+              {/* Section header */}
+              <div className="flex items-center gap-2 px-5 py-2.5 sticky top-0 z-10"
+                   style={{
+                     background: 'rgba(109,40,217,0.30)',
+                     borderBottom: '1px solid rgba(167,139,250,0.35)',
+                   }}>
+                <span className="text-sm">🔗</span>
+                <span className="text-xs font-bold text-violet-200 uppercase tracking-wide">
+                  Shared in this space
+                </span>
+                <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(167,139,250,0.25)', color: '#ddd6fe',
+                               border: '1px solid rgba(167,139,250,0.4)' }}>
+                  {contextShares.length}
+                </span>
+              </div>
+
+              {contextShares.map((share, idx) => {
+                const { emoji, bg } = fileIcon(share.category);
+                const isMyShare = share.ownerId === currentUser?.id;
+                const isLast    = idx === contextShares.length - 1;
+
+                return (
+                  <div key={share.id}
+                       className="flex items-center gap-3 px-5 py-3 group transition-colors cursor-default"
+                       style={{
+                         background: 'rgba(109,40,217,0.12)',
+                         borderBottom: !isLast ? '1px solid rgba(167,139,250,0.15)' : 'none',
+                         borderLeft: '3px solid rgba(167,139,250,0.7)',
+                       }}
+                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(109,40,217,0.22)'}
+                       onMouseLeave={e => e.currentTarget.style.background = 'rgba(109,40,217,0.12)'}>
+
+                    {/* Icon with violet ring */}
+                    <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center
+                                    justify-center text-xl"
+                         style={{ background: 'rgba(139,92,246,0.25)',
+                                  boxShadow: '0 0 0 2px rgba(167,139,250,0.55)' }}>
+                      {emoji}
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-white truncate">
+                          {share.fileName}
+                        </p>
+                        {/* Direction badge — different label for sharer vs receiver */}
+                        <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                              style={{
+                                background: isMyShare ? 'rgba(139,92,246,0.4)' : 'rgba(56,189,248,0.25)',
+                                border: isMyShare ? '1px solid rgba(167,139,250,0.5)' : '1px solid rgba(56,189,248,0.4)',
+                                color: '#ede9fe',
+                              }}>
+                          {isMyShare
+                            ? `📤 Shared with ${share.targetName ?? 'them'}`
+                            : `📥 From ${share.ownerName}`}
+                        </span>
+                        <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: share.permission === 'EDITOR'
+                                         ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)',
+                                       border: share.permission === 'EDITOR'
+                                         ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(255,255,255,0.2)',
+                                       color: 'rgba(255,255,255,0.8)' }}>
+                          {share.permission === 'EDITOR' ? '✏️ Edit' : '👁 View'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-violet-200/60 truncate mt-0.5">
+                        {formatBytes(share.sizeBytes)}
+                        {share.sharedAt && ` · ${format(new Date(share.sharedAt), 'd MMM yyyy')}`}
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100
+                                    transition-opacity flex-shrink-0">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { data } = await files.downloadUrl(share.fileMessageId);
+                            const a = document.createElement('a');
+                            a.href = data.url; a.download = share.fileName; a.click();
+                          } catch (e) { toast.error('Download failed: ' + e); }
+                        }}
+                        title="Download"
+                        className="p-2 rounded-lg text-sm transition-all"
+                        style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>
+                        ⬇
+                      </button>
+                      {isMyShare && (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm(`Revoke share of "${share.fileName}"?`)) return;
+                            try {
+                              await sharing.revoke(share.id);
+                              setContextShares(prev => prev.filter(s => s.id !== share.id));
+                              setSharedFilesMap(prev => {
+                                const next = new Map(prev);
+                                const list = (next.get(share.fileMessageId) ?? []).filter(s => s.id !== share.id);
+                                list.length ? next.set(share.fileMessageId, list) : next.delete(share.fileMessageId);
+                                return next;
+                              });
+                              toast.success('Share revoked.');
+                            } catch (e) { toast.error(e?.toString() || 'Could not revoke.'); }
+                          }}
+                          title="Revoke share"
+                          className="p-2 rounded-lg text-sm transition-all"
+                          style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}>
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Divider between shared section and own files */}
+              <div className="px-5 py-2 flex items-center gap-3"
+                   style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }}/>
+                <span className="text-xs text-white/30">conversation files</span>
+                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }}/>
+              </div>
+            </div>
+          )}
+
           {hasMore && (
             <div className="text-center py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <button onClick={() => { const n = page + 1; setPage(n); loadFiles(n, true); }}
@@ -478,8 +626,9 @@ export default function ChatWindow({ conversation }) {
                 {/* ── File rows (hidden when folder is collapsed) ── */}
                 {isExpanded && group.items.map((msg, idx) => {
                   const { emoji, bg } = fileIcon(msg.category);
-                  const isMine   = msg.senderId === currentUser?.id;
-                  const isShared = sharedFileIds.has(msg.id);
+                  const isMine    = msg.senderId === currentUser?.id;
+                  const myShares  = sharedFilesMap.get(msg.id) ?? [];
+                  const isShared  = myShares.length > 0;
                   const isLast   = idx === group.items.length - 1 && gi === groups.length - 1;
 
                   // Shared files get a violet left-border accent and a faint violet tint
@@ -539,7 +688,7 @@ export default function ChatWindow({ conversation }) {
                                     border: '1px solid rgba(167,139,250,0.5)',
                                     color: '#ddd6fe',
                                   }}>
-                              Shared
+                              🔗 Shared
                             </span>
                           )}
                         </div>
@@ -554,6 +703,22 @@ export default function ChatWindow({ conversation }) {
                         {msg.caption && (
                           <p className="text-xs text-white/45 italic truncate mt-0.5">
                             "{msg.caption}"
+                          </p>
+                        )}
+                        {isShared && (
+                          <p className="text-[11px] mt-0.5 truncate" style={{ color: '#c4b5fd' }}>
+                            Shared with&nbsp;
+                            {myShares.map((s, i) => (
+                              <span key={s.id}>
+                                {i > 0 && ', '}
+                                <span className="font-semibold">
+                                  {s.shareType === 'GROUP' ? `👥 ${s.targetName}` : s.targetName}
+                                </span>
+                                <span style={{ color: 'rgba(196,181,253,0.6)' }}>
+                                  &nbsp;({s.permission === 'EDITOR' ? 'Edit' : 'View'})
+                                </span>
+                              </span>
+                            ))}
                           </p>
                         )}
                       </div>
@@ -620,10 +785,22 @@ export default function ChatWindow({ conversation }) {
           selectedIds={selected}
           onClose={() => {
             setShowShare(false);
-            // Refresh the shared-IDs set so newly shared files turn violet immediately
+            // Refresh shared-targets map and context panel
             sharing.sharedByMe()
-              .then(r => setSharedFileIds(new Set(r.data.map(s => s.fileMessageId))))
+              .then(r => {
+                const map = new Map();
+                r.data.forEach(s => {
+                  const list = map.get(s.fileMessageId) ?? [];
+                  list.push(s);
+                  map.set(s.fileMessageId, list);
+                });
+                setSharedFilesMap(map);
+              })
               .catch(() => {});
+            if (conversation.type === 'DIRECT' || conversation.type === 'GROUP') {
+              sharing.inConversation(conversation.id)
+                .then(r => setContextShares(r.data)).catch(() => {});
+            }
           }}
         />
       )}

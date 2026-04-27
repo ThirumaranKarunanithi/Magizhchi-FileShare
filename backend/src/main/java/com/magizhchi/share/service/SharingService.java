@@ -174,6 +174,80 @@ public class SharingService {
                 .toList();
     }
 
+    // ── Shares inside a specific conversation (by conv ID) ───────────────────
+
+    /**
+     * Returns all active shares visible inside a conversation, resolved by the
+     * conversation's own type — no need for the caller to supply shareType/targetId.
+     *
+     * DIRECT   → bidirectional shares between the two members
+     * GROUP    → all shares made to that group (requester must be a member)
+     * PERSONAL → empty (personal storage has no sharing context)
+     */
+    @Transactional(readOnly = true)
+    public List<SharedResourceResponse> getSharesInConversation(Long requesterId, Long conversationId) {
+        Conversation conv = convRepo.findById(conversationId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Conversation not found."));
+
+        if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(conversationId, requesterId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "Not a member of this conversation.");
+        }
+
+        Instant now = Instant.now();
+
+        if (conv.getType() == Conversation.ConversationType.DIRECT) {
+            // Find the other participant
+            Long otherId = memberRepo.findActiveMembers(conversationId).stream()
+                    .map(m -> m.getUser().getId())
+                    .filter(id -> !id.equals(requesterId))
+                    .findFirst()
+                    .orElse(null);
+            if (otherId == null) return List.of();
+            return shareRepo.findSharesBetweenUsers(requesterId, otherId, now)
+                    .stream().map(this::toResponse).toList();
+
+        } else if (conv.getType() == Conversation.ConversationType.GROUP) {
+            return shareRepo.findSharesForGroup(conversationId, now)
+                    .stream().map(this::toResponse).toList();
+        }
+
+        return List.of(); // PERSONAL — no sharing context
+    }
+
+    // ── Context shares (for rendering inside a conversation) ─────────────────
+
+    /**
+     * Returns all active shares visible inside a conversation:
+     *  - shareType USER  → bidirectional shares between the two users
+     *  - shareType GROUP → all shares made to that group (any member can see)
+     */
+    @Transactional(readOnly = true)
+    public List<SharedResourceResponse> getContextShares(Long userId,
+                                                         String shareTypeStr,
+                                                         Long targetId) {
+        SharedResource.ShareType shareType;
+        try {
+            shareType = SharedResource.ShareType.valueOf(shareTypeStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "shareType must be USER or GROUP");
+        }
+
+        Instant now = Instant.now();
+        List<SharedResource> results;
+
+        if (shareType == SharedResource.ShareType.USER) {
+            results = shareRepo.findSharesBetweenUsers(userId, targetId, now);
+        } else {
+            // Verify the requester is a member of the group
+            if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(targetId, userId)) {
+                throw new AppException(HttpStatus.FORBIDDEN, "Not a member of this group.");
+            }
+            results = shareRepo.findSharesForGroup(targetId, now);
+        }
+
+        return results.stream().map(this::toResponse).toList();
+    }
+
     // ── Revoke ────────────────────────────────────────────────────────────────
 
     @Transactional
