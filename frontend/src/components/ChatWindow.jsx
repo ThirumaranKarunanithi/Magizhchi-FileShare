@@ -85,6 +85,8 @@ export default function ChatWindow({ conversation }) {
 
   // ── Search ─────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
+  // 'ALL' | 'NAME' | 'DESC' | 'SENDER'
+  const [searchField, setSearchField] = useState('ALL');
 
   // folder upload progress: null | { done: number, total: number }
   const [folderProgress, setFolderProgress] = useState(null);
@@ -278,10 +280,19 @@ export default function ChatWindow({ conversation }) {
   const q = searchQuery.trim().toLowerCase();
   const displayed = messages
     .filter(m => filter === 'ALL' || m.category === filter)
-    .filter(m => !q || (
-      m.originalFileName?.toLowerCase().includes(q) ||
-      m.caption?.toLowerCase().includes(q)
-    ));
+    .filter(m => {
+      if (!q) return true;
+      switch (searchField) {
+        case 'NAME':   return m.originalFileName?.toLowerCase().includes(q);
+        case 'DESC':   return m.caption?.toLowerCase().includes(q);
+        case 'SENDER': return m.senderName?.toLowerCase().includes(q);
+        default:       return (                        // ALL
+          m.originalFileName?.toLowerCase().includes(q) ||
+          m.caption?.toLowerCase().includes(q)         ||
+          m.senderName?.toLowerCase().includes(q)
+        );
+      }
+    });
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
   const groups     = groupByFolder(displayed);
 
@@ -460,6 +471,7 @@ export default function ChatWindow({ conversation }) {
 
         {/* ── Search row ── */}
         <div className="px-4 pt-3 pb-2 border-b border-white/15">
+          {/* Search input */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
                style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.20)' }}>
             <span className="text-white/45 text-sm flex-shrink-0 select-none">🔍</span>
@@ -469,7 +481,12 @@ export default function ChatWindow({ conversation }) {
               spellCheck={false}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search by file name or description…"
+              placeholder={
+                searchField === 'NAME'   ? 'Search by file name…'    :
+                searchField === 'DESC'   ? 'Search by description…'  :
+                searchField === 'SENDER' ? 'Search by sender name…'  :
+                                          'Search files…'
+              }
               style={{ background: 'transparent', border: 'none', outline: 'none',
                        color: 'white', fontSize: '0.875rem', width: '100%',
                        caretColor: 'white' }}
@@ -482,11 +499,42 @@ export default function ChatWindow({ conversation }) {
               </button>
             )}
           </div>
-          {searchQuery && (
-            <p className="text-[11px] text-white/40 mt-1.5 px-1">
-              {displayed.length} result{displayed.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
-            </p>
-          )}
+
+          {/* Field selector pills */}
+          <div className="flex items-center gap-1.5 mt-2">
+            {[
+              { key: 'ALL',    label: 'All'         },
+              { key: 'NAME',   label: 'File name'   },
+              { key: 'DESC',   label: 'Description' },
+              { key: 'SENDER', label: 'Sender'      },
+            ].map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setSearchField(opt.key)}
+                style={{
+                  padding: '2px 10px',
+                  borderRadius: '999px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  background: searchField === opt.key
+                    ? 'rgba(255,255,255,0.90)'
+                    : 'rgba(255,255,255,0.10)',
+                  color: searchField === opt.key ? '#0369a1' : 'rgba(255,255,255,0.65)',
+                  border: searchField === opt.key
+                    ? '1px solid rgba(255,255,255,0.80)'
+                    : '1px solid rgba(255,255,255,0.18)',
+                }}>
+                {opt.label}
+              </button>
+            ))}
+            {searchQuery && (
+              <span className="ml-auto text-[11px] text-white/40">
+                {displayed.length} result{displayed.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Card header row */}
