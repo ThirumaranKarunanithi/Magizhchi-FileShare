@@ -73,8 +73,8 @@ export default function Sidebar({ selected, onSelect }) {
   const [pendingCount,     setPendingCount]     = useState(0);
   const [storageData,      setStorageData]      = useState(null);
   const [showStorage,      setShowStorage]      = useState(false);
-  // Unread badges
-  const [unreadConvIds,    setUnreadConvIds]    = useState(new Set()); // convIds with new unseen files
+  // Unread badges — Map<convId, fileCount> so we can show "5 files received"
+  const [unreadCounts,     setUnreadCounts]     = useState(new Map()); // convId → unread file count
   const [unreadShares,     setUnreadShares]     = useState(0);         // new shares received
   // Per-user action loading: { [userId]: 'sending'|'accepting'|'cancelling'|'rejecting' }
   const [actionLoading,    setActionLoading]    = useState({});
@@ -117,11 +117,15 @@ export default function Sidebar({ selected, onSelect }) {
         // Show a toast
         toast(`📂 ${p.senderName} shared "${p.fileName}"`,
               { duration: 5000, icon: '📁' });
-        // Mark this conversation as having unread files (only if not currently open)
-        setUnreadConvIds(prev => {
+        // Determine how many files this notification represents.
+        // Folder uploads send one summary: e.g. "📁 MyFolder (5 files)"
+        const folderMatch = String(p.fileName ?? '').match(/\((\d+) files?\)/i);
+        const incoming = folderMatch ? parseInt(folderMatch[1], 10) : 1;
+        // Increment the per-conversation count (skip if the conversation is open right now)
+        setUnreadCounts(prev => {
           if (selectedRef.current?.id === cid) return prev; // already open — no badge
-          const next = new Set(prev);
-          next.add(cid);
+          const next = new Map(prev);
+          next.set(cid, (next.get(cid) ?? 0) + incoming);
           return next;
         });
         // Refresh the conversation list so the lastFile preview updates
@@ -176,7 +180,7 @@ export default function Sidebar({ selected, onSelect }) {
       const { data } = await conversations.openDirect(userId);
       setConvList(prev => prev.find(c => c.id === data.id) ? prev : [data, ...prev]);
       onSelect(data);
-      setUnreadConvIds(prev => { const s = new Set(prev); s.delete(data.id); return s; });
+      setUnreadCounts(prev => { const m = new Map(prev); m.delete(data.id); return m; });
       setSearch('');
     } catch (e) { toast.error(e?.toString() || 'Cannot open conversation'); }
   };
@@ -493,51 +497,79 @@ export default function Sidebar({ selected, onSelect }) {
               </div>
             )}
             {convList.map(conv => {
-              const last    = conv.lastFile;
-              const hasNew  = unreadConvIds.has(conv.id);
+              const last         = conv.lastFile;
+              const unreadCount  = unreadCounts.get(conv.id) ?? 0;
+              const hasNew       = unreadCount > 0;
+              const isActive     = selected?.id === conv.id;
+
               return (
                 <button key={conv.id}
                         onClick={() => {
                           onSelect(conv);
-                          setUnreadConvIds(prev => { const s = new Set(prev); s.delete(conv.id); return s; });
+                          setUnreadCounts(prev => { const m = new Map(prev); m.delete(conv.id); return m; });
                         }}
-                        className={`conv-row w-full text-left
-                                    ${selected?.id === conv.id ? 'active' : ''}`}>
-                  {conv.type === 'GROUP'
-                    ? <div className="w-11 h-11 avatar rounded-xl text-sm flex-shrink-0
-                                      overflow-hidden">
-                        {conv.iconUrl
-                          ? <img src={conv.iconUrl} alt=""
-                                 className="w-full h-full object-cover rounded-xl"
-                                 onError={e => { e.target.style.display = 'none'; }}/>
-                          : '👥'}
-                      </div>
-                    : <Avatar name={conv.name} photoUrl={conv.iconUrl} size="lg"/>
-                  }
+                        className={`conv-row w-full text-left ${isActive ? 'active' : ''}`}
+                        style={hasNew && !isActive ? {
+                          background: 'linear-gradient(90deg, #eff6ff 0%, #f0f9ff 100%)',
+                          borderLeft: '3px solid #0ea5e9',
+                        } : {}}>
+
+                  {/* Avatar / icon */}
+                  <div className="relative flex-shrink-0">
+                    {conv.type === 'GROUP'
+                      ? <div className="w-11 h-11 avatar rounded-xl text-sm overflow-hidden">
+                          {conv.iconUrl
+                            ? <img src={conv.iconUrl} alt=""
+                                   className="w-full h-full object-cover rounded-xl"
+                                   onError={e => { e.target.style.display = 'none'; }}/>
+                            : '👥'}
+                        </div>
+                      : <Avatar name={conv.name} photoUrl={conv.iconUrl} size="lg"/>
+                    }
+                    {/* Pulse dot on avatar when unread */}
+                    {hasNew && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full
+                                       bg-sky-500 border-2 border-white animate-pulse"/>
+                    )}
+                  </div>
+
+                  {/* Text content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline gap-1">
+                    {/* Name + badge */}
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
                       <p className={`font-semibold text-sm truncate
-                                     ${hasNew ? 'text-sky-700' : 'text-slate-800'}`}>
+                                     ${hasNew && !isActive ? 'text-sky-700' : 'text-slate-800'}`}>
                         {conv.name}
                       </p>
-                      <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                        {hasNew && (
-                          <span className="w-2 h-2 rounded-full bg-sky-500 flex-shrink-0"/>
-                        )}
-                        {last?.sentAt && (
-                          <span className="text-xs text-slate-400">
+
+                      {hasNew && !isActive ? (
+                        /* File-count pill */
+                        <span className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5
+                                         rounded-full text-[10px] font-bold text-white bg-sky-500
+                                         shadow-sm shadow-sky-200">
+                          📥 {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      ) : (
+                        last?.sentAt && (
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">
                             {formatDistanceToNow(new Date(last.sentAt), { addSuffix: false })}
                           </span>
-                        )}
-                      </div>
+                        )
+                      )}
                     </div>
-                    {last
-                      ? <p className={`text-xs truncate
-                                       ${hasNew ? 'text-sky-600 font-semibold' : 'text-slate-400'}`}>
-                          {fileIcon(last.category)}&nbsp;{last.originalFileName}
-                        </p>
-                      : <p className="text-xs text-slate-300 italic">No files yet</p>
-                    }
+
+                    {/* Subtitle */}
+                    {hasNew && !isActive ? (
+                      <p className="text-xs font-semibold text-sky-600 truncate">
+                        {unreadCount === 1 ? '1 file received' : `${unreadCount} files received`}
+                      </p>
+                    ) : last ? (
+                      <p className="text-xs text-slate-400 truncate">
+                        {fileIcon(last.category)}&nbsp;{last.originalFileName}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-300 italic">No files yet</p>
+                    )}
                   </div>
                 </button>
               );
