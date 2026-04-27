@@ -3,31 +3,62 @@ import { Client } from '@stomp/stompjs';
 // In dev the Vite proxy forwards /ws → ws://localhost:8080/ws
 // In prod set VITE_WS_URL e.g. wss://api.example.com/ws
 const WS_URL = import.meta.env.VITE_WS_URL
-  || `ws://${window.location.hostname}:8080/ws`;
+  || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8080/ws`;
 
 let stompClient = null;
-const subscriptions = new Map();
+
+/**
+ * All active subscriptions.
+ * topic → { sub: StompSubscription | null, callback: Function }
+ *
+ * sub is null while we are disconnected but the caller still "holds" the subscription.
+ * On reconnect we replace sub with a live one without changing the Map entry.
+ */
+const activeTopics = new Map();
+
+// ── Internal subscribe helper (must be called when connected) ─────────────────
+
+function _doSubscribe(topic, callback) {
+  // Replace any stale sub for this topic
+  activeTopics.get(topic)?.sub?.unsubscribe();
+
+  const sub = stompClient.subscribe(topic, message => {
+    try { callback(JSON.parse(message.body)); }
+    catch (e) { console.warn('[WS] Parse error on', topic, e); }
+  });
+
+  activeTopics.set(topic, { sub, callback });
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 export function connectSocket(onConnected, onDisconnected) {
-  if (stompClient?.connected) return;
+  if (stompClient?.active) return; // already connecting or connected
 
   stompClient = new Client({
     brokerURL: WS_URL,
     connectHeaders: {
       Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
     },
-    reconnectDelay: 5000,
+    reconnectDelay: 4000,
+
     onConnect: () => {
       console.log('[WS] Connected');
+      // Re-apply every tracked subscription (handles first connect AND reconnects)
+      activeTopics.forEach(({ callback }, topic) => _doSubscribe(topic, callback));
       onConnected?.();
     },
+
     onDisconnect: () => {
       console.log('[WS] Disconnected');
+      // Null out dead sub references so we don't try to unsubscribe them
+      activeTopics.forEach((entry, topic) => {
+        activeTopics.set(topic, { sub: null, callback: entry.callback });
+      });
       onDisconnected?.();
     },
-    onStompError: frame => {
-      console.error('[WS] STOMP error', frame);
-    },
+
+    onStompError: frame => console.error('[WS] STOMP error', frame),
   });
 
   stompClient.activate();
@@ -36,62 +67,44 @@ export function connectSocket(onConnected, onDisconnected) {
 export function disconnectSocket() {
   stompClient?.deactivate();
   stompClient = null;
-  subscriptions.clear();
+  activeTopics.clear();
 }
 
 /**
- * Subscribe to a conversation topic.
+ * Subscribe to a topic.
+ *
+ * Safe to call BEFORE connection is established — the subscription is queued and
+ * applied as soon as the socket connects (or reconnects).
+ *
  * Returns an unsubscribe function.
  */
-export function subscribeToConversation(conversationId, callback) {
-  if (!stompClient?.connected) return () => {};
+function subscribe(topic, callback) {
+  // Register in the map regardless of connection state.
+  // If connected right now, subscribe immediately; otherwise onConnect will pick it up.
+  activeTopics.set(topic, { sub: null, callback });
 
-  const topic = `/topic/conversation/${conversationId}`;
-
-  // Avoid duplicate subscriptions
-  if (subscriptions.has(topic)) {
-    subscriptions.get(topic).unsubscribe();
+  if (stompClient?.connected) {
+    _doSubscribe(topic, callback);
   }
 
-  const sub = stompClient.subscribe(topic, message => {
-    try {
-      callback(JSON.parse(message.body));
-    } catch (e) {
-      console.warn('[WS] Failed to parse message', e);
-    }
-  });
-
-  subscriptions.set(topic, sub);
   return () => {
-    sub.unsubscribe();
-    subscriptions.delete(topic);
+    const entry = activeTopics.get(topic);
+    entry?.sub?.unsubscribe();
+    activeTopics.delete(topic);
   };
+}
+
+/** Subscribe to a conversation's file stream (NEW_FILE, FILE_DELETED). */
+export function subscribeToConversation(conversationId, callback) {
+  return subscribe(`/topic/conversation/${conversationId}`, callback);
 }
 
 /**
  * Subscribe to this user's personal notification channel.
- * Receives CONNECTION_REQUEST, CONNECTION_ACCEPTED events.
- * Returns an unsubscribe function.
+ * Receives: CONNECTION_REQUEST · CONNECTION_ACCEPTED · FILE_SHARED · NEW_FILE
  */
 export function subscribeToUserNotifications(userId, callback) {
-  if (!stompClient?.connected) return () => {};
-
-  const topic = `/topic/user/${userId}/notifications`;
-
-  if (subscriptions.has(topic)) {
-    subscriptions.get(topic).unsubscribe();
-  }
-
-  const sub = stompClient.subscribe(topic, message => {
-    try { callback(JSON.parse(message.body)); }
-    catch (e) { console.warn('[WS] Notification parse error', e); }
-  });
-
-  subscriptions.set(topic, sub);
-  return () => {
-    sub.unsubscribe();
-    subscriptions.delete(topic);
-  };
+  return subscribe(`/topic/user/${userId}/notifications`, callback);
 }
 
 export function isConnected() {

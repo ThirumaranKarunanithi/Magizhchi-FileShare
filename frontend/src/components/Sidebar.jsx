@@ -73,6 +73,9 @@ export default function Sidebar({ selected, onSelect }) {
   const [pendingCount,     setPendingCount]     = useState(0);
   const [storageData,      setStorageData]      = useState(null);
   const [showStorage,      setShowStorage]      = useState(false);
+  // Unread badges
+  const [unreadConvIds,    setUnreadConvIds]    = useState(new Set()); // convIds with new unseen files
+  const [unreadShares,     setUnreadShares]     = useState(0);         // new shares received
   // Per-user action loading: { [userId]: 'sending'|'accepting'|'cancelling'|'rejecting' }
   const [actionLoading,    setActionLoading]    = useState({});
 
@@ -97,22 +100,58 @@ export default function Sidebar({ selected, onSelect }) {
 
   useEffect(() => { refreshPendingCount(); }, []);
 
-  // ── Real-time connection notifications ───────────────────────────────────
+  // ── Real-time notifications ───────────────────────────────────────────────
   useEffect(() => {
     if (!currentUser?.id) return;
+
     const unsub = subscribeToUserNotifications(currentUser.id, event => {
-      if (event.type === 'CONNECTION_REQUEST') {
+      const p = event.payload ?? {};
+
+      // ── New file uploaded in a conversation ──
+      if (event.type === 'NEW_FILE') {
+        const cid = p.conversationId;
+        // Show a toast
+        toast(`📂 ${p.senderName} shared "${p.fileName}"`,
+              { duration: 5000, icon: '📁' });
+        // Mark this conversation as having unread files (only if not currently selected)
+        setUnreadConvIds(prev => {
+          if (selected?.id === cid) return prev; // already open
+          const next = new Set(prev);
+          next.add(cid);
+          return next;
+        });
+        // Refresh the conversation list so the lastFile preview updates
+        conversations.list().then(r => setConvList(r.data)).catch(console.error);
+      }
+
+      // ── A file was shared directly with the user or via a group ──
+      else if (event.type === 'FILE_SHARED') {
+        const count = p.fileCount ?? 1;
+        if (p.groupName) {
+          toast(`🔗 ${p.senderName} shared ${count} file${count !== 1 ? 's' : ''} with group "${p.groupName}"`,
+                { duration: 6000, icon: '👥' });
+        } else {
+          toast(`🔗 ${p.senderName} shared "${p.fileName}" with you`,
+                { duration: 6000, icon: '🔗' });
+        }
+        setUnreadShares(prev => prev + count);
+      }
+
+      // ── Connection request received ──
+      else if (event.type === 'CONNECTION_REQUEST') {
         setPendingCount(prev => prev + 1);
-        toast(`📩 ${event.payload.senderName} wants to connect!`,
-              { icon: '🤝', duration: 5000 });
-      } else if (event.type === 'CONNECTION_ACCEPTED') {
-        toast.success(`🎉 ${event.payload.receiverName} accepted your request!`);
-        // Refresh conversation list so the new direct chat appears
+        toast(`🤝 ${p.senderName} wants to connect!`, { duration: 6000 });
+      }
+
+      // ── Connection request accepted ──
+      else if (event.type === 'CONNECTION_ACCEPTED') {
+        toast.success(`🎉 ${p.receiverName} accepted your request!`);
         conversations.list().then(r => setConvList(r.data)).catch(console.error);
       }
     });
+
     return unsub;
-  }, [currentUser?.id]);
+  }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── User search ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -127,12 +166,13 @@ export default function Sidebar({ selected, onSelect }) {
     return () => clearTimeout(t);
   }, [search]);
 
-  // ── Conversation open ────────────────────────────────────────────────────
+  // ── Conversation open (clears unread badge) ─────────────────────────────
   const openDirect = async (userId) => {
     try {
       const { data } = await conversations.openDirect(userId);
       setConvList(prev => prev.find(c => c.id === data.id) ? prev : [data, ...prev]);
       onSelect(data);
+      setUnreadConvIds(prev => { const s = new Set(prev); s.delete(data.id); return s; });
       setSearch('');
     } catch (e) { toast.error(e?.toString() || 'Cannot open conversation'); }
   };
@@ -275,7 +315,7 @@ export default function Sidebar({ selected, onSelect }) {
 
       {/* ── Shared with Me ── */}
       <div className="px-3 pb-2">
-        <button onClick={() => onSelect(SHARED_WITH_ME_VIEW)}
+        <button onClick={() => { onSelect(SHARED_WITH_ME_VIEW); setUnreadShares(0); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border
                             transition-all group
                             ${selected?.type === 'SHARED_WITH_ME'
@@ -293,11 +333,22 @@ export default function Sidebar({ selected, onSelect }) {
             </p>
             <p className={`text-xs truncate
                            ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-slate-400'}`}>
-              Files others have shared
+              {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
+                ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''} shared`
+                : 'Files others have shared'}
             </p>
           </div>
-          <span className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5
-                            ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-violet-400'}`}>›</span>
+          {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME' && (
+            <span className="flex-shrink-0 min-w-[20px] h-5 rounded-full
+                             bg-violet-500 text-white text-[10px] font-bold
+                             flex items-center justify-center px-1">
+              {unreadShares > 9 ? '9+' : unreadShares}
+            </span>
+          )}
+          {(unreadShares === 0 || selected?.type === 'SHARED_WITH_ME') && (
+            <span className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5
+                              ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-violet-400'}`}>›</span>
+          )}
         </button>
       </div>
 
@@ -429,9 +480,14 @@ export default function Sidebar({ selected, onSelect }) {
               </div>
             )}
             {convList.map(conv => {
-              const last = conv.lastFile;
+              const last    = conv.lastFile;
+              const hasNew  = unreadConvIds.has(conv.id);
               return (
-                <button key={conv.id} onClick={() => onSelect(conv)}
+                <button key={conv.id}
+                        onClick={() => {
+                          onSelect(conv);
+                          setUnreadConvIds(prev => { const s = new Set(prev); s.delete(conv.id); return s; });
+                        }}
                         className={`conv-row w-full text-left
                                     ${selected?.id === conv.id ? 'active' : ''}`}>
                   {conv.type === 'GROUP'
@@ -446,16 +502,25 @@ export default function Sidebar({ selected, onSelect }) {
                     : <Avatar name={conv.name} photoUrl={conv.iconUrl} size="lg"/>
                   }
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline">
-                      <p className="font-semibold text-sm text-slate-800 truncate">{conv.name}</p>
-                      {last?.sentAt && (
-                        <span className="text-xs text-slate-400 flex-shrink-0 ml-1">
-                          {formatDistanceToNow(new Date(last.sentAt), { addSuffix: false })}
-                        </span>
-                      )}
+                    <div className="flex justify-between items-baseline gap-1">
+                      <p className={`font-semibold text-sm truncate
+                                     ${hasNew ? 'text-sky-700' : 'text-slate-800'}`}>
+                        {conv.name}
+                      </p>
+                      <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                        {hasNew && (
+                          <span className="w-2 h-2 rounded-full bg-sky-500 flex-shrink-0"/>
+                        )}
+                        {last?.sentAt && (
+                          <span className="text-xs text-slate-400">
+                            {formatDistanceToNow(new Date(last.sentAt), { addSuffix: false })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {last
-                      ? <p className="text-xs text-slate-400 truncate">
+                      ? <p className={`text-xs truncate
+                                       ${hasNew ? 'text-sky-600 font-semibold' : 'text-slate-400'}`}>
                           {fileIcon(last.category)}&nbsp;{last.originalFileName}
                         </p>
                       : <p className="text-xs text-slate-300 italic">No files yet</p>

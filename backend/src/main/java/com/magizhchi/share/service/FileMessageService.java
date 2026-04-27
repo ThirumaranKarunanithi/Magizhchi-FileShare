@@ -9,6 +9,7 @@ import com.magizhchi.share.repository.ConversationRepository;
 import com.magizhchi.share.repository.FileMessageRepository;
 import com.magizhchi.share.repository.UserRepository;
 import com.magizhchi.share.websocket.FileMessageEvent;
+import com.magizhchi.share.websocket.NotificationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -102,6 +104,19 @@ public class FileMessageService {
                 "/topic/conversation/" + conversationId,
                 new FileMessageEvent("NEW_FILE", response));
 
+        // Also notify each non-sender member on their personal channel so the
+        // sidebar updates even when they are not currently viewing this conversation.
+        memberRepo.findActiveMembers(conversationId).stream()
+                .filter(m -> !m.getUser().getId().equals(senderId))
+                .forEach(m -> messagingTemplate.convertAndSend(
+                        "/topic/user/" + m.getUser().getId() + "/notifications",
+                        new NotificationEvent("NEW_FILE", Map.of(
+                                "conversationId",   conversationId,
+                                "senderName",       sender.getDisplayName(),
+                                "fileName",         msg.getOriginalFileName(),
+                                "fileMessageId",    msg.getId()
+                        ))));
+
         log.info("File sent: msgId={}, conv={}, sender={}, size={}", msg.getId(), conversationId, senderId, fileSize);
         return response;
     }
@@ -179,6 +194,24 @@ public class FileMessageService {
 
             log.info("Folder file sent: msgId={}, path={}, conv={}, size={}", msg.getId(), relativePath, conversationId, file.getSize());
         }
+        // Single summary notification to non-sender members after the whole folder is uploaded
+        if (!results.isEmpty()) {
+            User folderSender = userRepo.findById(senderId).orElse(null);
+            String folderSenderName = folderSender != null ? folderSender.getDisplayName() : "Someone";
+            String folderName = (relativePaths != null && relativePaths.length > 0)
+                    ? relativePaths[0].split("/")[0] : "a folder";
+            int fileCount = results.size();
+            memberRepo.findActiveMembers(conversationId).stream()
+                    .filter(m -> !m.getUser().getId().equals(senderId))
+                    .forEach(m -> messagingTemplate.convertAndSend(
+                            "/topic/user/" + m.getUser().getId() + "/notifications",
+                            new NotificationEvent("NEW_FILE", Map.of(
+                                    "conversationId", conversationId,
+                                    "senderName",     folderSenderName,
+                                    "fileName",       "📁 " + folderName + " (" + fileCount + " files)"
+                            ))));
+        }
+
         return results;
     }
 
