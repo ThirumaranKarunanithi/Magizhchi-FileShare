@@ -3,6 +3,7 @@ package com.magizhchi.share.controller;
 import com.magizhchi.share.dto.request.CreateGroupRequest;
 import com.magizhchi.share.dto.response.ConversationResponse;
 import com.magizhchi.share.dto.response.FileMessageResponse;
+import com.magizhchi.share.dto.response.GroupMemberResponse;
 import com.magizhchi.share.model.User;
 import com.magizhchi.share.service.ConversationService;
 import jakarta.validation.Valid;
@@ -83,6 +84,15 @@ public class ConversationController {
             @AuthenticationPrincipal User user) {
         convService.removeMemberFromGroup(id, user.getId(), userId);
         return ResponseEntity.ok(Map.of("message", "Member removed."));
+    }
+
+    // ── Members list ──────────────────────────────────────────────────────────
+
+    @GetMapping("/{id}/members")
+    public ResponseEntity<List<GroupMemberResponse>> getMembers(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(convService.getGroupMembers(id, user.getId()));
     }
 
     // ── File history ──────────────────────────────────────────────────────────

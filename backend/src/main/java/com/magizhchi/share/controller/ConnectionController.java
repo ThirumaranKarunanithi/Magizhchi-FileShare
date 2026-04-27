@@ -75,6 +75,16 @@ public class ConnectionController {
         return ResponseEntity.ok(connService.getSentRequests(caller.getId()));
     }
 
+    // ── Unfriend ──────────────────────────────────────────────────────────────
+
+    @DeleteMapping("/api/connections/unfriend/{userId}")
+    public ResponseEntity<Map<String, String>> unfriend(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal User caller) {
+        connService.unfriend(caller.getId(), userId);
+        return ResponseEntity.ok(Map.of("message", "Connection removed."));
+    }
+
     // ── Block / Unblock ───────────────────────────────────────────────────────
 
     @PostMapping("/api/users/{userId}/block")

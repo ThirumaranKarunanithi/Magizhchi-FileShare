@@ -167,6 +167,24 @@ public class ConnectionService {
                 .stream().map(this::toResponse).toList();
     }
 
+    @Transactional
+    public void unfriend(Long userId, Long otherUserId) {
+        if (userId.equals(otherUserId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Cannot unfriend yourself.");
+        }
+        List<ConnectionRequest> history = crRepo.findLatestByPair(userId, otherUserId);
+        ConnectionRequest accepted = history.stream()
+                .filter(r -> r.getStatus() == RequestStatus.ACCEPTED)
+                .findFirst()
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND,
+                        "No active connection found between these users."));
+
+        accepted.setStatus(RequestStatus.CANCELLED);
+        accepted.setRespondedAt(Instant.now());
+        crRepo.save(accepted);
+        log.info("Unfriended: {} <-> {}", userId, otherUserId);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Blocking
     // ─────────────────────────────────────────────────────────────────────────

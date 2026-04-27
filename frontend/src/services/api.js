@@ -62,6 +62,7 @@ export const conversations = {
   createGroup:    formData         => api.post('/api/conversations/group', formData),
   addMember:      (cid, uid)       => api.post(`/api/conversations/${cid}/members/${uid}`),
   removeMember:   (cid, uid)       => api.delete(`/api/conversations/${cid}/members/${uid}`),
+  members:        (cid)            => api.get(`/api/conversations/${cid}/members`),
   fileHistory:    (cid, p = 0)     => api.get(`/api/conversations/${cid}/files`, { params: { page: p } }),
 };
 
@@ -73,6 +74,7 @@ export const connections = {
   cancel:           (requestId)   => api.delete(`/api/connections/request/${requestId}`),
   receivedRequests: ()            => api.get('/api/connections/requests/received'),
   sentRequests:     ()            => api.get('/api/connections/requests/sent'),
+  unfriend:         (userId)      => api.delete(`/api/connections/unfriend/${userId}`),
   block:            (userId)      => api.post(`/api/users/${userId}/block`),
   unblock:          (userId)      => api.delete(`/api/users/${userId}/block`),
   blocked:          ()            => api.get('/api/users/blocked'),

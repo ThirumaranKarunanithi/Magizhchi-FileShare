@@ -3,6 +3,7 @@ package com.magizhchi.share.service;
 import com.magizhchi.share.dto.request.CreateGroupRequest;
 import com.magizhchi.share.dto.response.ConversationResponse;
 import com.magizhchi.share.dto.response.FileMessageResponse;
+import com.magizhchi.share.dto.response.GroupMemberResponse;
 import com.magizhchi.share.exception.AppException;
 import com.magizhchi.share.model.*;
 import com.magizhchi.share.repository.*;
@@ -165,6 +166,22 @@ public class ConversationService {
         member.setIsActive(false);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
+    }
+
+    // ── Members ──────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<GroupMemberResponse> getGroupMembers(Long conversationId, Long requesterId) {
+        requireMember(conversationId, requesterId);
+        return memberRepo.findActiveMembers(conversationId).stream()
+                .map(m -> GroupMemberResponse.builder()
+                        .userId(m.getUser().getId())
+                        .displayName(m.getUser().getDisplayName())
+                        .profilePhotoUrl(m.getUser().getProfilePhotoUrl())
+                        .role(m.getRole().name())
+                        .joinedAt(m.getJoinedAt())
+                        .build())
+                .toList();
     }
 
     // ── File history ──────────────────────────────────────────────────────────

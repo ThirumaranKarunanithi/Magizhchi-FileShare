@@ -4,8 +4,9 @@ import { subscribeToConversation } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import ShareModal from './ShareModal';
-import Avatar     from './Avatar';
+import ShareModal     from './ShareModal';
+import GroupInfoModal from './GroupInfoModal';
+import Avatar         from './Avatar';
 
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
@@ -80,6 +81,9 @@ export default function ChatWindow({ conversation }) {
   // folder upload progress: null | { done: number, total: number }
   const [folderProgress, setFolderProgress] = useState(null);
   const [showShare,      setShowShare]      = useState(false);
+  const [showGroupInfo,  setShowGroupInfo]  = useState(false);
+  // memberCount kept in sync after add/remove so the header subtitle stays accurate
+  const [memberCount,    setMemberCount]    = useState(conversation.memberCount ?? 0);
   // Map<fileMessageId, SharedResourceResponse[]> — files the current user shared, with targets
   const [sharedFilesMap, setSharedFilesMap] = useState(new Map());
   // Shares visible inside this specific conversation (bidirectional for DIRECT, group-wide for GROUP)
@@ -108,6 +112,7 @@ export default function ChatWindow({ conversation }) {
     setPage(0);
     setHasMore(true);
     setSelected(new Set());
+    setMemberCount(conversation.memberCount ?? 0);
     loadFiles(0, false);
     // Build Map<fileMessageId, shares[]> so each row knows WHO the file was shared with
     sharing.sharedByMe()
@@ -304,7 +309,7 @@ export default function ChatWindow({ conversation }) {
             <h2 className="text-white font-bold text-lg leading-tight">{conversation.name}</h2>
             <p className="text-white/70 text-xs">
               {conversation.type === 'GROUP'
-                ? `${conversation.memberCount} members`
+                ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
                 : conversation.type === 'PERSONAL'
                   ? 'My personal storage'
                   : 'Direct file share'}
@@ -313,26 +318,52 @@ export default function ChatWindow({ conversation }) {
           </div>
         </div>
 
-        {/* Block button — only for DIRECT conversations */}
-        {conversation.type === 'DIRECT' && (
+        {/* Group manage button */}
+        {conversation.type === 'GROUP' && (
           <button
-            onClick={async () => {
-              if (!window.confirm(
-                `Block ${conversation.name}? They won't be able to see or contact you.`
-              )) return;
-              try {
-                // Derive the other user's id from the conversation name isn't reliable;
-                // we embed otherUserId in the conversation response (see ConversationResponse)
-                // For now we use the conversationId endpoint route
-                await connections.block(conversation.otherUserId);
-                toast.success(`${conversation.name} has been blocked.`);
-              } catch (e) { toast.error(e?.toString() || 'Could not block user'); }
-            }}
-            className="p-2 rounded-xl bg-white/10 hover:bg-red-500/20 text-white/70
-                       hover:text-red-200 transition-all text-sm"
-            title="Block user">
-            🚫
+            onClick={() => setShowGroupInfo(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10
+                       hover:bg-white/20 text-white/80 hover:text-white
+                       transition-all text-sm font-semibold"
+            title="Manage group members">
+            ⚙ Manage
           </button>
+        )}
+
+        {/* DIRECT conversation actions: Unfriend + Block */}
+        {conversation.type === 'DIRECT' && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (!window.confirm(
+                  `Remove ${conversation.name} from your connections? You won't be able to share files until you reconnect.`
+                )) return;
+                try {
+                  await connections.unfriend(conversation.otherUserId);
+                  toast.success(`${conversation.name} has been removed from your connections.`);
+                } catch (e) { toast.error(e?.toString() || 'Could not unfriend user'); }
+              }}
+              className="p-2 rounded-xl bg-white/10 hover:bg-amber-500/20 text-white/70
+                         hover:text-amber-200 transition-all text-sm"
+              title="Remove connection">
+              👤✕
+            </button>
+            <button
+              onClick={async () => {
+                if (!window.confirm(
+                  `Block ${conversation.name}? They won't be able to see or contact you.`
+                )) return;
+                try {
+                  await connections.block(conversation.otherUserId);
+                  toast.success(`${conversation.name} has been blocked.`);
+                } catch (e) { toast.error(e?.toString() || 'Could not block user'); }
+              }}
+              className="p-2 rounded-xl bg-white/10 hover:bg-red-500/20 text-white/70
+                         hover:text-red-200 transition-all text-sm"
+              title="Block user">
+              🚫
+            </button>
+          </div>
         )}
 
         {/* Upload buttons */}
@@ -788,6 +819,20 @@ export default function ChatWindow({ conversation }) {
         </div>
       )}
       </div>{/* end z-10 wrapper */}
+
+      {/* ── Group info / manage modal ── */}
+      {showGroupInfo && conversation.type === 'GROUP' && (
+        <GroupInfoModal
+          conversation={conversation}
+          onClose={() => setShowGroupInfo(false)}
+          onUpdated={() => {
+            // Re-fetch member count after add/remove
+            conversations.members(conversation.id)
+              .then(r => setMemberCount(r.data.length))
+              .catch(() => {});
+          }}
+        />
+      )}
 
       {/* ── Share modal ── */}
       {showShare && (
