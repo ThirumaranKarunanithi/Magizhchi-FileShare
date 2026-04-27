@@ -1,5 +1,6 @@
 package com.magizhchi.share.service;
 
+import com.magizhchi.share.exception.AppException;
 import com.twilio.Twilio;
 import com.twilio.exception.ApiException;
 import com.twilio.rest.verify.v2.service.Verification;
@@ -7,6 +8,7 @@ import com.twilio.rest.verify.v2.service.VerificationCheck;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 /**
@@ -47,8 +49,39 @@ public class SmsService {
         } catch (ApiException e) {
             log.error("Twilio Verify send failed: to={}, code={}, msg={}",
                     toNumber, e.getCode(), e.getMessage());
-            throw new RuntimeException("Could not send OTP: " + e.getMessage(), e);
+            throw translateTwilioError(e, "send");
         }
+    }
+
+    // ── Twilio error mapping ──────────────────────────────────────────────────
+
+    /**
+     * Convert a Twilio {@link ApiException} into an {@link AppException} with the
+     * correct HTTP status so the global handler returns a clean JSON error to the client.
+     *
+     * Known Twilio Verify error codes:
+     *  20429 — Too many requests (account-level or service-level throttle)
+     *  60203 — Max send attempts for this number reached within the window
+     *  60200 — Invalid phone number / not a mobile number
+     *  60205 — Landline / VoIP number not supported for SMS
+     *  20404 — Verify service not found (misconfigured SID)
+     */
+    private AppException translateTwilioError(ApiException e, String operation) {
+        int code = e.getCode() != null ? e.getCode() : -1;
+        return switch (code) {
+            case 20429, 60203 ->
+                new AppException(HttpStatus.TOO_MANY_REQUESTS,
+                        "Too many OTP requests for this number. Please wait a minute before trying again.");
+            case 60200, 60205 ->
+                new AppException(HttpStatus.BAD_REQUEST,
+                        "This phone number cannot receive SMS. Please use a valid mobile number.");
+            case 20404 ->
+                new AppException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "OTP service is misconfigured. Please contact support.");
+            default ->
+                new AppException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Could not " + operation + " OTP at this time. Please try again shortly.");
+        };
     }
 
     /**
@@ -70,10 +103,16 @@ public class SmsService {
             log.info("Twilio Verify check: to={}, status={}", toNumber, check.getStatus());
             return "approved".equalsIgnoreCase(check.getStatus());
         } catch (ApiException e) {
-            // Twilio throws 404 when the verification does not exist (expired / already used)
             log.warn("Twilio Verify check failed: to={}, code={}, msg={}",
                     toNumber, e.getCode(), e.getMessage());
-            return false;
+            int code = e.getCode() != null ? e.getCode() : -1;
+            if (code == 20404 || code == 60200) {
+                // 20404 = verification not found (expired / already used / bad number)
+                // Return false so the service layer shows "Incorrect or expired OTP"
+                return false;
+            }
+            // Any other Twilio error (rate limit on check, service down, etc.) — surface it
+            throw translateTwilioError(e, "verify");
         }
     }
 }

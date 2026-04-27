@@ -56,6 +56,22 @@ function ConnectionChip({ status }) {
   );
 }
 
+// ── Missed-notification helpers ───────────────────────────────────────────────
+
+const LS_KEY = 'msh:lastOpened'; // { [convId]: ISO-timestamp }
+
+function getLastOpened() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function markOpened(convId) {
+  try {
+    const map = getLastOpened();
+    map[convId] = new Date().toISOString();
+    localStorage.setItem(LS_KEY, JSON.stringify(map));
+  } catch { /* storage full — ignore */ }
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function Sidebar({ selected, onSelect }) {
@@ -85,7 +101,41 @@ export default function Sidebar({ selected, onSelect }) {
 
   // ── Load conversations + storage on mount ───────────────────────────────
   useEffect(() => {
-    conversations.list().then(r => setConvList(r.data)).catch(console.error);
+    conversations.list().then(r => {
+      const list = r.data;
+      setConvList(list);
+
+      // ── Seed unread badges for files received while offline / page was closed ──
+      // Compare each conversation's lastFile.sentAt against the timestamp we stored
+      // the last time the user opened that conversation.  Any file newer than that
+      // timestamp (and not sent by the current user) is counted as unread.
+      if (currentUser?.id) {
+        const lastOpened = getLastOpened();
+        const initialCounts = new Map();
+        for (const conv of list) {
+          const lf = conv.lastFile;
+          if (!lf?.sentAt) continue;                              // no files at all
+          if (lf.senderId === currentUser.id) continue;           // own upload — skip
+          const openedAt = lastOpened[conv.id];
+          if (!openedAt || new Date(lf.sentAt) > new Date(openedAt)) {
+            // Missed at least one file — mark as 1 (we can't know the exact count
+            // without an extra API call, so 1 is the safe minimum)
+            initialCounts.set(conv.id, 1);
+          }
+        }
+        if (initialCounts.size > 0) {
+          setUnreadCounts(prev => {
+            const merged = new Map(prev);
+            initialCounts.forEach((v, k) => {
+              // Only set if there's no higher real-time count already
+              if (!merged.has(k)) merged.set(k, v);
+            });
+            return merged;
+          });
+        }
+      }
+    }).catch(console.error);
+
     storage.usage()
       .then(r => setStorageData(r.data))
       .catch(e => {
@@ -93,7 +143,7 @@ export default function Sidebar({ selected, onSelect }) {
         // Show placeholder so the bar is always visible
         setStorageData({ usedBytes: 0, limitBytes: 5368709120, usedPercent: 0 });
       });
-  }, []);
+  }, [currentUser?.id]); // re-run if user changes
 
   // ── Refresh pending count ────────────────────────────────────────────────
   const refreshPendingCount = useCallback(() => {
@@ -122,12 +172,17 @@ export default function Sidebar({ selected, onSelect }) {
         const folderMatch = String(p.fileName ?? '').match(/\((\d+) files?\)/i);
         const incoming = folderMatch ? parseInt(folderMatch[1], 10) : 1;
         // Increment the per-conversation count (skip if the conversation is open right now)
-        setUnreadCounts(prev => {
-          if (selectedRef.current?.id === cid) return prev; // already open — no badge
-          const next = new Map(prev);
-          next.set(cid, (next.get(cid) ?? 0) + incoming);
-          return next;
-        });
+        if (selectedRef.current?.id === cid) {
+          // Conversation is open — advance the "last opened" timestamp so that
+          // a subsequent page refresh doesn't re-show the badge for this file.
+          markOpened(cid);
+        } else {
+          setUnreadCounts(prev => {
+            const next = new Map(prev);
+            next.set(cid, (next.get(cid) ?? 0) + incoming);
+            return next;
+          });
+        }
         // Refresh the conversation list so the lastFile preview updates
         conversations.list().then(r => setConvList(r.data)).catch(console.error);
       }
@@ -174,12 +229,13 @@ export default function Sidebar({ selected, onSelect }) {
     return () => clearTimeout(t);
   }, [search]);
 
-  // ── Conversation open (clears unread badge) ─────────────────────────────
+  // ── Conversation open (clears unread badge + records open time) ─────────
   const openDirect = async (userId) => {
     try {
       const { data } = await conversations.openDirect(userId);
       setConvList(prev => prev.find(c => c.id === data.id) ? prev : [data, ...prev]);
       onSelect(data);
+      markOpened(data.id);
       setUnreadCounts(prev => { const m = new Map(prev); m.delete(data.id); return m; });
       setSearch('');
     } catch (e) { toast.error(e?.toString() || 'Cannot open conversation'); }
@@ -191,12 +247,19 @@ export default function Sidebar({ selected, onSelect }) {
   };
 
   const openMyStorage = async () => {
-    if (myStorage) { onSelect(myStorage); return; }
+    if (myStorage) {
+      onSelect(myStorage);
+      markOpened(myStorage.id);
+      setUnreadCounts(prev => { const m = new Map(prev); m.delete(myStorage.id); return m; });
+      return;
+    }
     setLoadingStorage(true);
     try {
       const { data } = await conversations.personal();
       setMyStorage(data);
       onSelect(data);
+      markOpened(data.id);
+      setUnreadCounts(prev => { const m = new Map(prev); m.delete(data.id); return m; });
     } catch (e) {
       console.error('[MyStorage]', e);
       toast.error('Could not open My Storage: ' + (e?.message || e));
@@ -506,6 +569,7 @@ export default function Sidebar({ selected, onSelect }) {
                 <button key={conv.id}
                         onClick={() => {
                           onSelect(conv);
+                          markOpened(conv.id);
                           setUnreadCounts(prev => { const m = new Map(prev); m.delete(conv.id); return m; });
                         }}
                         className={`conv-row w-full text-left ${isActive ? 'active' : ''}`}

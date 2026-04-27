@@ -56,7 +56,22 @@ public class OtpService {
     @Transactional
     public void sendOtp(String identifier, OtpCode.OtpPurpose purpose) {
 
-        // Rate-limit: max N sends per window (both mock and real)
+        // ── Per-send cooldown: enforce a minimum 60-second gap between sends ──
+        // This prevents rapid double-clicks / multi-tab races even before the
+        // per-window counter is exhausted.
+        String cooldownKey = "otp:cooldown:" + identifier;
+        Boolean isCoolingDown = redis.hasKey(cooldownKey);
+        if (Boolean.TRUE.equals(isCoolingDown)) {
+            Long ttl = redis.getExpire(cooldownKey, TimeUnit.SECONDS);
+            long wait = (ttl != null && ttl > 0) ? ttl : 60;
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Please wait " + wait + " second" + (wait == 1 ? "" : "s") +
+                    " before requesting a new code.");
+        }
+        // Arm the cooldown key — expires after 60 s
+        redis.opsForValue().set(cooldownKey, "1", 60, TimeUnit.SECONDS);
+
+        // ── Rate-limit: max N sends per window (both mock and real) ──
         String rateLimitKey = "otp:rate:" + identifier;
         Long sends = redis.opsForValue().increment(rateLimitKey);
         if (sends != null && sends == 1) {

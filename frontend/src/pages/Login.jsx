@@ -12,6 +12,7 @@ export default function Login() {
   const [identifier,  setIdentifier]  = useState('');
   const [otp,         setOtp]         = useState('');
   const [loading,     setLoading]     = useState(false);
+  const [resending,   setResending]   = useState(false);
   const [error,       setError]       = useState('');
   const [resendTimer, setResendTimer] = useState(0);
 
@@ -39,11 +40,17 @@ export default function Login() {
   };
 
   const handleResend = async () => {
-    if (resendTimer > 0) return;
+    if (resendTimer > 0 || resending) return;
+    setResending(true);
     try {
-      await auth.loginSendOtp({ identifier }); startCountdown(60);
+      await auth.loginSendOtp({ identifier });
+      startCountdown(60);
       toast.success('Code resent!');
-    } catch (msg) { toast.error(msg); }
+    } catch (msg) {
+      toast.error(typeof msg === 'string' ? msg : 'Could not resend. Please wait a moment.');
+    } finally {
+      setResending(false);
+    }
   };
 
   const startCountdown = secs => {
@@ -239,9 +246,10 @@ export default function Login() {
                   ) : (
                     <button
                       onClick={handleResend}
-                      disabled={loading}
-                      className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50">
-                      Resend code
+                      disabled={loading || resending}
+                      className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50
+                                 disabled:cursor-not-allowed">
+                      {resending ? 'Sending…' : 'Resend code'}
                     </button>
                   )}
                 </p>
