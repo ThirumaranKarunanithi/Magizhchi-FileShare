@@ -78,6 +78,11 @@ export const connections = {
   blocked:          ()            => api.get('/api/users/blocked'),
 };
 
+// ── Storage ──────────────────────────────────────────────────────────────────
+export const storage = {
+  usage: () => api.get('/api/storage/usage'),
+};
+
 // ── Files ────────────────────────────────────────────────────────────────────
 export const files = {
   send:         (cid, formData)  => api.post(`/api/files/send/${cid}`, formData),

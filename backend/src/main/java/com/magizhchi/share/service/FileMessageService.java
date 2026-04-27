@@ -66,6 +66,13 @@ public class FileMessageService {
                     .ifPresent(m -> connService.requireConnected(senderId, m.getUser().getId()));
         }
 
+        // ── Storage limit check ───────────────────────────────────────────────
+        long fileSize = file.getSize();
+        if (sender.getStorageUsedBytes() + fileSize > sender.getMaxStorageBytes()) {
+            throw new AppException(HttpStatus.PAYLOAD_TOO_LARGE,
+                    "Storage limit exceeded. Upgrade your plan to upload more files.");
+        }
+
         // Upload to S3
         String s3Key = storage.uploadFile(file, conversationId);
 
@@ -83,6 +90,9 @@ public class FileMessageService {
 
         msgRepo.save(msg);
 
+        // Atomically update storage counter (thread-safe, GREATEST(0,..) prevents negatives)
+        userRepo.adjustStorageUsed(senderId, fileSize);
+
         FileMessageResponse response = convService.toMessageResponse(msg);
 
         // Broadcast via WebSocket to topic (all members subscribe to this)
@@ -90,7 +100,7 @@ public class FileMessageService {
                 "/topic/conversation/" + conversationId,
                 new FileMessageEvent("NEW_FILE", response));
 
-        log.info("File sent: msgId={}, conv={}, sender={}", msg.getId(), conversationId, senderId);
+        log.info("File sent: msgId={}, conv={}, sender={}, size={}", msg.getId(), conversationId, senderId, fileSize);
         return response;
     }
 
@@ -106,6 +116,15 @@ public class FileMessageService {
         }
         if (files == null || files.length == 0) {
             throw new AppException(HttpStatus.BAD_REQUEST, "No files provided.");
+        }
+
+        // Validate total folder size against remaining storage
+        User senderCheck = userRepo.findById(senderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Sender not found."));
+        long totalFolderSize = java.util.Arrays.stream(files).mapToLong(MultipartFile::getSize).sum();
+        if (senderCheck.getStorageUsedBytes() + totalFolderSize > senderCheck.getMaxStorageBytes()) {
+            throw new AppException(HttpStatus.PAYLOAD_TOO_LARGE,
+                    "Storage limit exceeded. This folder would exceed your 5 GB free plan limit.");
         }
 
         List<FileMessageResponse> results = new ArrayList<>();
@@ -147,6 +166,7 @@ public class FileMessageService {
                     .build();
 
             msgRepo.save(msg);
+            userRepo.adjustStorageUsed(senderId, file.getSize());
             FileMessageResponse response = convService.toMessageResponse(msg);
             results.add(response);
 
@@ -154,7 +174,7 @@ public class FileMessageService {
                     "/topic/conversation/" + conversationId,
                     new FileMessageEvent("NEW_FILE", response));
 
-            log.info("Folder file sent: msgId={}, path={}, conv={}", msg.getId(), relativePath, conversationId);
+            log.info("Folder file sent: msgId={}, path={}, conv={}, size={}", msg.getId(), relativePath, conversationId, file.getSize());
         }
         return results;
     }
@@ -201,6 +221,9 @@ public class FileMessageService {
         msg.setIsDeleted(true);
         msg.setDeletedAt(Instant.now());
         msgRepo.save(msg);
+
+        // Reclaim storage from the original uploader
+        userRepo.adjustStorageUsed(msg.getSender().getId(), -msg.getFileSizeBytes());
 
         // Notify members
         messagingTemplate.convertAndSend(

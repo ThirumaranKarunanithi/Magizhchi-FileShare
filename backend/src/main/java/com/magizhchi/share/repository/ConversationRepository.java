@@ -29,6 +29,14 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
         """)
     Optional<Conversation> findPersonalConversation(@Param("userId") Long userId);
 
+    /** Count GROUP conversations created by this user (free plan limit = 3) */
+    @Query("SELECT COUNT(c) FROM Conversation c WHERE c.type = 'GROUP' AND c.createdBy.id = :userId")
+    long countGroupsByCreator(@Param("userId") Long userId);
+
+    /** All GROUP conversations where this user is an active member (for storage breakdown) */
+    @Query("SELECT c FROM Conversation c JOIN c.members m WHERE c.type = 'GROUP' AND m.user.id = :userId AND m.isActive = true")
+    java.util.List<Conversation> findGroupsByMember(@Param("userId") Long userId);
+
     /** Find existing DIRECT conversation between exactly two users */
     @Query("""
         SELECT c FROM Conversation c

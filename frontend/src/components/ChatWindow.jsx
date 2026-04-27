@@ -234,11 +234,21 @@ export default function ChatWindow({ conversation }) {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden
-                    bg-gradient-to-br from-sky-400 via-sky-500 to-sky-600"
+    <div className="flex-1 flex flex-col h-screen overflow-hidden relative"
+         style={{ background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 40%, #0ea5e9 100%)' }}
          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
          onDragLeave={() => setDragOver(false)}
          onDrop={handleDrop}>
+
+      {/* Dot texture */}
+      <div className="absolute inset-0 pointer-events-none z-0"
+           style={{
+             backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.18) 1.5px, transparent 1.5px)',
+             backgroundSize: '22px 22px',
+           }}/>
+
+      {/* All content above texture */}
+      <div className="relative z-10 flex flex-col flex-1 overflow-hidden">
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-6 py-4">
@@ -337,15 +347,22 @@ export default function ChatWindow({ conversation }) {
         ))}
       </div>
 
-      {/* ── File browser card ── */}
-      <div className="flex-1 mx-4 mb-4 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      {/* ── File browser card (glass) ── */}
+      <div className="flex-1 mx-4 mb-4 rounded-2xl flex flex-col overflow-hidden"
+           style={{
+             background: 'rgba(255,255,255,0.13)',
+             backdropFilter: 'blur(20px)',
+             WebkitBackdropFilter: 'blur(20px)',
+             border: '1px solid rgba(255,255,255,0.28)',
+             boxShadow: '0 8px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)',
+           }}>
 
         {/* Card header row */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/20">
           <div className="flex items-center gap-3">
             <input type="checkbox" className="w-4 h-4 accent-sky-500 cursor-pointer"
                    checked={allChecked} onChange={toggleAll}/>
-            <span className="text-sm font-semibold text-slate-500">
+            <span className="text-sm font-semibold text-white/80">
               {selected.size > 0
                 ? `${selected.size} of ${displayed.length} selected`
                 : `${displayed.length} file${displayed.length !== 1 ? 's' : ''}`}
@@ -362,8 +379,8 @@ export default function ChatWindow({ conversation }) {
                     if (msg) await handleDownload(msg);
                   }
                 }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700
-                           font-semibold hover:bg-sky-100 transition-all">
+                className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all"
+                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 ⬇ Download
               </button>
               <button
@@ -374,8 +391,8 @@ export default function ChatWindow({ conversation }) {
                     if (msg?.senderId === currentUser?.id) await handleDelete(msg.id);
                   }
                 }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600
-                           font-semibold hover:bg-red-100 transition-all">
+                className="text-xs px-3 py-1.5 rounded-lg font-semibold text-red-200 transition-all"
+                style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.3)' }}>
                 🗑 Delete
               </button>
             </div>
@@ -386,10 +403,10 @@ export default function ChatWindow({ conversation }) {
         <div className="flex-1 overflow-y-auto">
 
           {hasMore && (
-            <div className="text-center py-2 border-b border-slate-50">
+            <div className="text-center py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <button onClick={() => { const n = page + 1; setPage(n); loadFiles(n, true); }}
                       disabled={loading}
-                      className="text-xs text-sky-500 hover:underline">
+                      className="text-xs text-white/70 hover:text-white hover:underline">
                 {loading ? 'Loading…' : '⬆ Load older files'}
               </button>
             </div>
@@ -398,9 +415,9 @@ export default function ChatWindow({ conversation }) {
           {displayed.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full py-16 gap-3">
               <span className="text-5xl">📭</span>
-              <p className="text-sm font-semibold text-slate-400">No files here yet</p>
-              <p className="text-xs text-slate-300">
-                Drop a file or click <strong className="text-sky-500">Upload File</strong>
+              <p className="text-sm font-semibold text-white/70">No files here yet</p>
+              <p className="text-xs text-white/50">
+                Drop a file or click <strong className="text-white font-bold">Upload File</strong>
               </p>
             </div>
           )}
@@ -416,26 +433,29 @@ export default function ChatWindow({ conversation }) {
                 {isFolder && (
                   <button
                     onClick={() => toggleFolder(group.folderPath)}
-                    className="w-full flex items-center gap-3 px-5 py-3 bg-slate-50
-                               border-b border-slate-100 sticky top-0 z-10
-                               hover:bg-sky-50/60 transition-colors cursor-pointer">
+                    className="w-full flex items-center gap-3 px-5 py-3 sticky top-0 z-10
+                               transition-colors cursor-pointer"
+                    style={{ background: 'rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.15)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}>
 
                     {/* Chevron */}
-                    <span className={`text-slate-400 text-xs transition-transform duration-200
+                    <span className={`text-white/60 text-xs transition-transform duration-200
                                       ${isExpanded ? 'rotate-90' : ''}`}>
                       ▶
                     </span>
 
                     {/* Folder icon + name */}
                     <span className="text-lg">📁</span>
-                    <span className="text-sm font-semibold text-slate-700 truncate flex-1 text-left">
+                    <span className="text-sm font-semibold text-white truncate flex-1 text-left">
                       {/* Show only the deepest folder segment */}
                       {group.folderPath.replace(/\/$/, '').split('/').pop()}
                     </span>
 
                     {/* File count badge */}
                     <span className="flex-shrink-0 text-xs font-semibold px-2 py-0.5
-                                     bg-sky-100 text-sky-600 rounded-full">
+                                     rounded-full text-white"
+                          style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)' }}>
                       {group.items.length} file{group.items.length !== 1 ? 's' : ''}
                     </span>
                   </button>
@@ -449,11 +469,14 @@ export default function ChatWindow({ conversation }) {
 
                   return (
                     <div key={msg.id}
-                         className={`flex items-center gap-3 py-3 group
-                                     hover:bg-sky-50/60 transition-colors cursor-default
-                                     ${isFolder ? 'pl-12 pr-5' : 'px-5'}
-                                     ${selected.has(msg.id) ? 'bg-sky-50' : ''}
-                                     ${!isLast ? 'border-b border-slate-50' : ''}`}>
+                         className={`flex items-center gap-3 py-3 group transition-colors cursor-default
+                                     ${isFolder ? 'pl-12 pr-5' : 'px-5'}`}
+                         style={{
+                           background: selected.has(msg.id) ? 'rgba(255,255,255,0.18)' : 'transparent',
+                           borderBottom: !isLast ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                         }}
+                         onMouseEnter={e => { if (!selected.has(msg.id)) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                         onMouseLeave={e => { if (!selected.has(msg.id)) e.currentTarget.style.background = 'transparent'; }}>
 
                       {/* Checkbox */}
                       <input type="checkbox"
@@ -469,19 +492,19 @@ export default function ChatWindow({ conversation }) {
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">
+                        <p className="text-sm font-semibold text-white truncate">
                           {msg.originalFileName}
                         </p>
-                        <p className="text-xs text-slate-400 truncate">
+                        <p className="text-xs text-white/55 truncate">
                           {formatBytes(msg.fileSizeBytes)}
                           {' · '}
                           {format(new Date(msg.sentAt), 'd MMM yyyy')}
                           {!isMine && msg.senderName && (
-                            <> · <span className="text-sky-500 font-medium">{msg.senderName}</span></>
+                            <> · <span className="text-sky-200 font-medium">{msg.senderName}</span></>
                           )}
                         </p>
                         {msg.caption && (
-                          <p className="text-xs text-slate-400 italic truncate mt-0.5">
+                          <p className="text-xs text-white/45 italic truncate mt-0.5">
                             "{msg.caption}"
                           </p>
                         )}
@@ -512,8 +535,8 @@ export default function ChatWindow({ conversation }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-2 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-300">
+        <div className="px-5 py-2 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+          <p className="text-xs text-white/40">
             Drag &amp; drop files anywhere · Max 500 MB
           </p>
         </div>
@@ -529,6 +552,7 @@ export default function ChatWindow({ conversation }) {
           </div>
         </div>
       )}
+      </div>{/* end z-10 wrapper */}
     </div>
   );
 }

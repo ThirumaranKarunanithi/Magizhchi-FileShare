@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { conversations, users, connections } from '../services/api';
+import { conversations, users, connections, storage } from '../services/api';
 import { subscribeToUserNotifications } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -7,6 +7,14 @@ import toast from 'react-hot-toast';
 import NewGroupModal            from './NewGroupModal';
 import ProfileModal             from './ProfileModal';
 import ConnectionRequestsModal  from './ConnectionRequestsModal';
+import StorageModal             from './StorageModal';
+
+function fmtStorage(bytes) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+}
 
 function initials(name) {
   if (!name) return '?';
@@ -59,12 +67,15 @@ export default function Sidebar({ selected, onSelect }) {
   const [myStorage,        setMyStorage]        = useState(null);
   const [loadingStorage,   setLoadingStorage]   = useState(false);
   const [pendingCount,     setPendingCount]     = useState(0);
+  const [storageData,      setStorageData]      = useState(null);
+  const [showStorage,      setShowStorage]      = useState(false);
   // Per-user action loading: { [userId]: 'sending'|'accepting'|'cancelling'|'rejecting' }
   const [actionLoading,    setActionLoading]    = useState({});
 
-  // ── Load conversations on mount ──────────────────────────────────────────
+  // ── Load conversations + storage on mount ───────────────────────────────
   useEffect(() => {
     conversations.list().then(r => setConvList(r.data)).catch(console.error);
+    storage.usage().then(r => setStorageData(r.data)).catch(console.error);
   }, []);
 
   // ── Refresh pending count ────────────────────────────────────────────────
@@ -422,6 +433,38 @@ export default function Sidebar({ selected, onSelect }) {
         )}
       </div>
 
+      {/* ── Storage bar ── */}
+      {storageData && (() => {
+        const pct = storageData.usedPercent;
+        const barColor = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-green-500';
+        const textColor = pct >= 90 ? 'text-red-500' : pct >= 70 ? 'text-amber-500' : 'text-green-600';
+        return (
+          <button onClick={() => setShowStorage(true)}
+                  className="mx-3 mb-2 px-3 py-2.5 rounded-xl border border-slate-100
+                             bg-slate-50 hover:bg-sky-50 hover:border-sky-200
+                             transition-all text-left group w-[calc(100%-24px)]"
+                  title="Click to see storage breakdown">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-slate-600">
+                💾 Storage
+              </span>
+              <span className={`text-xs font-bold ${textColor}`}>
+                {fmtStorage(storageData.usedBytes)} / {fmtStorage(storageData.limitBytes)}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${barColor}`}
+                   style={{ width: `${Math.min(100, pct)}%` }}/>
+            </div>
+            {pct >= 90 && (
+              <p className="text-xs text-red-500 font-semibold mt-1">
+                🚨 Almost full — upgrade your plan
+              </p>
+            )}
+          </button>
+        );
+      })()}
+
       {/* ── Bottom profile bar ── */}
       <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-3">
         <div className="w-8 h-8 avatar text-xs flex-shrink-0">
@@ -442,6 +485,7 @@ export default function Sidebar({ selected, onSelect }) {
       {showGroup      && <NewGroupModal onClose={() => setShowGroup(false)}
                                         onCreated={handleGroupCreated}/>}
       {showProfile    && <ProfileModal  onClose={() => setShowProfile(false)}/>}
+      {showStorage    && <StorageModal  onClose={() => setShowStorage(false)}/>}
       {showConnections && (
         <ConnectionRequestsModal
           onClose={() => { setShowConnections(false); refreshPendingCount(); }}

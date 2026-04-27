@@ -94,10 +94,20 @@ public class ConversationService {
 
     // ── Group ─────────────────────────────────────────────────────────────────
 
+    private static final int FREE_PLAN_GROUP_LIMIT = 3;
+
     @Transactional
     public ConversationResponse createGroup(Long creatorId, CreateGroupRequest req,
                                              MultipartFile iconFile) {
         User creator = getUser(creatorId);
+
+        // Free-plan group limit
+        long groupCount = convRepo.countGroupsByCreator(creatorId);
+        if (groupCount >= FREE_PLAN_GROUP_LIMIT) {
+            throw new AppException(HttpStatus.FORBIDDEN,
+                    "Free plan allows a maximum of " + FREE_PLAN_GROUP_LIMIT + " groups. " +
+                    "Upgrade your plan to create more groups.");
+        }
 
         Conversation group = Conversation.builder()
                 .type(Conversation.ConversationType.GROUP)

@@ -61,6 +61,16 @@ public class User {
 
     private Instant lastSeenAt;
 
+    /** Bytes consumed by all files uploaded by this user (personal + direct + groups). */
+    @Column(nullable = false)
+    @Builder.Default
+    private Long storageUsedBytes = 0L;
+
+    /** Per-user cap. Default 5 GB (free plan). */
+    @Column(nullable = false)
+    @Builder.Default
+    private Long maxStorageBytes = 5_368_709_120L;   // 5 * 1024^3
+
     /** One-directional: contacts this user has added */
     @JsonIgnore            // prevent LazyInitializationException during Jackson serialization
     @ToString.Exclude      // prevent LazyInitializationException in Lombok toString() → Spring Security getName()
