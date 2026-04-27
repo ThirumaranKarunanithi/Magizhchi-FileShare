@@ -3,17 +3,24 @@ import Sidebar, { SHARED_WITH_ME_VIEW } from '../components/Sidebar';
 import ChatWindow        from '../components/ChatWindow';
 import SharedWithMeView from '../components/SharedWithMeView';
 import { connectSocket, disconnectSocket } from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
+  const { currentUser } = useAuth();
   const [selectedConv, setSelectedConv] = useState(null);
 
+  // Connect the WebSocket only AFTER the user is authenticated.
+  // React runs children effects before parent effects, so by the time this
+  // effect fires, Sidebar has already registered its subscriptions in
+  // activeTopics — meaning onConnect will subscribe them immediately.
   useEffect(() => {
+    if (!currentUser?.id) return;
     connectSocket(
-      () => console.log('[WS] Connected to Magizhchi Share'),
+      () => console.log('[WS] Connected — user', currentUser.id),
       () => console.log('[WS] Disconnected')
     );
-    return () => disconnectSocket();
-  }, []);
+    return disconnectSocket;
+  }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { conversations, users, connections, storage } from '../services/api';
 import { subscribeToUserNotifications } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
@@ -79,6 +79,10 @@ export default function Sidebar({ selected, onSelect }) {
   // Per-user action loading: { [userId]: 'sending'|'accepting'|'cancelling'|'rejecting' }
   const [actionLoading,    setActionLoading]    = useState({});
 
+  // Always-current ref to selected — used inside the WS callback to avoid stale closures
+  const selectedRef = useRef(selected);
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
   // ── Load conversations + storage on mount ───────────────────────────────
   useEffect(() => {
     conversations.list().then(r => setConvList(r.data)).catch(console.error);
@@ -113,9 +117,9 @@ export default function Sidebar({ selected, onSelect }) {
         // Show a toast
         toast(`📂 ${p.senderName} shared "${p.fileName}"`,
               { duration: 5000, icon: '📁' });
-        // Mark this conversation as having unread files (only if not currently selected)
+        // Mark this conversation as having unread files (only if not currently open)
         setUnreadConvIds(prev => {
-          if (selected?.id === cid) return prev; // already open
+          if (selectedRef.current?.id === cid) return prev; // already open — no badge
           const next = new Set(prev);
           next.add(cid);
           return next;

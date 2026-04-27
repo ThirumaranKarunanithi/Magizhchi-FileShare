@@ -1,9 +1,10 @@
 import { Client } from '@stomp/stompjs';
 
-// In dev the Vite proxy forwards /ws → ws://localhost:8080/ws
-// In prod set VITE_WS_URL e.g. wss://api.example.com/ws
+// In dev the Vite proxy forwards /ws → ws://localhost:8080/ws (see vite.config.js).
+// Using window.location.host (includes port) keeps us on the same origin so the
+// Vite proxy handles the upgrade.  In prod, set VITE_WS_URL explicitly.
 const WS_URL = import.meta.env.VITE_WS_URL
-  || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8080/ws`;
+  || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
 
 let stompClient = null;
 
