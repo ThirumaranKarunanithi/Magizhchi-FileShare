@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { conversations, files, connections } from '../services/api';
+import { conversations, files, connections, sharing } from '../services/api';
 import { subscribeToConversation } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
@@ -79,6 +79,8 @@ export default function ChatWindow({ conversation }) {
   // folder upload progress: null | { done: number, total: number }
   const [folderProgress, setFolderProgress] = useState(null);
   const [showShare,      setShowShare]      = useState(false);
+  // Set of fileMessageIds that the current user has already shared with someone
+  const [sharedFileIds,  setSharedFileIds]  = useState(new Set());
 
   // ── Load files ──────────────────────────────────────────────────────────────
   const loadFiles = useCallback(async (p = 0, prepend = false) => {
@@ -104,6 +106,10 @@ export default function ChatWindow({ conversation }) {
     setHasMore(true);
     setSelected(new Set());
     loadFiles(0, false);
+    // Load which files the current user has shared so we can highlight them
+    sharing.sharedByMe()
+      .then(r => setSharedFileIds(new Set(r.data.map(s => s.fileMessageId))))
+      .catch(() => {});
   }, [conversation.id]); // eslint-disable-line
 
   // ── Real-time ───────────────────────────────────────────────────────────────
@@ -472,19 +478,37 @@ export default function ChatWindow({ conversation }) {
                 {/* ── File rows (hidden when folder is collapsed) ── */}
                 {isExpanded && group.items.map((msg, idx) => {
                   const { emoji, bg } = fileIcon(msg.category);
-                  const isMine = msg.senderId === currentUser?.id;
-                  const isLast = idx === group.items.length - 1 && gi === groups.length - 1;
+                  const isMine   = msg.senderId === currentUser?.id;
+                  const isShared = sharedFileIds.has(msg.id);
+                  const isLast   = idx === group.items.length - 1 && gi === groups.length - 1;
+
+                  // Shared files get a violet left-border accent and a faint violet tint
+                  const sharedBg      = 'rgba(139,92,246,0.18)';
+                  const sharedBgHover = 'rgba(139,92,246,0.28)';
+                  const selectedBg    = 'rgba(255,255,255,0.18)';
+                  const normalBgHover = 'rgba(255,255,255,0.1)';
+
+                  const baseBg = selected.has(msg.id)
+                    ? selectedBg
+                    : isShared ? sharedBg : 'transparent';
 
                   return (
                     <div key={msg.id}
                          className={`flex items-center gap-3 py-3 group transition-colors cursor-default
                                      ${isFolder ? 'pl-12 pr-5' : 'px-5'}`}
                          style={{
-                           background: selected.has(msg.id) ? 'rgba(255,255,255,0.18)' : 'transparent',
+                           background: baseBg,
+                           borderLeft: isShared ? '3px solid rgba(167,139,250,0.8)' : '3px solid transparent',
                            borderBottom: !isLast ? '1px solid rgba(255,255,255,0.1)' : 'none',
                          }}
-                         onMouseEnter={e => { if (!selected.has(msg.id)) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-                         onMouseLeave={e => { if (!selected.has(msg.id)) e.currentTarget.style.background = 'transparent'; }}>
+                         onMouseEnter={e => {
+                           if (!selected.has(msg.id))
+                             e.currentTarget.style.background = isShared ? sharedBgHover : normalBgHover;
+                         }}
+                         onMouseLeave={e => {
+                           if (!selected.has(msg.id))
+                             e.currentTarget.style.background = isShared ? sharedBg : 'transparent';
+                         }}>
 
                       {/* Checkbox */}
                       <input type="checkbox"
@@ -492,17 +516,33 @@ export default function ChatWindow({ conversation }) {
                              checked={selected.has(msg.id)}
                              onChange={() => toggleSelect(msg.id)}/>
 
-                      {/* Icon */}
+                      {/* Icon — violet ring when shared */}
                       <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center
-                                      justify-center text-xl ${bg}`}>
-                        {emoji}
+                                      justify-center text-xl ${isShared ? '' : bg}`}
+                           style={isShared ? {
+                             background: 'rgba(139,92,246,0.25)',
+                             boxShadow: '0 0 0 2px rgba(167,139,250,0.6)',
+                           } : {}}>
+                        {isShared ? '🔗' : emoji}
                       </div>
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">
-                          {msg.originalFileName}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-white truncate">
+                            {msg.originalFileName}
+                          </p>
+                          {isShared && (
+                            <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                  style={{
+                                    background: 'rgba(139,92,246,0.35)',
+                                    border: '1px solid rgba(167,139,250,0.5)',
+                                    color: '#ddd6fe',
+                                  }}>
+                              Shared
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-white/55 truncate">
                           {formatBytes(msg.fileSizeBytes)}
                           {' · '}
@@ -578,7 +618,13 @@ export default function ChatWindow({ conversation }) {
       {showShare && (
         <ShareModal
           selectedIds={selected}
-          onClose={() => setShowShare(false)}
+          onClose={() => {
+            setShowShare(false);
+            // Refresh the shared-IDs set so newly shared files turn violet immediately
+            sharing.sharedByMe()
+              .then(r => setSharedFileIds(new Set(r.data.map(s => s.fileMessageId))))
+              .catch(() => {});
+          }}
         />
       )}
     </div>
