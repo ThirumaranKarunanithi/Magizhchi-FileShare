@@ -78,6 +78,14 @@ export default function ChatWindow({ conversation }) {
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
 
+  // ── Description dialog ─────────────────────────────────────────────────────
+  // pendingUpload: null | { type:'file', file:File } | { type:'folder', picked:File[], folderName:string }
+  const [pendingUpload, setPendingUpload] = useState(null);
+  const [description,   setDescription]  = useState('');
+
+  // ── Search ─────────────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+
   // folder upload progress: null | { done: number, total: number }
   const [folderProgress, setFolderProgress] = useState(null);
   const [showShare,      setShowShare]      = useState(false);
@@ -150,12 +158,13 @@ export default function ChatWindow({ conversation }) {
   }, [conversation.id]);
 
   // ── Upload ──────────────────────────────────────────────────────────────────
-  const sendFile = async (file) => {
+  const sendFile = async (file, caption) => {
     if (!file) return;
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
+      if (caption?.trim()) fd.append('caption', caption.trim());
       const { data } = await files.send(conversation.id, fd);
       setMessages(prev => [data, ...prev]);
       toast.success(`"${file.name}" uploaded!`);
@@ -163,59 +172,77 @@ export default function ChatWindow({ conversation }) {
     finally { setUploading(false); }
   };
 
+  // Intercept file pick → show description dialog instead of uploading immediately
   const handleFileInput = e => {
     const picked = e.target.files[0];
-    if (picked) sendFile(picked);
     e.target.value = '';
+    if (!picked) return;
+    setDescription('');
+    setPendingUpload({ type: 'file', file: picked });
   };
 
   // ── Folder upload ───────────────────────────────────────────────────────────
+  // Intercept folder pick → show description dialog instead of uploading immediately
   const handleFolderInput = async (e) => {
     const picked = Array.from(e.target.files || []);
     e.target.value = '';
     if (!picked.length) return;
-
     const folderName = picked[0].webkitRelativePath?.split('/')[0] || 'folder';
-    setFolderProgress({ done: 0, total: picked.length });
+    setDescription('');
+    setPendingUpload({ type: 'folder', picked, folderName });
+  };
 
-    const fd = new FormData();
-    picked.forEach(f => {
-      fd.append('files', f);
-      fd.append('relativePaths', f.webkitRelativePath || f.name);
-    });
+  // Called when the user confirms the description dialog
+  const confirmUpload = async () => {
+    if (!pendingUpload) return;
+    const caption = description.trim() || undefined;
+    setPendingUpload(null);
+    setDescription('');
 
-    try {
-      const { data } = await files.sendFolder(conversation.id, fd, (evt) => {
-        if (evt.lengthComputable) {
-          // Approximate file count from bytes progress
-          const pct = evt.loaded / evt.total;
-          setFolderProgress(prev => ({
-            done:  Math.round(pct * prev.total),
-            total: prev.total,
-          }));
-        }
+    if (pendingUpload.type === 'file') {
+      await sendFile(pendingUpload.file, caption);
+    } else {
+      // Folder upload
+      const { picked, folderName } = pendingUpload;
+      setFolderProgress({ done: 0, total: picked.length });
+      const fd = new FormData();
+      picked.forEach(f => {
+        fd.append('files', f);
+        fd.append('relativePaths', f.webkitRelativePath || f.name);
       });
-      // The WebSocket will push each NEW_FILE event, but add any that arrive
-      // via HTTP response as a fallback (de-dup by id)
-      if (Array.isArray(data)) {
-        setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const fresh = data.filter(m => !existingIds.has(m.id));
-          return [...fresh, ...prev];
+      if (caption) fd.append('caption', caption);
+      try {
+        const { data } = await files.sendFolder(conversation.id, fd, (evt) => {
+          if (evt.lengthComputable) {
+            const pct = evt.loaded / evt.total;
+            setFolderProgress(prev => ({
+              done:  Math.round(pct * prev.total),
+              total: prev.total,
+            }));
+          }
         });
+        if (Array.isArray(data)) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const fresh = data.filter(m => !existingIds.has(m.id));
+            return [...fresh, ...prev];
+          });
+        }
+        toast.success(`📁 "${folderName}" — ${picked.length} file${picked.length !== 1 ? 's' : ''} uploaded!`);
+      } catch (err) {
+        toast.error('Folder upload failed: ' + err);
+      } finally {
+        setFolderProgress(null);
       }
-      toast.success(`📁 "${folderName}" — ${picked.length} file${picked.length !== 1 ? 's' : ''} uploaded!`);
-    } catch (err) {
-      toast.error('Folder upload failed: ' + err);
-    } finally {
-      setFolderProgress(null);
     }
   };
 
   const handleDrop = e => {
     e.preventDefault(); setDragOver(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped) sendFile(dropped);
+    if (!dropped) return;
+    setDescription('');
+    setPendingUpload({ type: 'file', file: dropped });
   };
 
   // ── Download ────────────────────────────────────────────────────────────────
@@ -247,8 +274,14 @@ export default function ChatWindow({ conversation }) {
     });
   };
 
-  // ── Filtered list ───────────────────────────────────────────────────────────
-  const displayed  = filter === 'ALL' ? messages : messages.filter(m => m.category === filter);
+  // ── Filtered + searched list ────────────────────────────────────────────────
+  const q = searchQuery.trim().toLowerCase();
+  const displayed = messages
+    .filter(m => filter === 'ALL' || m.category === filter)
+    .filter(m => !q || (
+      m.originalFileName?.toLowerCase().includes(q) ||
+      m.caption?.toLowerCase().includes(q)
+    ));
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
   const groups     = groupByFolder(displayed);
 
@@ -403,7 +436,7 @@ export default function ChatWindow({ conversation }) {
       </div>
 
       {/* ── Filter pills ── */}
-      <div className="px-6 pb-3 flex gap-2 overflow-x-auto">
+      <div className="px-6 pb-2 flex gap-2 overflow-x-auto">
         {CATEGORIES.map(cat => (
           <button key={cat} onClick={() => setFilter(cat)}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
@@ -413,6 +446,37 @@ export default function ChatWindow({ conversation }) {
             {CAT_LABEL[cat]}
           </button>
         ))}
+      </div>
+
+      {/* ── Search bar ── */}
+      <div className="px-6 pb-3">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+             style={{
+               background: 'rgba(255,255,255,0.12)',
+               border: '1px solid rgba(255,255,255,0.25)',
+             }}>
+          <span className="text-white/50 text-sm flex-shrink-0">🔍</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by file name or description…"
+            className="flex-1 bg-transparent text-sm text-white placeholder-white/35
+                       outline-none min-w-0"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')}
+                    className="text-white/40 hover:text-white text-xs flex-shrink-0
+                               transition-colors leading-none">
+              ✕
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-[11px] text-white/40 mt-1 px-1">
+            {displayed.length} result{displayed.length !== 1 ? 's' : ''} for "{searchQuery}"
+          </p>
+        )}
       </div>
 
       {/* ── File browser card (glass) ── */}
@@ -807,6 +871,96 @@ export default function ChatWindow({ conversation }) {
           </p>
         </div>
       </div>
+
+      {/* ── Description dialog ── */}
+      {pendingUpload && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center"
+             style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-sm mx-4 rounded-2xl p-6"
+               style={{
+                 background: 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.88) 100%)',
+                 border: '1px solid rgba(255,255,255,0.7)',
+                 boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+               }}>
+
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center
+                              text-xl bg-sky-50">
+                {pendingUpload.type === 'folder' ? '📁' : '📎'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-gray-900 font-bold text-base">Add a description</h3>
+                <p className="text-gray-500 text-xs mt-0.5 truncate">
+                  {pendingUpload.type === 'folder'
+                    ? `📁 ${pendingUpload.folderName} — ${pendingUpload.picked.length} file${pendingUpload.picked.length !== 1 ? 's' : ''}`
+                    : pendingUpload.file.name}
+                </p>
+              </div>
+            </div>
+
+            {/* Description textarea */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+                Description <span className="text-gray-400 normal-case font-normal">(optional)</span>
+              </label>
+              <textarea
+                autoFocus
+                rows={3}
+                maxLength={500}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) confirmUpload();
+                  if (e.key === 'Escape') { setPendingUpload(null); setDescription(''); }
+                }}
+                placeholder="What is this file about? (e.g. Q3 report, project assets…)"
+                className="w-full px-3 py-2.5 rounded-xl text-sm text-gray-800 resize-none
+                           outline-none transition-all placeholder-gray-400"
+                style={{
+                  background: 'rgba(241,245,249,1)',
+                  border: '1px solid rgba(148,163,184,0.5)',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)',
+                }}
+                onFocus={e => {
+                  e.target.style.border = '1px solid #0ea5e9';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.15)';
+                }}
+                onBlur={e => {
+                  e.target.style.border = '1px solid rgba(148,163,184,0.5)';
+                  e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.06)';
+                }}
+              />
+              <p className="text-right text-[10px] text-gray-400 mt-1">{description.length}/500</p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setPendingUpload(null); setDescription(''); }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600
+                           bg-gray-100 hover:bg-gray-200 transition-all">
+                Cancel
+              </button>
+              <button
+                onClick={confirmUpload}
+                disabled={uploading || !!folderProgress}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white
+                           transition-all hover:-translate-y-0.5 active:translate-y-0
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: '#0F172A',
+                  boxShadow: '0 4px 16px rgba(15,23,42,0.25)',
+                }}>
+                {pendingUpload.type === 'folder' ? '📁 Upload Folder' : '⬆ Upload File'}
+              </button>
+            </div>
+            <p className="text-center text-[10px] text-gray-400 mt-2">
+              Ctrl+Enter to upload · Esc to cancel
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Drop overlay ── */}
       {dragOver && (

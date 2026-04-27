@@ -48,9 +48,10 @@ public class FileController {
             @PathVariable Long conversationId,
             @RequestParam("files") MultipartFile[] files,
             @RequestParam(value = "relativePaths", required = false) String[] relativePaths,
+            @RequestParam(value = "caption",       required = false) String caption,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(
-                fileService.sendFolder(conversationId, user.getId(), files, relativePaths));
+                fileService.sendFolder(conversationId, user.getId(), files, relativePaths, caption));
     }
 
     @GetMapping("/{id}/download-url")

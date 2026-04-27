@@ -128,6 +128,13 @@ public class FileMessageService {
     @Transactional
     public List<FileMessageResponse> sendFolder(Long conversationId, Long senderId,
                                                 MultipartFile[] files, String[] relativePaths) {
+        return sendFolder(conversationId, senderId, files, relativePaths, null);
+    }
+
+    @Transactional
+    public List<FileMessageResponse> sendFolder(Long conversationId, Long senderId,
+                                                MultipartFile[] files, String[] relativePaths,
+                                                String caption) {
         if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(conversationId, senderId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "You are not a member of this conversation.");
         }
@@ -179,6 +186,7 @@ public class FileMessageService {
                     .contentType(file.getContentType())
                     .fileSizeBytes(file.getSize())
                     .s3Key(s3Key)
+                    .caption(caption)
                     .folderPath(folderPath)
                     .category(FileMessage.categoryFrom(file.getContentType()))
                     .build();

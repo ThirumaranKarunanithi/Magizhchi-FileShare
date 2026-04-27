@@ -4,45 +4,6 @@ import { auth } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-// ── Glass input ───────────────────────────────────────────────────────────────
-function GlassInput({ label, hint, className = '', ...props }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div>
-      {label && (
-        <div className="flex items-baseline justify-between mb-1.5">
-          <label className="text-[11px] font-bold text-white/55 uppercase tracking-widest">
-            {label}
-          </label>
-          {hint && <span className="text-[10px] text-white/35">{hint}</span>}
-        </div>
-      )}
-      <input
-        {...props}
-        className={`w-full px-4 py-3 rounded-xl text-sm text-white outline-none
-                    transition-all duration-200 placeholder-white/25 ${className}`}
-        style={{
-          background: focused ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.12)',
-          border:     focused ? '1px solid rgba(255,255,255,0.65)' : '1px solid rgba(255,255,255,0.25)',
-          boxShadow:  focused ? '0 0 0 3px rgba(255,255,255,0.10)' : 'none',
-        }}
-        onFocus={e => { setFocused(true);  props.onFocus?.(e); }}
-        onBlur={e  => { setFocused(false); props.onBlur?.(e);  }}
-      />
-    </div>
-  );
-}
-
-// ── Glass card style ──────────────────────────────────────────────────────────
-const GLASS = {
-  background:           'rgba(255,255,255,0.13)',
-  backdropFilter:       'blur(28px)',
-  WebkitBackdropFilter: 'blur(28px)',
-  border:               '1px solid rgba(255,255,255,0.28)',
-  boxShadow:            '0 8px 40px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35)',
-};
-
-// ── Main component ────────────────────────────────────────────────────────────
 export default function Register() {
   const navigate  = useNavigate();
   const { login } = useAuth();
@@ -106,218 +67,252 @@ export default function Register() {
     , 1000);
   };
 
+  const CARD = {
+    background:           'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%)',
+    backdropFilter:       'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border:               '1px solid rgba(255,255,255,0.6)',
+    borderRadius:         '24px',
+    boxShadow:            '0 20px 40px rgba(0,0,0,0.1)',
+    padding:              'clamp(16px, 3vw, 24px)',
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+    <div
+      className="min-h-screen flex items-center justify-center relative overflow-hidden"
+      style={{
+        backgroundColor: '#0EA5E9',
+        backgroundImage: 'radial-gradient(rgba(255,255,255,0.2) 2px, transparent 2px), linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)',
+        backgroundSize: '24px 24px, 100% 100%',
+      }}
+    >
+      <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row relative z-10
+                      items-center md:items-stretch justify-center p-4 md:p-6 gap-6 lg:gap-12">
 
-      {/* ── Layer 1: Blue gradient base ── */}
-      <div className="absolute inset-0" style={{
-        background: 'linear-gradient(150deg, #0c4a6e 0%, #0369a1 35%, #0284c7 65%, #0ea5e9 100%)',
-      }}/>
-
-      {/* ── Layer 2: Grid / line-check texture ── */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: [
-          'linear-gradient(rgba(255,255,255,0.09) 1px, transparent 1px)',
-          'linear-gradient(90deg, rgba(255,255,255,0.09) 1px, transparent 1px)',
-        ].join(', '),
-        backgroundSize: '26px 26px',
-      }}/>
-
-      {/* ── Layer 3: Dot texture on top of grid ── */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.22) 1.5px, transparent 1.5px)',
-        backgroundSize: '13px 13px',
-      }}/>
-
-      {/* ── Soft glow blobs ── */}
-      <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full
-                      pointer-events-none"
-           style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.22) 0%, transparent 70%)' }}/>
-      <div className="absolute bottom-[-10%] right-[-5%] w-[450px] h-[450px] rounded-full
-                      pointer-events-none"
-           style={{ background: 'radial-gradient(circle, rgba(3,105,161,0.32) 0%, transparent 70%)' }}/>
-
-      {/* ── Cards column ── */}
-      <div className="relative z-10 w-full max-w-[420px] mx-4 space-y-3 py-8">
-
-        {/* ─ Logo card ─ */}
-        <div className="rounded-2xl px-8 py-5 flex items-center gap-4" style={GLASS}>
-          <img src="/logo.png" alt="Magizhchi Box"
-               className="h-14 w-14 object-contain select-none flex-shrink-0"
-               style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.25))' }}
-               onError={e => {
-                 e.currentTarget.style.display = 'none';
-                 e.currentTarget.nextSibling.style.display = 'flex';
-               }}/>
-          <div style={{ display: 'none' }}
-               className="items-center justify-center w-14 h-14 rounded-xl flex-shrink-0">
-            <span className="text-3xl">📂</span>
-          </div>
-          <div>
-            <p className="text-white font-extrabold text-base leading-tight">Magizhchi Box</p>
-            <p className="text-white/50 text-xs mt-0.5">Secure Cloud Storage, Simplified</p>
-          </div>
-        </div>
-
-        {/* ─ Step progress ─ */}
-        <div className="flex items-center gap-2 px-2">
-          {[
-            { n: 1, label: 'Your details' },
-            { n: 2, label: 'Verify'       },
-          ].map((s, i) => (
-            <div key={s.n} className="flex items-center gap-2 flex-1">
-              <div className="flex items-center gap-1.5 flex-1">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center
-                                text-[11px] font-bold flex-shrink-0 transition-all"
-                     style={step >= s.n ? {
-                       background: 'rgba(255,255,255,0.92)',
-                       color: '#0369a1',
-                     } : {
-                       background: 'rgba(255,255,255,0.15)',
-                       color: 'rgba(255,255,255,0.4)',
-                       border: '1px solid rgba(255,255,255,0.22)',
-                     }}>
-                  {step > s.n ? '✓' : s.n}
-                </div>
-                <span className="text-[11px] font-semibold transition-colors"
-                      style={{ color: step >= s.n ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)' }}>
-                  {s.label}
-                </span>
-              </div>
-              {i === 0 && (
-                <div className="h-px flex-1 mx-1 rounded-full"
-                     style={{ background: step > 1 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.18)' }}/>
-              )}
+        {/* ── LEFT: Professional image ── */}
+        <div className="hidden md:block w-full md:w-1/2 relative">
+          <div
+            className="absolute inset-0 rounded-[24px] overflow-hidden shadow-2xl
+                       transition-transform duration-500 hover:scale-[1.02]"
+            style={{ border: '2px solid rgba(255,255,255,0.4)' }}>
+            <img
+              src="/signup_professionals.png"
+              alt="Professional"
+              className="w-full h-full object-cover"/>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0284C7]/90
+                            via-[#0284C7]/20 to-transparent pointer-events-none"/>
+            <div className="absolute bottom-8 left-8 right-8 text-white">
+              <h3 className="text-2xl sm:text-3xl font-extrabold mb-2 drop-shadow-lg">
+                Boost Productivity
+              </h3>
+              <p className="text-base sm:text-lg font-medium text-blue-50 drop-shadow-md leading-relaxed">
+                Join thousands of professionals securely managing their workload in the cloud.
+              </p>
             </div>
-          ))}
+          </div>
         </div>
 
-        {/* ─ Form card ─ */}
-        <div className="rounded-2xl px-8 py-8" style={GLASS}>
+        {/* ── RIGHT: Form column ── */}
+        <div className="w-full md:w-1/2 max-w-md flex flex-col items-center justify-center">
 
-          <div className="mb-6">
-            <h2 className="text-white font-extrabold text-xl leading-tight">
-              {step === 1 ? 'Create your account' : 'Verify your identity'}
-            </h2>
-            <p className="text-white/50 text-xs mt-1.5 leading-relaxed">
-              {step === 1
-                ? 'Fill in your details to get started — it\'s free'
-                : `Enter the 6-digit code sent to ${form.mobileNumber || form.email}`}
-            </p>
+          {/* Logo banner */}
+          <div className="text-center mb-3 w-full">
+            <div className="flex items-center justify-center bg-white/50 backdrop-blur-sm
+                            border border-white/80 rounded-2xl shadow-sm w-full overflow-hidden h-24 sm:h-28">
+              <img src="/logo.png" alt="Magizhchi Box"
+                   className="w-full h-full object-contain object-center mix-blend-multiply p-3"
+                   onError={e => {
+                     e.currentTarget.style.display = 'none';
+                     e.currentTarget.nextSibling.style.display = 'flex';
+                   }}/>
+              <div style={{ display: 'none' }}
+                   className="w-full h-full items-center justify-center gap-3">
+                <span className="text-4xl">📂</span>
+                <div>
+                  <p className="text-gray-800 font-extrabold text-lg">Magizhchi Box</p>
+                  <p className="text-gray-500 text-xs">Secure Cloud Storage, Simplified</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="h-px mb-6" style={{ background: 'rgba(255,255,255,0.15)' }}/>
-
-          {step === 1 ? (
-            <form onSubmit={handleStep1} className="space-y-4">
-              <GlassInput
-                label="Full name"
-                value={form.displayName}
-                onChange={e => set('displayName', e.target.value)}
-                placeholder="Your full name"
-                autoFocus/>
-
-              <GlassInput
-                label="Mobile number"
-                hint="required"
-                value={form.mobileNumber}
-                onChange={e => set('mobileNumber', e.target.value)}
-                placeholder="+91 9876543210"
-                type="tel"/>
-
-              <GlassInput
-                label="Email address"
-                hint="optional"
-                value={form.email}
-                onChange={e => set('email', e.target.value)}
-                placeholder="you@example.com"
-                type="email"/>
+          {/* ── Step 1: Registration form ── */}
+          {step === 1 && (
+            <div className="w-full flex flex-col justify-center" style={CARD}>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 text-center">
+                Create your account
+              </h2>
 
               {error && (
-                <p className="px-4 py-2.5 rounded-xl text-xs font-semibold text-red-200"
-                   style={{ background: 'rgba(239,68,68,0.20)', border: '1px solid rgba(239,68,68,0.35)' }}>
-                  ⚠ {error}
-                </p>
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg
+                                text-red-700 text-sm flex items-start gap-2">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  </svg>
+                  <span>{error}</span>
+                </div>
               )}
 
+              <form onSubmit={handleStep1} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={form.displayName}
+                    onChange={e => set('displayName', e.target.value)}
+                    placeholder="Your full name"
+                    required
+                    autoFocus/>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mobile number <span className="text-gray-400 font-normal text-xs">(required)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    className="input-field"
+                    value={form.mobileNumber}
+                    onChange={e => set('mobileNumber', e.target.value)}
+                    placeholder="+91 9876543210"/>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email address <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    value={form.email}
+                    onChange={e => set('email', e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"/>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full mt-4 bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold
+                             py-3 px-4 rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.2)]
+                             transition-all duration-200 hover:-translate-y-0.5
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                      Sending code…
+                    </span>
+                  ) : 'Send OTP →'}
+                </button>
+              </form>
+
+              <p className="mt-5 text-center text-sm text-gray-500">
+                Already have an account?{' '}
+                <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {/* ── Step 2: OTP verification ── */}
+          {step === 2 && (
+            <div className="w-full flex flex-col justify-center" style={CARD}>
               <button
-                className="w-full py-3 rounded-xl font-bold text-sky-900 text-sm
-                           transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
-                           disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(255,255,255,0.94)', boxShadow: '0 4px 20px rgba(0,0,0,0.20)' }}
-                disabled={loading}>
-                {loading ? '⏳ Sending code…' : 'Continue  →'}
+                onClick={() => { setStep(1); setOtp(''); setError(''); }}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700
+                           mb-4 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
+                </svg>
+                Back
               </button>
-            </form>
 
-          ) : (
-            <form onSubmit={handleStep2} className="space-y-5">
-              <GlassInput
-                label="6-digit verification code"
-                value={otp}
-                onChange={e => setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}
-                placeholder="• • • • • •"
-                className="text-center text-3xl tracking-[0.5em] font-bold"
-                maxLength={6}
-                autoFocus/>
-
-              {error && (
-                <p className="px-4 py-2.5 rounded-xl text-xs font-semibold text-red-200"
-                   style={{ background: 'rgba(239,68,68,0.20)', border: '1px solid rgba(239,68,68,0.35)' }}>
-                  ⚠ {error}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 mb-3">
+                  <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                  </svg>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Verify your identity</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  We sent a 6-digit code to<br/>
+                  <span className="font-semibold text-gray-700">
+                    {form.mobileNumber || form.email}
+                  </span>
                 </p>
-              )}
-
-              <button
-                className="w-full py-3 rounded-xl font-bold text-sky-900 text-sm
-                           transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
-                           disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(255,255,255,0.94)', boxShadow: '0 4px 20px rgba(0,0,0,0.20)' }}
-                disabled={loading}>
-                {loading ? '⏳ Creating account…' : 'Create Account  →'}
-              </button>
-
-              <div className="flex items-center justify-between">
-                <button type="button" onClick={() => { setStep(1); setOtp(''); setError(''); }}
-                        className="text-xs text-white/50 hover:text-white transition-colors">
-                  ← Back
-                </button>
-                <button type="button" onClick={handleResend} disabled={resendTimer > 0}
-                        className={`text-xs transition-colors
-                          ${resendTimer > 0 ? 'text-white/25 cursor-not-allowed' : 'text-white/50 hover:text-white'}`}>
-                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend code'}
-                </button>
               </div>
-            </form>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg
+                                text-red-700 text-sm flex items-start gap-2">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleStep2} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 text-center">
+                    Enter verification code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    className="input-field text-center text-2xl font-bold tracking-[0.5em] py-3"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}
+                    placeholder="——————"
+                    autoComplete="one-time-code"
+                    autoFocus/>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || otp.length !== 6}
+                  className="w-full bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold
+                             py-3 px-4 rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.2)]
+                             transition-all duration-200 hover:-translate-y-0.5
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                      Creating account…
+                    </span>
+                  ) : 'Verify & Create Account →'}
+                </button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-500">
+                  Didn't receive the code?{' '}
+                  {resendTimer > 0 ? (
+                    <span className="text-gray-400">Resend in {resendTimer}s</span>
+                  ) : (
+                    <button
+                      onClick={handleResend}
+                      disabled={loading}
+                      className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50">
+                      Resend OTP
+                    </button>
+                  )}
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* ─ Feature pills row ─ */}
-        <div className="flex flex-wrap justify-center gap-2 px-2">
-          {[
-            { icon: '🤝', text: 'Connect with teams'    },
-            { icon: '📁', text: 'Instant file sharing'  },
-            { icon: '🛡',  text: 'Privacy first'         },
-            { icon: '🔔', text: 'Real-time alerts'      },
-          ].map(f => (
-            <div key={f.text}
-                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white/80"
-                 style={{
-                   background: 'rgba(255,255,255,0.10)',
-                   border: '1px solid rgba(255,255,255,0.18)',
-                   backdropFilter: 'blur(8px)',
-                 }}>
-              <span>{f.icon}</span>
-              <span>{f.text}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* ─ Footer ─ */}
-        <p className="text-center text-white/45 text-xs pt-1">
-          Already have an account?{' '}
-          <Link to="/login" className="text-white font-bold hover:underline">Sign in</Link>
-        </p>
       </div>
     </div>
   );
