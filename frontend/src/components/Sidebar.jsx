@@ -387,28 +387,30 @@ export default function Sidebar({ selected, onSelect }) {
         </div>
       </div>
 
-      {/* ── My Storage + Shared with Me (square cards, side by side) ── */}
-      <div className="px-3 pt-3 pb-2 flex gap-2">
+      {/* ── My Storage + Shared Files (side by side) ── */}
+      <div className="px-3 pt-3 pb-2 flex gap-2 overflow-visible">
 
         {/* My Storage */}
         <button onClick={openMyStorage} disabled={loadingStorage}
-                className={`flex-1 flex items-center gap-2.5 px-3 py-2.5
-                            rounded-2xl border transition-all group
-                            ${selected?.type === 'PERSONAL'
-                              ? 'bg-sky-500 border-sky-500 shadow-md'
-                              : 'bg-white/70 border-sky-100 hover:border-sky-300 hover:bg-white/90 hover:shadow-sm'}`}>
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center
-                           text-lg flex-shrink-0 shadow-sm
-                           ${selected?.type === 'PERSONAL' ? 'bg-white/20' : 'bg-sky-50 border border-sky-100'}`}>
+                className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border transition-all group"
+                style={selected?.type === 'PERSONAL' ? {
+                  background: 'linear-gradient(135deg,#0ea5e9,#0284c7)',
+                  borderColor: '#0ea5e9',
+                  boxShadow: '0 4px 14px rgba(14,165,233,0.35)',
+                } : {
+                  background: 'rgba(15,23,42,0.55)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderColor: 'rgba(255,255,255,0.10)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                }}>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+               style={{ background: selected?.type === 'PERSONAL' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
             {loadingStorage ? <span className="animate-spin text-sm">⏳</span> : '🗄️'}
           </div>
           <div className="min-w-0 text-left">
-            <p className={`text-xs font-bold leading-tight truncate
-                           ${selected?.type === 'PERSONAL' ? 'text-white' : 'text-slate-800'}`}>
-              My Storage
-            </p>
-            <p className={`text-[10px] leading-tight mt-0.5 truncate
-                           ${selected?.type === 'PERSONAL' ? 'text-white/70' : 'text-slate-400'}`}>
+            <p className="text-xs font-bold leading-tight truncate text-white">My Storage</p>
+            <p className="text-[10px] leading-tight mt-0.5 truncate text-white/50">
               {currentUser?.displayName
                 ? `${currentUser.displayName.split(' ')[0]}'s space`
                 : 'Personal space'}
@@ -416,13 +418,20 @@ export default function Sidebar({ selected, onSelect }) {
           </div>
         </button>
 
-        {/* Shared with Me */}
+        {/* Shared Files */}
         <button onClick={() => { onSelect(SHARED_WITH_ME_VIEW); setUnreadShares(0); }}
-                className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 relative
-                            rounded-2xl border transition-all group
-                            ${selected?.type === 'SHARED_WITH_ME'
-                              ? 'bg-violet-500 border-violet-500 shadow-md'
-                              : 'bg-white/70 border-violet-100 hover:border-violet-300 hover:bg-white/90 hover:shadow-sm'}`}>
+                className="flex-1 flex items-center gap-2.5 px-3 py-2.5 relative rounded-2xl border transition-all group"
+                style={selected?.type === 'SHARED_WITH_ME' ? {
+                  background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)',
+                  borderColor: '#8b5cf6',
+                  boxShadow: '0 4px 14px rgba(139,92,246,0.35)',
+                } : {
+                  background: 'rgba(15,23,42,0.55)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderColor: 'rgba(255,255,255,0.10)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                }}>
           {/* unread badge */}
           {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME' && (
             <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full
@@ -431,18 +440,13 @@ export default function Sidebar({ selected, onSelect }) {
               {unreadShares > 9 ? '9+' : unreadShares}
             </span>
           )}
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center
-                           text-lg flex-shrink-0 shadow-sm
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'bg-white/20' : 'bg-violet-50 border border-violet-100'}`}>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+               style={{ background: selected?.type === 'SHARED_WITH_ME' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
             🔗
           </div>
           <div className="min-w-0 text-left">
-            <p className={`text-xs font-bold leading-tight truncate
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white' : 'text-slate-800'}`}>
-              Shared with Me
-            </p>
-            <p className={`text-[10px] leading-tight mt-0.5 truncate
-                           ${selected?.type === 'SHARED_WITH_ME' ? 'text-white/70' : 'text-slate-400'}`}>
+            <p className="text-xs font-bold leading-tight truncate text-white">Shared Files</p>
+            <p className="text-[10px] leading-tight mt-0.5 truncate text-white/50">
               {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
                 ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''}`
                 : 'Shared files'}
@@ -455,7 +459,7 @@ export default function Sidebar({ selected, onSelect }) {
       {/* ── Search ── */}
       <div className="px-3 pb-2 border-b border-sky-100 space-y-2">
         {/* Mode toggle */}
-        <div className="flex gap-1 bg-slate-100 p-0.5 rounded-xl">
+        <div className="flex gap-1 p-0.5 rounded-xl" style={{ background: 'rgba(15,23,42,0.40)', border: '1px solid rgba(255,255,255,0.08)' }}>
           {[
             { key: 'people', icon: '👤', label: 'People' },
             { key: 'files',  icon: '🔍', label: 'Files'  },
@@ -465,8 +469,9 @@ export default function Sidebar({ selected, onSelect }) {
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl
                                 text-xs font-semibold transition-all
                                 ${searchMode === m.key
-                                  ? 'bg-white text-slate-800 shadow-sm'
-                                  : 'text-slate-400 hover:text-slate-600'}`}>
+                                  ? 'text-slate-900 shadow-sm'
+                                  : 'text-white/50 hover:text-white/80'}`}
+                    style={searchMode === m.key ? { background: 'rgba(255,255,255,0.92)' } : {}}>
               <span>{m.icon}</span>{m.label}
             </button>
           ))}
@@ -484,15 +489,14 @@ export default function Sidebar({ selected, onSelect }) {
 
         {search.trim().length >= 2 && searchMode === 'files' ? (
           /* ── File search results ── */
-          <div>
-            {searching && <p className="text-xs text-slate-400 px-4 py-2">Searching…</p>}
+          <div className="px-2 pt-2 space-y-1.5 pb-2">
+            {searching && <p className="text-xs text-slate-400 px-2 py-2">Searching…</p>}
             {!searching && fileSearchRes.length === 0 && (
-              <p className="text-sm text-slate-400 px-4 py-4 text-center">No files found</p>
+              <p className="text-sm text-slate-400 px-2 py-4 text-center">No files found</p>
             )}
             {fileSearchRes.map(f => (
               <button key={f.id}
                       onClick={() => {
-                        // Open the conversation this file belongs to
                         const existing = convList.find(c => c.id === f.conversationId);
                         if (existing) {
                           onSelect(existing);
@@ -500,11 +504,18 @@ export default function Sidebar({ selected, onSelect }) {
                           setUnreadCounts(prev => { const m = new Map(prev); m.delete(existing.id); return m; });
                         }
                       }}
-                      className="w-full flex items-start gap-3 px-4 py-3
-                                 border-b border-slate-50 hover:bg-slate-50 text-left">
+                      className="w-full flex items-start gap-3 px-3 py-2.5
+                                 rounded-2xl border text-left transition-all duration-150"
+                      style={{
+                        background: 'rgba(15,23,42,0.52)',
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        borderColor: 'rgba(255,255,255,0.10)',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                      }}>
                 {/* File icon */}
-                <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-100
-                                flex items-center justify-center text-lg flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                     style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}>
                   {f.category === 'IMAGE'    ? '🖼️' :
                    f.category === 'VIDEO'    ? '🎬' :
                    f.category === 'AUDIO'    ? '🎵' :
@@ -512,23 +523,16 @@ export default function Sidebar({ selected, onSelect }) {
                    f.category === 'ARCHIVE'  ? '🗜️' : '📎'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  {/* File name */}
-                  <p className="text-sm font-semibold text-slate-800 truncate">
-                    {f.originalFileName}
-                  </p>
-                  {/* Caption / description */}
+                  <p className="text-sm font-semibold text-white truncate">{f.originalFileName}</p>
                   {f.caption && (
-                    <p className="text-xs text-slate-500 truncate mt-0.5">
-                      "{f.caption}"
-                    </p>
+                    <p className="text-xs text-white/50 truncate mt-0.5">"{f.caption}"</p>
                   )}
-                  {/* Sender + conversation */}
-                  <p className="text-xs text-slate-400 mt-0.5 truncate">
-                    <span className="font-medium text-sky-600">{f.senderName}</span>
+                  <p className="text-xs text-white/40 mt-0.5 truncate">
+                    <span className="font-medium text-sky-400">{f.senderName}</span>
                     {f.conversationName && f.conversationName !== f.senderName && (
-                      <span className="text-slate-300"> · {f.conversationName}</span>
+                      <span className="text-white/25"> · {f.conversationName}</span>
                     )}
-                    <span className="text-slate-300"> · {new Date(f.sentAt).toLocaleDateString()}</span>
+                    <span className="text-white/25"> · {new Date(f.sentAt).toLocaleDateString()}</span>
                   </p>
                 </div>
               </button>
@@ -536,15 +540,22 @@ export default function Sidebar({ selected, onSelect }) {
           </div>
         ) : search.trim().length >= 2 ? (
           /* ── User search results ── */
-          <div>
-            {searching && <p className="text-xs text-slate-400 px-4 py-2">Searching…</p>}
+          <div className="px-2 pt-2 space-y-1.5 pb-2">
+            {searching && <p className="text-xs text-slate-400 px-2 py-2">Searching…</p>}
             {!searching && searchRes.length === 0 && (
-              <p className="text-sm text-slate-400 px-4 py-4 text-center">No users found</p>
+              <p className="text-sm text-slate-400 px-2 py-4 text-center">No users found</p>
             )}
             {searchRes.map(u => {
               const busy = actionLoading[u.id];
               return (
-                <div key={u.id} className="px-4 py-3 border-b border-slate-50 hover:bg-slate-50">
+                <div key={u.id} className="px-3 py-3 rounded-2xl border transition-all duration-150"
+                     style={{
+                       background: 'rgba(15,23,42,0.55)',
+                       backdropFilter: 'blur(10px)',
+                       WebkitBackdropFilter: 'blur(10px)',
+                       borderColor: 'rgba(255,255,255,0.10)',
+                       boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                     }}>
 
                   {/* User row */}
                   <div className="flex items-center gap-3">
@@ -553,11 +564,11 @@ export default function Sidebar({ selected, onSelect }) {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm text-slate-800">{u.displayName}</p>
+                        <p className="font-semibold text-sm text-white">{u.displayName}</p>
                         <ConnectionChip status={u.connectionStatus}/>
                       </div>
                       {u.mobileNumber && (
-                        <p className="text-xs text-slate-400 truncate">{u.mobileNumber}</p>
+                        <p className="text-xs text-white/45 truncate">{u.mobileNumber}</p>
                       )}
                     </div>
                   </div>
@@ -640,7 +651,7 @@ export default function Sidebar({ selected, onSelect }) {
           </div>
         ) : (
           /* ── Conversation list ── */
-          <div>
+          <div className="px-2 pt-2 space-y-1.5 pb-2">
             {convList.length === 0 && (
               <div className="text-center py-12 px-4">
                 <div className="text-4xl mb-2">💬</div>
@@ -663,11 +674,27 @@ export default function Sidebar({ selected, onSelect }) {
                           markOpened(conv.id);
                           setUnreadCounts(prev => { const m = new Map(prev); m.delete(conv.id); return m; });
                         }}
-                        className={`conv-row w-full text-left ${isActive ? 'active' : ''}`}
-                        style={hasNew && !isActive ? {
-                          background: 'linear-gradient(90deg, #eff6ff 0%, #f0f9ff 100%)',
-                          borderLeft: '3px solid #0ea5e9',
-                        } : {}}>
+                        className="w-full text-left flex items-center gap-3 px-3 py-2.5
+                                   rounded-2xl border transition-all duration-150"
+                        style={{
+                          background: isActive
+                            ? 'rgba(15,23,42,0.82)'
+                            : hasNew
+                              ? 'rgba(15,23,42,0.68)'
+                              : 'rgba(15,23,42,0.48)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          borderColor: isActive
+                            ? 'rgba(14,165,233,0.50)'
+                            : hasNew
+                              ? 'rgba(14,165,233,0.25)'
+                              : 'rgba(255,255,255,0.10)',
+                          boxShadow: isActive
+                            ? '0 2px 14px rgba(14,165,233,0.20)'
+                            : hasNew
+                              ? '0 2px 10px rgba(14,165,233,0.12)'
+                              : '0 1px 4px rgba(0,0,0,0.15)',
+                        }}>
 
                   {/* Avatar / icon */}
                   <div className="relative flex-shrink-0">
@@ -684,7 +711,7 @@ export default function Sidebar({ selected, onSelect }) {
                     {/* Pulse dot on avatar when unread */}
                     {hasNew && !isActive && (
                       <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full
-                                       bg-sky-500 border-2 border-white animate-pulse"/>
+                                       bg-sky-400 border-2 border-slate-900 animate-pulse"/>
                     )}
                   </div>
 
@@ -693,7 +720,7 @@ export default function Sidebar({ selected, onSelect }) {
                     {/* Name + badge */}
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <p className={`font-semibold text-sm truncate
-                                     ${hasNew && !isActive ? 'text-sky-700' : 'text-slate-800'}`}>
+                                     ${hasNew && !isActive ? 'text-sky-300' : 'text-white'}`}>
                         {conv.name}
                       </p>
 
@@ -701,12 +728,12 @@ export default function Sidebar({ selected, onSelect }) {
                         /* File-count pill */
                         <span className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5
                                          rounded-full text-[10px] font-bold text-white bg-sky-500
-                                         shadow-sm shadow-sky-200">
+                                         shadow-sm shadow-sky-900">
                           📥 {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       ) : (
                         last?.sentAt && (
-                          <span className="text-[10px] text-slate-400 flex-shrink-0">
+                          <span className="text-[10px] text-white/40 flex-shrink-0">
                             {formatDistanceToNow(new Date(last.sentAt), { addSuffix: false })}
                           </span>
                         )
@@ -715,15 +742,15 @@ export default function Sidebar({ selected, onSelect }) {
 
                     {/* Subtitle */}
                     {hasNew && !isActive ? (
-                      <p className="text-xs font-semibold text-sky-600 truncate">
+                      <p className="text-xs font-semibold text-sky-400 truncate">
                         {unreadCount === 1 ? '1 file received' : `${unreadCount} files received`}
                       </p>
                     ) : last ? (
-                      <p className="text-xs text-slate-400 truncate">
+                      <p className="text-xs text-white/45 truncate">
                         {fileIcon(last.category)}&nbsp;{last.originalFileName}
                       </p>
                     ) : (
-                      <p className="text-xs text-slate-300 italic">No files yet</p>
+                      <p className="text-xs text-white/25 italic">No files yet</p>
                     )}
                   </div>
                 </button>
