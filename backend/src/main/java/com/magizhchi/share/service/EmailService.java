@@ -66,7 +66,7 @@ public class EmailService {
                              box-shadow:0 4px 24px rgba(0,0,0,0.08);text-align:center;">
 
                   <!-- Icon -->
-                  <div style="width:56px;height:56px;background:#e0f2fe;border-radius:50%;
+                  <div style="width:56px;height:56px;background:#e0f2fe;border-radius:50%%;
                                display:inline-flex;align-items:center;justify-content:center;
                                margin-bottom:20px;font-size:26px;">
                     🔐
