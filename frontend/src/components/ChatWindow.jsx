@@ -56,9 +56,9 @@ function initials(name) {
   return p.length >= 2 ? (p[0][0] + p[1][0]).toUpperCase() : p[0][0].toUpperCase();
 }
 
-const CATEGORIES = ['ALL', 'IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO', 'ARCHIVE'];
+const CATEGORIES = ['ALL', 'IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO', 'ARCHIVE', 'OTHER'];
 const CAT_LABEL  = { ALL: 'All Files', IMAGE: '🖼 Images', VIDEO: '🎬 Videos',
-                     DOCUMENT: '📄 Docs', AUDIO: '🎵 Audio', ARCHIVE: '🗜 Archives' };
+                     DOCUMENT: '📄 Docs', AUDIO: '🎵 Audio', ARCHIVE: '🗜 Archives', OTHER: '📎 Others' };
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -79,9 +79,10 @@ export default function ChatWindow({ conversation }) {
   const folderInputRef = useRef(null);
 
   // ── Description dialog ─────────────────────────────────────────────────────
-  // pendingUpload: null | { type:'file', file:File } | { type:'folder', picked:File[], folderName:string }
-  const [pendingUpload, setPendingUpload] = useState(null);
-  const [description,   setDescription]  = useState('');
+  // pendingUpload: null | { type:'files', files:File[] } | { type:'folder', picked:File[], folderName:string }
+  const [pendingUpload,   setPendingUpload]   = useState(null);
+  const [description,     setDescription]     = useState('');
+  const [multiProgress,   setMultiProgress]   = useState(null); // { done, total } for multi-file upload
 
   // ── Search ─────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,6 +93,8 @@ export default function ChatWindow({ conversation }) {
   const [folderProgress, setFolderProgress] = useState(null);
   const [showShare,      setShowShare]      = useState(false);
   const [showGroupInfo,  setShowGroupInfo]  = useState(false);
+  const [showSettings,   setShowSettings]   = useState(false);
+  const settingsRef = useRef(null);
   // memberCount kept in sync after add/remove so the header subtitle stays accurate
   const [memberCount,    setMemberCount]    = useState(conversation.memberCount ?? 0);
   // Map<fileMessageId, SharedResourceResponse[]> — files the current user shared, with targets
@@ -147,6 +150,17 @@ export default function ChatWindow({ conversation }) {
     }
   }, [conversation.id]); // eslint-disable-line
 
+  // ── Close settings dropdown on outside click ─────────────────────────────
+  useEffect(() => {
+    const handler = e => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
+        setShowSettings(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // ── Real-time ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = subscribeToConversation(conversation.id, event => {
@@ -176,11 +190,11 @@ export default function ChatWindow({ conversation }) {
 
   // Intercept file pick → show description dialog instead of uploading immediately
   const handleFileInput = e => {
-    const picked = e.target.files[0];
-    if (!picked) return;            // check BEFORE clearing so the File ref stays valid
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
     e.target.value = '';
     setDescription('');
-    setPendingUpload({ type: 'file', file: picked });
+    setPendingUpload({ type: 'files', files: picked });
   };
 
   // ── Folder upload ───────────────────────────────────────────────────────────
@@ -201,8 +215,34 @@ export default function ChatWindow({ conversation }) {
     setPendingUpload(null);
     setDescription('');
 
-    if (pendingUpload.type === 'file') {
-      await sendFile(pendingUpload.file, caption);
+    if (pendingUpload.type === 'files') {
+      const { files: picked } = pendingUpload;
+      if (picked.length === 1) {
+        // Single file — same path as before
+        await sendFile(picked[0], caption);
+      } else {
+        // Multiple files — upload sequentially, show live counter
+        setMultiProgress({ done: 0, total: picked.length });
+        let succeeded = 0;
+        for (const file of picked) {
+          try {
+            const fd = new FormData();
+            fd.append('file', file);
+            if (caption) fd.append('caption', caption);
+            const { data } = await files.send(conversation.id, fd);
+            setMessages(prev => [data, ...prev]);
+            succeeded++;
+          } catch {
+            toast.error(`Failed to upload "${file.name}"`);
+          }
+          setMultiProgress(prev => ({ ...prev, done: (prev?.done ?? 0) + 1 }));
+        }
+        setMultiProgress(null);
+        if (succeeded > 0) {
+          toast.success(`${succeeded} of ${picked.length} file${picked.length !== 1 ? 's' : ''} uploaded!`);
+        }
+      }
+      return;
     } else {
       // Folder upload
       const { picked, folderName } = pendingUpload;
@@ -241,10 +281,10 @@ export default function ChatWindow({ conversation }) {
 
   const handleDrop = e => {
     e.preventDefault(); setDragOver(false);
-    const dropped = e.dataTransfer.files[0];
-    if (!dropped) return;
+    const dropped = Array.from(e.dataTransfer.files || []);
+    if (!dropped.length) return;
     setDescription('');
-    setPendingUpload({ type: 'file', file: dropped });
+    setPendingUpload({ type: 'files', files: dropped });
   };
 
   // ── Download ────────────────────────────────────────────────────────────────
@@ -362,69 +402,26 @@ export default function ChatWindow({ conversation }) {
           </div>
         </div>
 
-        {/* Group manage button */}
-        {conversation.type === 'GROUP' && (
-          <button
-            onClick={() => setShowGroupInfo(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10
-                       hover:bg-white/20 text-white/80 hover:text-white
-                       transition-all text-sm font-semibold"
-            title="Manage group members">
-            ⚙ Manage
-          </button>
-        )}
-
-        {/* DIRECT conversation actions: Unfriend + Block */}
-        {conversation.type === 'DIRECT' && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={async () => {
-                if (!window.confirm(
-                  `Remove ${conversation.name} from your connections? You won't be able to share files until you reconnect.`
-                )) return;
-                try {
-                  await connections.unfriend(conversation.otherUserId);
-                  toast.success(`${conversation.name} has been removed from your connections.`);
-                } catch (e) { toast.error(e?.toString() || 'Could not unfriend user'); }
-              }}
-              className="p-2 rounded-xl bg-white/10 hover:bg-amber-500/20 text-white/70
-                         hover:text-amber-200 transition-all text-sm"
-              title="Remove connection">
-              👤✕
-            </button>
-            <button
-              onClick={async () => {
-                if (!window.confirm(
-                  `Block ${conversation.name}? They won't be able to see or contact you.`
-                )) return;
-                try {
-                  await connections.block(conversation.otherUserId);
-                  toast.success(`${conversation.name} has been blocked.`);
-                } catch (e) { toast.error(e?.toString() || 'Could not block user'); }
-              }}
-              className="p-2 rounded-xl bg-white/10 hover:bg-red-500/20 text-white/70
-                         hover:text-red-200 transition-all text-sm"
-              title="Block user">
-              🚫
-            </button>
-          </div>
-        )}
-
-        {/* Upload buttons */}
+        {/* Right: upload buttons + settings gear */}
         <div className="flex items-center gap-2">
-          {/* Single file */}
+
+          {/* Upload Files (single or multiple) */}
           <button onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading || !!folderProgress}
+                  disabled={uploading || !!folderProgress || !!multiProgress}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-sky-700
                              font-bold text-sm shadow-lg hover:bg-sky-50
                              disabled:opacity-60 transition-all active:scale-95">
-            <span className={uploading ? 'animate-spin' : ''}>
-              {uploading ? '⏳' : '⬆'}
+            <span className={uploading || multiProgress ? 'animate-spin' : ''}>
+              {uploading || multiProgress ? '⏳' : '⬆'}
             </span>
-            {uploading ? 'Uploading…' : 'Upload File'}
+            {multiProgress
+              ? `${multiProgress.done}/${multiProgress.total} Uploading…`
+              : uploading
+                ? 'Uploading…'
+                : 'Upload Files'}
           </button>
 
-          {/* Folder */}
+          {/* Upload Folder */}
           <button onClick={() => folderInputRef.current?.click()}
                   disabled={uploading || !!folderProgress}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl
@@ -436,9 +433,116 @@ export default function ChatWindow({ conversation }) {
               : <><span>📁</span> Upload Folder</>
             }
           </button>
+
+          {/* ⚙ Settings gear — hidden for PERSONAL storage */}
+          {conversation.type !== 'PERSONAL' && (
+            <div className="relative" ref={settingsRef}>
+              <button
+                onClick={() => setShowSettings(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border font-semibold
+                            text-sm transition-all
+                            ${showSettings
+                              ? 'bg-white text-slate-800 border-white shadow-lg'
+                              : 'bg-white/15 text-white border-white/30 hover:bg-white/25'}`}
+                title="Settings">
+                {/* Gear SVG */}
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83
+                           2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33
+                           1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0
+                           009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83
+                           0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65
+                           1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6
+                           9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2
+                           0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0
+                           001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65
+                           1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010
+                           2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51
+                           1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+                Settings
+              </button>
+
+              {/* Dropdown */}
+              {showSettings && (
+                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl overflow-hidden
+                                shadow-2xl z-50 border border-slate-200/60"
+                     style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)' }}>
+
+                  {/* Header label */}
+                  <div className="px-4 py-2.5 border-b border-slate-100">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      {conversation.type === 'GROUP' ? 'Group Settings' : 'Chat Settings'}
+                    </p>
+                  </div>
+
+                  {/* GROUP options */}
+                  {conversation.type === 'GROUP' && (
+                    <button
+                      onClick={() => { setShowGroupInfo(true); setShowSettings(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-3
+                                 hover:bg-sky-50 transition-colors text-left">
+                      <span className="w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sm">👥</span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Manage Group</p>
+                        <p className="text-[11px] text-slate-400">Members, roles &amp; info</p>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* DIRECT options */}
+                  {conversation.type === 'DIRECT' && (<>
+                    <button
+                      onClick={async () => {
+                        setShowSettings(false);
+                        if (!window.confirm(
+                          `Remove ${conversation.name} from your connections? You won't be able to share files until you reconnect.`
+                        )) return;
+                        try {
+                          await connections.unfriend(conversation.otherUserId);
+                          toast.success(`${conversation.name} removed from connections.`);
+                        } catch (e) { toast.error(e?.toString() || 'Could not unfriend'); }
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3
+                                 hover:bg-amber-50 transition-colors text-left">
+                      <span className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-sm">👤</span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Unfriend</p>
+                        <p className="text-[11px] text-slate-400">Remove connection</p>
+                      </div>
+                    </button>
+
+                    <div className="mx-3 border-t border-slate-100"/>
+
+                    <button
+                      onClick={async () => {
+                        setShowSettings(false);
+                        if (!window.confirm(
+                          `Block ${conversation.name}? They won't be able to see or contact you.`
+                        )) return;
+                        try {
+                          await connections.block(conversation.otherUserId);
+                          toast.success(`${conversation.name} has been blocked.`);
+                        } catch (e) { toast.error(e?.toString() || 'Could not block'); }
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3
+                                 hover:bg-red-50 transition-colors text-left">
+                      <span className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center text-sm">🚫</span>
+                      <div>
+                        <p className="text-sm font-semibold text-red-600">Block User</p>
+                        <p className="text-[11px] text-slate-400">Block &amp; hide from search</p>
+                      </div>
+                    </button>
+                  </>)}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <input ref={fileInputRef}   type="file" className="hidden" onChange={handleFileInput}/>
+        <input ref={fileInputRef}   type="file" className="hidden" multiple onChange={handleFileInput}/>
         {/* webkitdirectory lets the user pick an entire folder */}
         <input ref={folderInputRef} type="file" className="hidden" multiple
                // @ts-ignore – non-standard but universally supported
@@ -944,20 +1048,36 @@ export default function ChatWindow({ conversation }) {
                }}>
 
             {/* Header */}
-            <div className="flex items-start gap-3 mb-5">
+            <div className="flex items-start gap-3 mb-4">
               <div className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center
                               text-2xl bg-sky-50 border border-sky-100">
-                {pendingUpload.type === 'folder' ? '📁' : '📎'}
+                {pendingUpload.type === 'folder' ? '📁' : pendingUpload.files?.length > 1 ? '📂' : '📎'}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-gray-900 font-bold text-base leading-tight">Add a description</h3>
-                <p className="text-gray-500 text-xs mt-1 truncate">
+                <p className="text-gray-500 text-xs mt-0.5">
                   {pendingUpload.type === 'folder'
                     ? `📁 ${pendingUpload.folderName} — ${pendingUpload.picked.length} file${pendingUpload.picked.length !== 1 ? 's' : ''}`
-                    : pendingUpload.file.name}
+                    : pendingUpload.files?.length === 1
+                      ? pendingUpload.files[0].name
+                      : `${pendingUpload.files?.length} files selected`}
                 </p>
               </div>
             </div>
+
+            {/* File list preview (multi-file only) */}
+            {pendingUpload.type === 'files' && pendingUpload.files?.length > 1 && (
+              <div className="mb-4 rounded-xl border border-slate-200 overflow-hidden"
+                   style={{ maxHeight: '130px', overflowY: 'auto' }}>
+                {pendingUpload.files.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-100 last:border-0 bg-slate-50">
+                    <span className="text-sm">📎</span>
+                    <span className="text-xs text-slate-700 truncate flex-1">{f.name}</span>
+                    <span className="text-[10px] text-slate-400 flex-shrink-0">{formatBytes(f.size)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Description textarea */}
             <div className="mb-5">
@@ -1007,15 +1127,19 @@ export default function ChatWindow({ conversation }) {
               </button>
               <button
                 onClick={confirmUpload}
-                disabled={uploading || !!folderProgress}
+                disabled={uploading || !!folderProgress || !!multiProgress}
                 style={{
                   flex: 1, padding: '10px', borderRadius: '12px',
                   fontSize: '0.875rem', fontWeight: 700, color: 'white',
                   background: '#0F172A', border: 'none', cursor: 'pointer',
                   boxShadow: '0 4px 16px rgba(15,23,42,0.25)',
-                  opacity: (uploading || !!folderProgress) ? 0.5 : 1,
+                  opacity: (uploading || !!folderProgress || !!multiProgress) ? 0.5 : 1,
                 }}>
-                {pendingUpload.type === 'folder' ? '📁 Upload Folder' : '⬆ Upload File'}
+                {pendingUpload.type === 'folder'
+                  ? '📁 Upload Folder'
+                  : pendingUpload.files?.length > 1
+                    ? `⬆ Upload ${pendingUpload.files.length} Files`
+                    : '⬆ Upload File'}
               </button>
             </div>
             <p style={{ textAlign: 'center', fontSize: '10px', color: '#94a3b8', marginTop: '10px' }}>

@@ -344,25 +344,43 @@ export default function Sidebar({ selected, onSelect }) {
          }}>
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-sky-100 bg-white/60 backdrop-blur-sm">
-        <div className="flex items-center">
-          <img src="/logo.png" alt="Magizhchi Box"
-               className="h-9 select-none"
-               onError={e => {
-                 e.currentTarget.style.display = 'none';
-                 document.getElementById('logo-fallback-sidebar').style.display = 'flex';
-               }}/>
-          <div id="logo-fallback-sidebar"
-               className="hidden items-center gap-2">
-            <span className="text-xl">📂</span>
-            <span className="font-bold text-slate-800">Magizhchi Box</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-sky-100 bg-white/60 backdrop-blur-sm">
 
-          {/* Connection requests bell */}
+        {/* Left: avatar + welcome */}
+        <button onClick={() => setShowProfile(true)} title="Edit Profile"
+                className="flex items-center gap-2.5 min-w-0 focus:outline-none group">
+          {/* Profile pic */}
+          <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden
+                          ring-2 ring-sky-300 ring-offset-1
+                          group-hover:ring-sky-500 transition-all">
+            {currentUser?.profilePhotoUrl ? (
+              <img src={currentUser.profilePhotoUrl}
+                   alt={currentUser.displayName ?? ''}
+                   className="w-full h-full object-cover"
+                   onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}/>
+            ) : null}
+            {/* initials fallback — always rendered, hidden when photo loads */}
+            <div className={`w-full h-full bg-gradient-to-br from-sky-400 to-sky-600
+                             flex items-center justify-center text-white text-sm font-bold
+                             ${currentUser?.profilePhotoUrl ? 'hidden' : 'flex'}`}>
+              {currentUser?.displayName
+                ? currentUser.displayName.trim().split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase()
+                : '?'}
+            </div>
+          </div>
+          {/* Welcome text */}
+          <div className="min-w-0 text-left">
+            <p className="text-[10px] text-slate-400 leading-tight">Welcome back 👋</p>
+            <p className="text-sm font-bold text-slate-800 truncate leading-tight">
+              {currentUser?.displayName?.split(' ')[0] ?? 'User'}
+            </p>
+          </div>
+        </button>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-0.5">
           <button onClick={() => setShowConnections(true)}
-                  className="relative p-2 rounded-xl hover:bg-slate-100 text-slate-500 text-lg"
+                  className="relative p-2 rounded-xl hover:bg-sky-100 text-slate-500 text-lg transition-colors"
                   title="Connection Requests">
             🔔
             {pendingCount > 0 && (
@@ -373,17 +391,9 @@ export default function Sidebar({ selected, onSelect }) {
               </span>
             )}
           </button>
-
           <button onClick={() => setShowGroup(true)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 text-lg"
+                  className="p-2 rounded-xl hover:bg-sky-100 text-slate-500 text-lg transition-colors"
                   title="New Group">👥</button>
-
-          <button onClick={() => setShowProfile(true)} title="Profile"
-                  className="rounded-full focus:outline-none focus:ring-2 focus:ring-sky-400">
-            <Avatar name={currentUser?.displayName}
-                    photoUrl={currentUser?.profilePhotoUrl}
-                    size="sm"/>
-          </button>
         </div>
       </div>
 
@@ -394,23 +404,25 @@ export default function Sidebar({ selected, onSelect }) {
         <button onClick={openMyStorage} disabled={loadingStorage}
                 className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border transition-all group"
                 style={selected?.type === 'PERSONAL' ? {
-                  background: 'linear-gradient(135deg,#0ea5e9,#0284c7)',
-                  borderColor: '#0ea5e9',
-                  boxShadow: '0 4px 14px rgba(14,165,233,0.35)',
+                  background: 'rgba(14,130,210,0.90)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(255,255,255,0.40)',
+                  boxShadow: '0 4px 16px rgba(14,130,210,0.50)',
                 } : {
-                  background: 'rgba(15,23,42,0.55)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                  borderColor: 'rgba(255,255,255,0.10)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                  background: 'rgba(14,130,210,0.42)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(255,255,255,0.18)',
+                  boxShadow: '0 2px 8px rgba(14,130,210,0.22)',
                 }}>
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                style={{ background: selected?.type === 'PERSONAL' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
             {loadingStorage ? <span className="animate-spin text-sm">⏳</span> : '🗄️'}
           </div>
           <div className="min-w-0 text-left">
-            <p className="text-xs font-bold leading-tight truncate text-white">My Storage</p>
-            <p className="text-[10px] leading-tight mt-0.5 truncate text-white/50">
+            <p className="text-xs font-bold leading-tight truncate text-slate-900">My Storage</p>
+            <p className="text-[10px] leading-tight mt-0.5 truncate text-slate-600">
               {currentUser?.displayName
                 ? `${currentUser.displayName.split(' ')[0]}'s space`
                 : 'Personal space'}
@@ -422,15 +434,17 @@ export default function Sidebar({ selected, onSelect }) {
         <button onClick={() => { onSelect(SHARED_WITH_ME_VIEW); setUnreadShares(0); }}
                 className="flex-1 flex items-center gap-2.5 px-3 py-2.5 relative rounded-2xl border transition-all group"
                 style={selected?.type === 'SHARED_WITH_ME' ? {
-                  background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)',
-                  borderColor: '#8b5cf6',
-                  boxShadow: '0 4px 14px rgba(139,92,246,0.35)',
+                  background: 'rgba(124,58,237,0.90)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(255,255,255,0.40)',
+                  boxShadow: '0 4px 16px rgba(124,58,237,0.50)',
                 } : {
-                  background: 'rgba(15,23,42,0.55)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                  borderColor: 'rgba(255,255,255,0.10)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                  background: 'rgba(124,58,237,0.42)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(255,255,255,0.18)',
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.22)',
                 }}>
           {/* unread badge */}
           {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME' && (
@@ -445,8 +459,8 @@ export default function Sidebar({ selected, onSelect }) {
             🔗
           </div>
           <div className="min-w-0 text-left">
-            <p className="text-xs font-bold leading-tight truncate text-white">Shared Files</p>
-            <p className="text-[10px] leading-tight mt-0.5 truncate text-white/50">
+            <p className="text-xs font-bold leading-tight truncate text-slate-900">Shared Files</p>
+            <p className="text-[10px] leading-tight mt-0.5 truncate text-slate-600">
               {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
                 ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''}`
                 : 'Shared files'}
@@ -459,7 +473,7 @@ export default function Sidebar({ selected, onSelect }) {
       {/* ── Search ── */}
       <div className="px-3 pb-2 border-b border-sky-100 space-y-2">
         {/* Mode toggle */}
-        <div className="flex gap-1 p-0.5 rounded-xl" style={{ background: 'rgba(15,23,42,0.40)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="flex gap-1 p-0.5 rounded-xl" style={{ background: 'rgba(14,130,210,0.35)', border: '1px solid rgba(255,255,255,0.14)' }}>
           {[
             { key: 'people', icon: '👤', label: 'People' },
             { key: 'files',  icon: '🔍', label: 'Files'  },
@@ -490,9 +504,9 @@ export default function Sidebar({ selected, onSelect }) {
         {search.trim().length >= 2 && searchMode === 'files' ? (
           /* ── File search results ── */
           <div className="px-2 pt-2 space-y-1.5 pb-2">
-            {searching && <p className="text-xs text-slate-400 px-2 py-2">Searching…</p>}
+            {searching && <p className="text-xs text-slate-600 px-2 py-2">Searching…</p>}
             {!searching && fileSearchRes.length === 0 && (
-              <p className="text-sm text-slate-400 px-2 py-4 text-center">No files found</p>
+              <p className="text-sm text-slate-600 px-2 py-4 text-center">No files found</p>
             )}
             {fileSearchRes.map(f => (
               <button key={f.id}
@@ -507,11 +521,11 @@ export default function Sidebar({ selected, onSelect }) {
                       className="w-full flex items-start gap-3 px-3 py-2.5
                                  rounded-2xl border text-left transition-all duration-150"
                       style={{
-                        background: 'rgba(15,23,42,0.52)',
-                        backdropFilter: 'blur(10px)',
-                        WebkitBackdropFilter: 'blur(10px)',
-                        borderColor: 'rgba(255,255,255,0.10)',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                        background: 'rgba(14,130,210,0.40)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderColor: 'rgba(255,255,255,0.16)',
+                        boxShadow: '0 1px 6px rgba(14,130,210,0.20)',
                       }}>
                 {/* File icon */}
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
@@ -523,16 +537,16 @@ export default function Sidebar({ selected, onSelect }) {
                    f.category === 'ARCHIVE'  ? '🗜️' : '📎'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{f.originalFileName}</p>
+                  <p className="text-sm font-bold text-slate-800 truncate">{f.originalFileName}</p>
                   {f.caption && (
-                    <p className="text-xs text-white/50 truncate mt-0.5">"{f.caption}"</p>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">"{f.caption}"</p>
                   )}
-                  <p className="text-xs text-white/40 mt-0.5 truncate">
-                    <span className="font-medium text-sky-400">{f.senderName}</span>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                    <span className="font-semibold text-sky-700">{f.senderName}</span>
                     {f.conversationName && f.conversationName !== f.senderName && (
-                      <span className="text-white/25"> · {f.conversationName}</span>
+                      <span className="text-slate-400"> · {f.conversationName}</span>
                     )}
-                    <span className="text-white/25"> · {new Date(f.sentAt).toLocaleDateString()}</span>
+                    <span className="text-slate-400"> · {new Date(f.sentAt).toLocaleDateString()}</span>
                   </p>
                 </div>
               </button>
@@ -541,20 +555,20 @@ export default function Sidebar({ selected, onSelect }) {
         ) : search.trim().length >= 2 ? (
           /* ── User search results ── */
           <div className="px-2 pt-2 space-y-1.5 pb-2">
-            {searching && <p className="text-xs text-slate-400 px-2 py-2">Searching…</p>}
+            {searching && <p className="text-xs text-slate-600 px-2 py-2">Searching…</p>}
             {!searching && searchRes.length === 0 && (
-              <p className="text-sm text-slate-400 px-2 py-4 text-center">No users found</p>
+              <p className="text-sm text-slate-600 px-2 py-4 text-center">No users found</p>
             )}
             {searchRes.map(u => {
               const busy = actionLoading[u.id];
               return (
                 <div key={u.id} className="px-3 py-3 rounded-2xl border transition-all duration-150"
                      style={{
-                       background: 'rgba(15,23,42,0.55)',
-                       backdropFilter: 'blur(10px)',
-                       WebkitBackdropFilter: 'blur(10px)',
-                       borderColor: 'rgba(255,255,255,0.10)',
-                       boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                       background: 'rgba(14,130,210,0.40)',
+                       backdropFilter: 'blur(12px)',
+                       WebkitBackdropFilter: 'blur(12px)',
+                       borderColor: 'rgba(255,255,255,0.16)',
+                       boxShadow: '0 1px 6px rgba(14,130,210,0.20)',
                      }}>
 
                   {/* User row */}
@@ -564,11 +578,11 @@ export default function Sidebar({ selected, onSelect }) {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm text-white">{u.displayName}</p>
+                        <p className="font-semibold text-sm text-slate-800">{u.displayName}</p>
                         <ConnectionChip status={u.connectionStatus}/>
                       </div>
                       {u.mobileNumber && (
-                        <p className="text-xs text-white/45 truncate">{u.mobileNumber}</p>
+                        <p className="text-xs text-slate-500 truncate">{u.mobileNumber}</p>
                       )}
                     </div>
                   </div>
@@ -676,24 +690,44 @@ export default function Sidebar({ selected, onSelect }) {
                         }}
                         className="w-full text-left flex items-center gap-3 px-3 py-2.5
                                    rounded-2xl border transition-all duration-150"
-                        style={{
+                        style={conv.type === 'GROUP' ? {
+                          /* ── Pink glass for groups ── */
                           background: isActive
-                            ? 'rgba(15,23,42,0.82)'
+                            ? 'rgba(219,39,119,0.68)'
                             : hasNew
-                              ? 'rgba(15,23,42,0.68)'
-                              : 'rgba(15,23,42,0.48)',
-                          backdropFilter: 'blur(10px)',
-                          WebkitBackdropFilter: 'blur(10px)',
+                              ? 'rgba(219,39,119,0.50)'
+                              : 'rgba(219,39,119,0.32)',
+                          backdropFilter: 'blur(12px)',
+                          WebkitBackdropFilter: 'blur(12px)',
                           borderColor: isActive
-                            ? 'rgba(14,165,233,0.50)'
+                            ? 'rgba(255,255,255,0.38)'
                             : hasNew
-                              ? 'rgba(14,165,233,0.25)'
-                              : 'rgba(255,255,255,0.10)',
+                              ? 'rgba(255,255,255,0.22)'
+                              : 'rgba(255,255,255,0.16)',
                           boxShadow: isActive
-                            ? '0 2px 14px rgba(14,165,233,0.20)'
+                            ? '0 4px 16px rgba(219,39,119,0.38)'
                             : hasNew
-                              ? '0 2px 10px rgba(14,165,233,0.12)'
-                              : '0 1px 4px rgba(0,0,0,0.15)',
+                              ? '0 2px 10px rgba(219,39,119,0.24)'
+                              : '0 1px 6px rgba(219,39,119,0.16)',
+                        } : {
+                          /* ── Blue glass for direct chats ── */
+                          background: isActive
+                            ? 'rgba(14,130,210,0.72)'
+                            : hasNew
+                              ? 'rgba(14,130,210,0.55)'
+                              : 'rgba(14,130,210,0.38)',
+                          backdropFilter: 'blur(12px)',
+                          WebkitBackdropFilter: 'blur(12px)',
+                          borderColor: isActive
+                            ? 'rgba(255,255,255,0.35)'
+                            : hasNew
+                              ? 'rgba(255,255,255,0.22)'
+                              : 'rgba(255,255,255,0.14)',
+                          boxShadow: isActive
+                            ? '0 4px 16px rgba(14,130,210,0.40)'
+                            : hasNew
+                              ? '0 2px 10px rgba(14,130,210,0.25)'
+                              : '0 1px 6px rgba(14,130,210,0.18)',
                         }}>
 
                   {/* Avatar / icon */}
@@ -719,21 +753,20 @@ export default function Sidebar({ selected, onSelect }) {
                   <div className="flex-1 min-w-0">
                     {/* Name + badge */}
                     <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <p className={`font-semibold text-sm truncate
-                                     ${hasNew && !isActive ? 'text-sky-300' : 'text-white'}`}>
+                      <p className={`font-bold text-sm truncate
+                                     ${hasNew && !isActive ? 'text-slate-900' : isActive ? 'text-slate-900' : 'text-slate-800'}`}>
                         {conv.name}
                       </p>
 
                       {hasNew && !isActive ? (
-                        /* File-count pill */
                         <span className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5
-                                         rounded-full text-[10px] font-bold text-white bg-sky-500
-                                         shadow-sm shadow-sky-900">
+                                         rounded-full text-[10px] font-bold text-white bg-sky-600
+                                         shadow-sm">
                           📥 {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       ) : (
                         last?.sentAt && (
-                          <span className="text-[10px] text-white/40 flex-shrink-0">
+                          <span className="text-[10px] text-slate-500 flex-shrink-0">
                             {formatDistanceToNow(new Date(last.sentAt), { addSuffix: false })}
                           </span>
                         )
@@ -742,15 +775,15 @@ export default function Sidebar({ selected, onSelect }) {
 
                     {/* Subtitle */}
                     {hasNew && !isActive ? (
-                      <p className="text-xs font-semibold text-sky-400 truncate">
+                      <p className="text-xs font-semibold text-sky-700 truncate">
                         {unreadCount === 1 ? '1 file received' : `${unreadCount} files received`}
                       </p>
                     ) : last ? (
-                      <p className="text-xs text-white/45 truncate">
+                      <p className="text-xs text-slate-600 truncate">
                         {fileIcon(last.category)}&nbsp;{last.originalFileName}
                       </p>
                     ) : (
-                      <p className="text-xs text-white/25 italic">No files yet</p>
+                      <p className="text-xs text-slate-400 italic">No files yet</p>
                     )}
                   </div>
                 </button>
