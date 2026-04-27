@@ -66,9 +66,10 @@ public class FileMessageService {
                     .ifPresent(m -> connService.requireConnected(senderId, m.getUser().getId()));
         }
 
-        // ── Storage limit check ───────────────────────────────────────────────
-        long fileSize = file.getSize();
-        if (sender.getStorageUsedBytes() + fileSize > sender.getMaxStorageBytes()) {
+        // ── Storage limit check (use live sum for accuracy) ──────────────────
+        long fileSize    = file.getSize();
+        long currentUsed = msgRepo.sumFileSizeByUser(senderId);
+        if (currentUsed + fileSize > sender.getMaxStorageBytes()) {
             throw new AppException(HttpStatus.PAYLOAD_TOO_LARGE,
                     "Storage limit exceeded. Upgrade your plan to upload more files.");
         }
@@ -118,11 +119,12 @@ public class FileMessageService {
             throw new AppException(HttpStatus.BAD_REQUEST, "No files provided.");
         }
 
-        // Validate total folder size against remaining storage
+        // Validate total folder size against remaining storage (live sum)
         User senderCheck = userRepo.findById(senderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Sender not found."));
         long totalFolderSize = java.util.Arrays.stream(files).mapToLong(MultipartFile::getSize).sum();
-        if (senderCheck.getStorageUsedBytes() + totalFolderSize > senderCheck.getMaxStorageBytes()) {
+        long currentFolderUsed = msgRepo.sumFileSizeByUser(senderId);
+        if (currentFolderUsed + totalFolderSize > senderCheck.getMaxStorageBytes()) {
             throw new AppException(HttpStatus.PAYLOAD_TOO_LARGE,
                     "Storage limit exceeded. This folder would exceed your 5 GB free plan limit.");
         }

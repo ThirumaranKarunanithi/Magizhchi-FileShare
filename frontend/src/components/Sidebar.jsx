@@ -75,7 +75,13 @@ export default function Sidebar({ selected, onSelect }) {
   // ── Load conversations + storage on mount ───────────────────────────────
   useEffect(() => {
     conversations.list().then(r => setConvList(r.data)).catch(console.error);
-    storage.usage().then(r => setStorageData(r.data)).catch(console.error);
+    storage.usage()
+      .then(r => setStorageData(r.data))
+      .catch(e => {
+        console.error('[Storage]', e);
+        // Show placeholder so the bar is always visible
+        setStorageData({ usedBytes: 0, limitBytes: 5368709120, usedPercent: 0 });
+      });
   }, []);
 
   // ── Refresh pending count ────────────────────────────────────────────────

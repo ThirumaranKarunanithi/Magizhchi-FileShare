@@ -29,7 +29,9 @@ public class StorageService {
         var user = userRepo.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found."));
 
-        long used  = user.getStorageUsedBytes();
+        // Always compute from actual file records — keeps display accurate
+        // even if the cached storageUsedBytes is out of sync (e.g. pre-feature uploads)
+        long used  = fileRepo.sumFileSizeByUser(userId);
         long limit = user.getMaxStorageBytes();
         double pct = limit > 0
                 ? BigDecimal.valueOf(used * 100.0 / limit)
