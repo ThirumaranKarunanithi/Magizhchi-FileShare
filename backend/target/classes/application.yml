@@ -30,6 +30,23 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
 
+  # ── Email (OTP + notifications) ─────────────────────────────
+  mail:
+    host:     ${MAIL_HOST:smtp.gmail.com}
+    port:     ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000   # TCP connect timeout (ms)
+          timeout: 5000             # Socket read timeout (ms)
+          writetimeout: 5000        # Socket write timeout (ms)
+
   # ── File upload limits ───────────────────────────────────────
   servlet:
     multipart:
@@ -67,16 +84,16 @@ otp:
   length: 6
   expiry-minutes: 10
   max-attempts: 3
-  rate-limit-window-minutes: 60
-  rate-limit-max-sends: 5
+  rate-limit-window-minutes: 15   # window resets every 15 min (was 60 — too long)
+  rate-limit-max-sends: 5         # max 5 OTPs per 15-min window (60s cooldown already prevents rapid sends)
   # Set to true in dev to skip SMS and print OTP in logs
   mock: ${OTP_MOCK:false}
 
 # ── Twilio (SMS) ────────────────────────────────────────────────
 twilio:
-  account-sid: ${TWILIO_ACCOUNT_SID:}
-  auth-token: ${TWILIO_AUTH_TOKEN:}
-  from-number: ${TWILIO_FROM:+1234567890}
+  account-sid:        ${TWILIO_ACCOUNT_SID:}
+  auth-token:         ${TWILIO_AUTH_TOKEN:}
+  verify-service-sid: ${TWILIO_VERIFY_SID:}
 
 # ── CORS ───────────────────────────────────────────────────────
 cors:
@@ -85,27 +102,20 @@ cors:
 # ── File constraints ─────────────────────────────────────────
 file:
   max-size-bytes: 524288000   # 500 MB
-  allowed-types:
-    - image/jpeg
-    - image/png
-    - image/gif
-    - image/webp
-    - image/svg+xml
-    - video/mp4
-    - video/quicktime
-    - video/x-msvideo
-    - video/webm
-    - application/pdf
-    - application/msword
-    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
-    - application/vnd.ms-excel
-    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-    - application/zip
-    - application/x-rar-compressed
-    - application/x-7z-compressed
-    - text/plain
-    - audio/mpeg
-    - audio/wav
+  # Block-list: all file types are allowed EXCEPT these executables / installers
+  blocked-types:
+    - application/x-msdownload          # .exe
+    - application/x-msdos-program       # .com, .bat
+    - application/x-executable          # Linux executables
+    - application/x-sh                  # shell scripts
+    - application/x-bat                 # batch files
+    - application/x-csh                 # csh scripts
+    - application/vnd.android.package-archive   # .apk
+    - application/x-apple-diskimage     # .dmg
+    - application/x-rpm                 # .rpm
+    - application/x-debian-package      # .deb
+    - application/x-iso9660-image       # .iso
+    - application/x-ms-installer        # .msi
 
 # ── Connection / Privacy ───────────────────────────────────────
 app:

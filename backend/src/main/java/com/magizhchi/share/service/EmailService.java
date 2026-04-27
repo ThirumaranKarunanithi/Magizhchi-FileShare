@@ -28,6 +28,12 @@ public class EmailService {
      * Send a 6-digit OTP to the given email address.
      */
     public void sendOtp(String toEmail, String code, int expiryMinutes) {
+        // Fast-fail if email credentials are not configured
+        if (fromAddress == null || fromAddress.isBlank()) {
+            log.error("Email OTP requested but MAIL_USERNAME is not configured");
+            throw new AppException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Email login is not configured on this server. Please use your mobile number.");
+        }
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

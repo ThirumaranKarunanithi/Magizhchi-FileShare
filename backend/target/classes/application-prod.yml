@@ -56,10 +56,9 @@ otp:
   mock: false                     # ← real SMS in production
 
 twilio:
-  account-sid:  ${TWILIO_ACCOUNT_SID}
-  auth-token:   ${TWILIO_AUTH_TOKEN}
-  from-number:  ${TWILIO_FROM}
-
+  account-sid:        ${TWILIO_ACCOUNT_SID}
+  auth-token:         ${TWILIO_AUTH_TOKEN}
+  verify-service-sid: ${TWILIO_VERIFY_SID}
 # ── CORS ───────────────────────────────────────────────────────────────────
 cors:
   allowed-origins: ${CORS_ORIGINS}   # e.g. https://magizhchi-share.vercel.app
@@ -72,27 +71,20 @@ app:
 # ── File constraints ───────────────────────────────────────────────────────
 file:
   max-size-bytes: 524288000   # 500 MB
-  allowed-types:
-    - image/jpeg
-    - image/png
-    - image/gif
-    - image/webp
-    - image/svg+xml
-    - video/mp4
-    - video/quicktime
-    - video/x-msvideo
-    - video/webm
-    - application/pdf
-    - application/msword
-    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
-    - application/vnd.ms-excel
-    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-    - application/zip
-    - application/x-rar-compressed
-    - application/x-7z-compressed
-    - text/plain
-    - audio/mpeg
-    - audio/wav
+  # Block-list: all file types are allowed EXCEPT these executables / installers
+  blocked-types:
+    - application/x-msdownload          # .exe
+    - application/x-msdos-program       # .com, .bat
+    - application/x-executable          # Linux executables
+    - application/x-sh                  # shell scripts
+    - application/x-bat                 # batch files
+    - application/x-csh                 # csh scripts
+    - application/vnd.android.package-archive   # .apk
+    - application/x-apple-diskimage     # .dmg
+    - application/x-rpm                 # .rpm
+    - application/x-debian-package      # .deb
+    - application/x-iso9660-image       # .iso
+    - application/x-ms-installer        # .msi
 
 # ── Logging ────────────────────────────────────────────────────────────────
 logging:
