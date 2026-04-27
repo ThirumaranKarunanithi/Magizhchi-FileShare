@@ -70,15 +70,17 @@ public class OtpService {
                     " before requesting a new code.");
         }
 
-        // ── Per-window rate limit ─────────────────────────────────────────────
-        String rateLimitKey = "otp:rate:" + identifier;
-        Long sends = redis.opsForValue().increment(rateLimitKey);
-        if (sends != null && sends == 1) {
-            redis.expire(rateLimitKey, rateLimitWindowMinutes, TimeUnit.MINUTES);
-        }
-        if (sends != null && sends > rateLimitMaxSends) {
-            throw new AppException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Too many OTP requests. Please wait before trying again.");
+        // ── Per-window rate limit (phone only — email has no SMS cost) ───────
+        if (!isEmail(identifier)) {
+            String rateLimitKey = "otp:rate:" + identifier;
+            Long sends = redis.opsForValue().increment(rateLimitKey);
+            if (sends != null && sends == 1) {
+                redis.expire(rateLimitKey, rateLimitWindowMinutes, TimeUnit.MINUTES);
+            }
+            if (sends != null && sends > rateLimitMaxSends) {
+                throw new AppException(HttpStatus.TOO_MANY_REQUESTS,
+                        "Too many OTP requests. Please wait before trying again.");
+            }
         }
 
         // ── Route by identifier type ──────────────────────────────────────────

@@ -104,11 +104,6 @@
             <version>9.14.0</version>
         </dependency>
 
-        <!-- Spring Mail (email OTP) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-mail</artifactId>
-        </dependency>
 
         <!-- Apache Commons -->
         <dependency>

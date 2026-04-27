@@ -1,52 +1,92 @@
 package com.magizhchi.share.service;
 
 import com.magizhchi.share.exception.AppException;
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 /**
- * Sends transactional emails (OTP codes).
- * Requires MAIL_USERNAME + MAIL_PASSWORD environment variables.
+ * Sends transactional emails (OTP codes) via Resend's HTTP API.
+ * Uses HTTPS (port 443) — works on Railway where SMTP (ports 25/465/587) is blocked.
+ *
+ * Required env vars:
+ *   RESEND_API_KEY   — from resend.com dashboard
+ *   RESEND_FROM      — verified sender address, e.g. noreply@yourdomain.com
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private static final String RESEND_URL = "https://api.resend.com/emails";
 
-    @Value("${spring.mail.username}")
+    @Value("${resend.api-key:}")
+    private String apiKey;
+
+    @Value("${resend.from-address:}")
     private String fromAddress;
 
+    private final RestTemplate restTemplate;
+
+    public EmailService() {
+        // 5-second connect + read timeouts so we never hang indefinitely
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(5_000);
+        this.restTemplate = new RestTemplate(factory);
+    }
+
     /**
-     * Send a 6-digit OTP to the given email address.
+     * Send a 6-digit OTP to the given email address via Resend.
      */
     public void sendOtp(String toEmail, String code, int expiryMinutes) {
-        // Fast-fail if email credentials are not configured
-        if (fromAddress == null || fromAddress.isBlank()) {
-            log.error("Email OTP requested but MAIL_USERNAME is not configured");
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("Email OTP requested but RESEND_API_KEY is not configured");
             throw new AppException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Email login is not configured on this server. Please use your mobile number.");
         }
+        if (fromAddress == null || fromAddress.isBlank()) {
+            log.error("Email OTP requested but RESEND_FROM is not configured");
+            throw new AppException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Email login is not configured on this server. Please use your mobile number.");
+        }
+
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromAddress, "Magizhchi Share");
-            helper.setTo(toEmail);
-            helper.setSubject("Your Magizhchi Share sign-in code: " + code);
-            helper.setText(buildHtml(code, expiryMinutes), true);
-            mailSender.send(message);
-            log.info("OTP email sent: to={}", toEmail);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+
+            Map<String, Object> body = Map.of(
+                    "from",    fromAddress,
+                    "to",      new String[]{ toEmail },
+                    "subject", "Your Magizhchi Share sign-in code: " + code,
+                    "html",    buildHtml(code, expiryMinutes)
+            );
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    RESEND_URL,
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, headers),
+                    Map.class
+            );
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                log.error("Resend API returned {}: {}", response.getStatusCode(), response.getBody());
+                throw new AppException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Could not send OTP email. Please try again shortly.");
+            }
+
+            log.info("OTP email sent via Resend: to={}", toEmail);
+
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to send OTP email to {}: {}", toEmail, e.getMessage());
+            log.error("Failed to send OTP email to {} via Resend: {}", toEmail, e.getMessage());
             throw new AppException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Could not send OTP email. Please check your email address or try again shortly.");
         }
@@ -75,7 +115,7 @@ public class EmailService {
                   <div style="width:56px;height:56px;background:#e0f2fe;border-radius:50%%;
                                display:inline-flex;align-items:center;justify-content:center;
                                margin-bottom:20px;font-size:26px;">
-                    🔐
+                    &#128272;
                   </div>
 
                   <h2 style="color:#1e293b;font-size:18px;margin:0 0 8px;">Sign-in Verification</h2>

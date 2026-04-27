@@ -30,23 +30,6 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
 
-  # ── Email (OTP + notifications) ─────────────────────────────
-  mail:
-    host:     ${MAIL_HOST:smtp.gmail.com}
-    port:     ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          connectiontimeout: 5000   # TCP connect timeout (ms)
-          timeout: 5000             # Socket read timeout (ms)
-          writetimeout: 5000        # Socket write timeout (ms)
-
   # ── File upload limits ───────────────────────────────────────
   servlet:
     multipart:
@@ -78,6 +61,11 @@ aws:
     bucket-name: ${AWS_S3_BUCKET:magizhchi-share}
     presigned-url-expiry-minutes: 60
     # endpoint: override for LocalStack — set in application-local.yml
+
+# ── Resend (email OTP) ─────────────────────────────────────────
+resend:
+  api-key:      ${RESEND_API_KEY:}
+  from-address: ${RESEND_FROM:}
 
 # ── OTP ────────────────────────────────────────────────────────
 otp:
