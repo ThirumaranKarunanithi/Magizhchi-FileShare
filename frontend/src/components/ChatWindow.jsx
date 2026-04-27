@@ -175,8 +175,8 @@ export default function ChatWindow({ conversation }) {
   // Intercept file pick → show description dialog instead of uploading immediately
   const handleFileInput = e => {
     const picked = e.target.files[0];
+    if (!picked) return;            // check BEFORE clearing so the File ref stays valid
     e.target.value = '';
-    if (!picked) return;
     setDescription('');
     setPendingUpload({ type: 'file', file: picked });
   };
@@ -185,8 +185,8 @@ export default function ChatWindow({ conversation }) {
   // Intercept folder pick → show description dialog instead of uploading immediately
   const handleFolderInput = async (e) => {
     const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;     // check BEFORE clearing
     e.target.value = '';
-    if (!picked.length) return;
     const folderName = picked[0].webkitRelativePath?.split('/')[0] || 'folder';
     setDescription('');
     setPendingUpload({ type: 'folder', picked, folderName });
@@ -448,37 +448,6 @@ export default function ChatWindow({ conversation }) {
         ))}
       </div>
 
-      {/* ── Search bar ── */}
-      <div className="px-6 pb-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-             style={{
-               background: 'rgba(255,255,255,0.12)',
-               border: '1px solid rgba(255,255,255,0.25)',
-             }}>
-          <span className="text-white/50 text-sm flex-shrink-0">🔍</span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by file name or description…"
-            className="flex-1 bg-transparent text-sm text-white placeholder-white/35
-                       outline-none min-w-0"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')}
-                    className="text-white/40 hover:text-white text-xs flex-shrink-0
-                               transition-colors leading-none">
-              ✕
-            </button>
-          )}
-        </div>
-        {searchQuery && (
-          <p className="text-[11px] text-white/40 mt-1 px-1">
-            {displayed.length} result{displayed.length !== 1 ? 's' : ''} for "{searchQuery}"
-          </p>
-        )}
-      </div>
-
       {/* ── File browser card (glass) ── */}
       <div className="flex-1 mx-4 mb-4 rounded-2xl flex flex-col overflow-hidden"
            style={{
@@ -488,6 +457,37 @@ export default function ChatWindow({ conversation }) {
              border: '1px solid rgba(255,255,255,0.28)',
              boxShadow: '0 8px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)',
            }}>
+
+        {/* ── Search row ── */}
+        <div className="px-4 pt-3 pb-2 border-b border-white/15">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+               style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.20)' }}>
+            <span className="text-white/45 text-sm flex-shrink-0 select-none">🔍</span>
+            <input
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by file name or description…"
+              style={{ background: 'transparent', border: 'none', outline: 'none',
+                       color: 'white', fontSize: '0.875rem', width: '100%',
+                       caretColor: 'white' }}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')}
+                      className="text-white/40 hover:text-white/80 text-xs flex-shrink-0
+                                 transition-colors leading-none px-1">
+                ✕
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-[11px] text-white/40 mt-1.5 px-1">
+              {displayed.length} result{displayed.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+            </p>
+          )}
+        </div>
 
         {/* Card header row */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/20">
@@ -872,26 +872,38 @@ export default function ChatWindow({ conversation }) {
         </div>
       </div>
 
-      {/* ── Description dialog ── */}
+      {/* ── Drop overlay ── */}
+      {dragOver && (
+        <div className="absolute inset-0 bg-sky-500/30 border-4 border-dashed border-white/70
+                        flex items-center justify-center pointer-events-none z-50 m-4 rounded-2xl">
+          <div className="text-center">
+            <span className="text-6xl">📂</span>
+            <p className="text-xl font-bold text-white mt-3 drop-shadow-lg">Drop to share</p>
+          </div>
+        </div>
+      )}
+      </div>{/* end z-10 wrapper */}
+
+      {/* ── Description dialog — lives OUTSIDE z-10 wrapper so it overlays the full pane ── */}
       {pendingUpload && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center"
-             style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+        <div className="absolute inset-0 flex items-center justify-center"
+             style={{ background: 'rgba(0,0,0,0.55)', zIndex: 200 }}>
           <div className="w-full max-w-sm mx-4 rounded-2xl p-6"
                style={{
-                 background: 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.88) 100%)',
-                 border: '1px solid rgba(255,255,255,0.7)',
-                 boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
+                 border: '1px solid rgba(255,255,255,0.8)',
+                 boxShadow: '0 24px 56px rgba(0,0,0,0.35)',
                }}>
 
             {/* Header */}
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center
-                              text-xl bg-sky-50">
+            <div className="flex items-start gap-3 mb-5">
+              <div className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center
+                              text-2xl bg-sky-50 border border-sky-100">
                 {pendingUpload.type === 'folder' ? '📁' : '📎'}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-gray-900 font-bold text-base">Add a description</h3>
-                <p className="text-gray-500 text-xs mt-0.5 truncate">
+                <h3 className="text-gray-900 font-bold text-base leading-tight">Add a description</h3>
+                <p className="text-gray-500 text-xs mt-1 truncate">
                   {pendingUpload.type === 'folder'
                     ? `📁 ${pendingUpload.folderName} — ${pendingUpload.picked.length} file${pendingUpload.picked.length !== 1 ? 's' : ''}`
                     : pendingUpload.file.name}
@@ -900,8 +912,8 @@ export default function ChatWindow({ conversation }) {
             </div>
 
             {/* Description textarea */}
-            <div className="mb-4">
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
                 Description <span className="text-gray-400 normal-case font-normal">(optional)</span>
               </label>
               <textarea
@@ -915,64 +927,55 @@ export default function ChatWindow({ conversation }) {
                   if (e.key === 'Escape') { setPendingUpload(null); setDescription(''); }
                 }}
                 placeholder="What is this file about? (e.g. Q3 report, project assets…)"
-                className="w-full px-3 py-2.5 rounded-xl text-sm text-gray-800 resize-none
-                           outline-none transition-all placeholder-gray-400"
                 style={{
-                  background: 'rgba(241,245,249,1)',
-                  border: '1px solid rgba(148,163,184,0.5)',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)',
+                  width: '100%', padding: '10px 12px', borderRadius: '12px',
+                  fontSize: '0.875rem', color: '#1e293b', resize: 'none',
+                  outline: 'none', background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1', caretColor: '#0ea5e9',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
                 }}
                 onFocus={e => {
-                  e.target.style.border = '1px solid #0ea5e9';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.15)';
+                  e.target.style.border = '1.5px solid #0ea5e9';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.12)';
                 }}
                 onBlur={e => {
-                  e.target.style.border = '1px solid rgba(148,163,184,0.5)';
-                  e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.06)';
+                  e.target.style.border = '1.5px solid #cbd5e1';
+                  e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.05)';
                 }}
               />
-              <p className="text-right text-[10px] text-gray-400 mt-1">{description.length}/500</p>
+              <p className="text-right text-[10px] text-gray-400 mt-1">{description.length} / 500</p>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => { setPendingUpload(null); setDescription(''); }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600
-                           bg-gray-100 hover:bg-gray-200 transition-all">
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '12px',
+                  fontSize: '0.875rem', fontWeight: 600, color: '#475569',
+                  background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: 'pointer',
+                }}>
                 Cancel
               </button>
               <button
                 onClick={confirmUpload}
                 disabled={uploading || !!folderProgress}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white
-                           transition-all hover:-translate-y-0.5 active:translate-y-0
-                           disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  background: '#0F172A',
+                  flex: 1, padding: '10px', borderRadius: '12px',
+                  fontSize: '0.875rem', fontWeight: 700, color: 'white',
+                  background: '#0F172A', border: 'none', cursor: 'pointer',
                   boxShadow: '0 4px 16px rgba(15,23,42,0.25)',
+                  opacity: (uploading || !!folderProgress) ? 0.5 : 1,
                 }}>
                 {pendingUpload.type === 'folder' ? '📁 Upload Folder' : '⬆ Upload File'}
               </button>
             </div>
-            <p className="text-center text-[10px] text-gray-400 mt-2">
+            <p style={{ textAlign: 'center', fontSize: '10px', color: '#94a3b8', marginTop: '10px' }}>
               Ctrl+Enter to upload · Esc to cancel
             </p>
           </div>
         </div>
       )}
-
-      {/* ── Drop overlay ── */}
-      {dragOver && (
-        <div className="absolute inset-0 bg-sky-500/30 border-4 border-dashed border-white/70
-                        flex items-center justify-center pointer-events-none z-50 m-4 rounded-2xl">
-          <div className="text-center">
-            <span className="text-6xl">📂</span>
-            <p className="text-xl font-bold text-white mt-3 drop-shadow-lg">Drop to share</p>
-          </div>
-        </div>
-      )}
-      </div>{/* end z-10 wrapper */}
 
       {/* ── Group info / manage modal ── */}
       {showGroupInfo && conversation.type === 'GROUP' && (
