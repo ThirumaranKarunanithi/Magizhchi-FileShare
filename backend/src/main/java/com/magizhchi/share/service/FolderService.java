@@ -3,6 +3,7 @@ package com.magizhchi.share.service;
 import com.magizhchi.share.dto.request.CreateFolderRequest;
 import com.magizhchi.share.dto.response.FolderResponse;
 import com.magizhchi.share.exception.AppException;
+import com.magizhchi.share.model.FileMessage;
 import com.magizhchi.share.model.Folder;
 import com.magizhchi.share.repository.ConversationMemberRepository;
 import com.magizhchi.share.repository.ConversationRepository;
@@ -42,11 +43,14 @@ public class FolderService {
                     .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Parent folder not found."));
         }
 
+        FileMessage.DownloadPermission perm = parsePermission(req.getDefaultPermission());
+
         Folder folder = Folder.builder()
                 .name(req.getName())
                 .conversation(conv)
                 .createdBy(creator)
                 .parent(parent)
+                .defaultPermission(perm)
                 .build();
         folderRepo.save(folder);
 
@@ -135,6 +139,15 @@ public class FolderService {
                 .createdById(f.getCreatedBy().getId())
                 .createdByName(f.getCreatedBy().getDisplayName())
                 .createdAt(f.getCreatedAt())
+                .defaultPermission(f.getDefaultPermission() != null
+                        ? f.getDefaultPermission().name()
+                        : FileMessage.DownloadPermission.CAN_DOWNLOAD.name())
                 .build();
+    }
+
+    private static FileMessage.DownloadPermission parsePermission(String raw) {
+        if (raw == null || raw.isBlank()) return FileMessage.DownloadPermission.CAN_DOWNLOAD;
+        try { return FileMessage.DownloadPermission.valueOf(raw.toUpperCase()); }
+        catch (IllegalArgumentException e) { return FileMessage.DownloadPermission.CAN_DOWNLOAD; }
     }
 }

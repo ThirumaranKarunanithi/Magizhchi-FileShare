@@ -121,8 +121,10 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [currentFolderPath, setCurrentFolderPath] = useState(null);
 
   // New-folder dialog state
-  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
-  const [newFolderName,       setNewFolderName]       = useState('');
+  const [showNewFolderDialog,    setShowNewFolderDialog]    = useState(false);
+  const [newFolderName,          setNewFolderName]          = useState('');
+  // Default download permission for files uploaded into this folder
+  const [newFolderPermission,    setNewFolderPermission]    = useState('CAN_DOWNLOAD');
 
   // Empty/pending folders the user created locally but hasn't uploaded into yet.
   // Stored as a Set of "path/" strings, persisted per-conversation in localStorage
@@ -140,6 +142,9 @@ export default function ChatWindow({ conversation, onLeave }) {
   // folder record when the user removes the folder, and resolve parentFolderId
   // when creating a sub-folder.
   const [folderPathToId, setFolderPathToId] = useState(new Map());
+  // Same shape: Map<folderPath, "CAN_DOWNLOAD" | "VIEW_ONLY" | "ADMIN_ONLY_DOWNLOAD">.
+  // Used to seed the upload dialog's permission picker from the folder's default.
+  const [folderPathToPermission, setFolderPathToPermission] = useState(new Map());
 
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
@@ -205,11 +210,18 @@ export default function ChatWindow({ conversation, onLeave }) {
         }
         return segs.join('/') + '/';
       };
-      const map = new Map();
-      data.forEach(f => map.set(buildPath(f), f.id));
-      setFolderPathToId(map);
+      const idMap   = new Map();
+      const permMap = new Map();
+      data.forEach(f => {
+        const p = buildPath(f);
+        idMap.set(p, f.id);
+        permMap.set(p, f.defaultPermission || 'CAN_DOWNLOAD');
+      });
+      setFolderPathToId(idMap);
+      setFolderPathToPermission(permMap);
     } catch {
       setFolderPathToId(new Map());
+      setFolderPathToPermission(new Map());
     }
   }, [conversation.id]);
 
@@ -327,13 +339,17 @@ export default function ChatWindow({ conversation, onLeave }) {
     finally { setUploading(false); }
   };
 
-  // Intercept file pick → show description dialog instead of uploading immediately
+  // Intercept file pick → show description dialog instead of uploading immediately.
+  // When the user is inside a folder that has a default download permission set,
+  // pre-select that permission in the upload dialog (they can still override).
   const handleFileInput = e => {
     const picked = Array.from(e.target.files || []);
     if (!picked.length) return;
     e.target.value = '';
     setDescription('');
-    setUploadPermission('CAN_DOWNLOAD');
+    setUploadPermission(
+      (currentFolderPath && folderPathToPermission.get(currentFolderPath)) || 'CAN_DOWNLOAD'
+    );
     setMentionedIds(new Set());
     setPendingUpload({ type: 'files', files: picked });
   };
@@ -369,14 +385,20 @@ export default function ChatWindow({ conversation, onLeave }) {
 
     try {
       const { data } = await foldersApi.create({
-        name:           raw,
-        conversationId: conversation.id,
+        name:              raw,
+        conversationId:    conversation.id,
         parentFolderId,
+        defaultPermission: newFolderPermission,
       });
       // Update registry so subsequent sub-folder creates / deletes can find it
       setFolderPathToId(prev => {
         const next = new Map(prev);
         next.set(newPath, data.id);
+        return next;
+      });
+      setFolderPathToPermission(prev => {
+        const next = new Map(prev);
+        next.set(newPath, data.defaultPermission || newFolderPermission);
         return next;
       });
     } catch (e) {
@@ -387,6 +409,7 @@ export default function ChatWindow({ conversation, onLeave }) {
     setPendingFolders(prev => new Set([...prev, newPath]));
     setShowNewFolderDialog(false);
     setNewFolderName('');
+    setNewFolderPermission('CAN_DOWNLOAD');
     toast.success(`📁 "${raw}" created.`);
   };
 
@@ -398,7 +421,9 @@ export default function ChatWindow({ conversation, onLeave }) {
     e.target.value = '';
     const folderName = picked[0].webkitRelativePath?.split('/')[0] || 'folder';
     setDescription('');
-    setUploadPermission('CAN_DOWNLOAD');
+    setUploadPermission(
+      (currentFolderPath && folderPathToPermission.get(currentFolderPath)) || 'CAN_DOWNLOAD'
+    );
     setPendingUpload({ type: 'folder', picked, folderName });
   };
 
@@ -548,6 +573,9 @@ export default function ChatWindow({ conversation, onLeave }) {
     const dropped = Array.from(e.dataTransfer.files || []);
     if (!dropped.length) return;
     setDescription('');
+    setUploadPermission(
+      (currentFolderPath && folderPathToPermission.get(currentFolderPath)) || 'CAN_DOWNLOAD'
+    );
     setPendingUpload({ type: 'files', files: dropped });
   };
 
@@ -637,6 +665,33 @@ export default function ChatWindow({ conversation, onLeave }) {
     });
   };
 
+  // Download every file inside the folder. Permission errors are surfaced as
+  // toasts but don't stop the rest of the batch.
+  const handleDownloadFolder = async (folderPath) => {
+    const ids = fileIdsInFolder(folderPath);
+    if (ids.length === 0) {
+      toast('Folder is empty.', { icon: '📭' });
+      return;
+    }
+    const folderName = folderPath.replace(/\/$/, '').split('/').pop();
+    toast(`Starting ${ids.length} download${ids.length !== 1 ? 's' : ''} from "${folderName}"…`,
+          { icon: '⬇️' });
+    let ok = 0;
+    for (const id of ids) {
+      const msg = messages.find(m => m.id === id);
+      if (!msg) continue;
+      try {
+        await handleDownload(msg);
+        ok++;
+        // Tiny gap so the browser doesn't drop concurrent download triggers
+        await new Promise(r => setTimeout(r, 120));
+      } catch {
+        toast.error(`Could not download "${msg.originalFileName}"`);
+      }
+    }
+    if (ok > 0) toast.success(`Downloaded ${ok} of ${ids.length} file${ids.length !== 1 ? 's' : ''}.`);
+  };
+
   // Open the share modal pre-loaded with all files inside the folder.
   const handleShareFolder = (folderPath) => {
     const ids = fileIdsInFolder(folderPath);
@@ -688,6 +743,11 @@ export default function ChatWindow({ conversation, onLeave }) {
     setFolderPathToId(prev => {
       const next = new Map(prev);
       // remove this path and any descendant paths
+      for (const k of [...next.keys()]) if (k.startsWith(folderPath)) next.delete(k);
+      return next;
+    });
+    setFolderPathToPermission(prev => {
+      const next = new Map(prev);
       for (const k of [...next.keys()]) if (k.startsWith(folderPath)) next.delete(k);
       return next;
     });
@@ -830,7 +890,11 @@ export default function ChatWindow({ conversation, onLeave }) {
           </button>
 
           {/* New Folder — creates a virtual folder you can upload into */}
-          <button onClick={() => { setNewFolderName(''); setShowNewFolderDialog(true); }}
+          <button onClick={() => {
+                    setNewFolderName('');
+                    setNewFolderPermission('CAN_DOWNLOAD');
+                    setShowNewFolderDialog(true);
+                  }}
                   disabled={uploading || !!folderProgress || !!multiProgress}
                   title={currentFolderPath
                     ? `Create a sub-folder inside "${currentFolderPath}"`
@@ -1339,9 +1403,11 @@ export default function ChatWindow({ conversation, onLeave }) {
                                      group.folderPath === currentFolderPath;
             const showFolderHeader = isFolder && !isDirectContents;
 
-            // Files always render inline under their folder header. Clicking the
-            // header navigates into the folder for a focused view.
-            const isExpanded = true;
+            // Folder rows collapse their files — only the folder header shows
+            // at root. Click the header to navigate inside (focused view) where
+            // direct contents render flat (no header) and sub-folders get their
+            // own header row.
+            const isExpanded = !showFolderHeader;
 
             // Display name: relative to currentFolderPath when inside a folder
             const folderDisplayName = (() => {
@@ -1400,6 +1466,14 @@ export default function ChatWindow({ conversation, onLeave }) {
                     {/* Folder action buttons — visible on hover */}
                     <div className="flex items-center gap-1 flex-shrink-0
                                     opacity-0 group-hover/folder:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        title={`Download all ${folderTotalFiles} file${folderTotalFiles !== 1 ? 's' : ''}`}
+                        onClick={e => { e.stopPropagation(); handleDownloadFolder(group.folderPath); }}
+                        className="text-xs px-2 py-1 rounded-lg font-semibold text-white"
+                        style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)' }}>
+                        ⬇
+                      </button>
                       <button
                         type="button"
                         title="Share folder"
@@ -1886,7 +1960,7 @@ export default function ChatWindow({ conversation, onLeave }) {
       {showNewFolderDialog && (
         <div className="absolute inset-0 flex items-center justify-center"
              style={{ background: 'rgba(0,0,0,0.55)', zIndex: 200 }}
-             onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}>
+             onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderPermission('CAN_DOWNLOAD'); }}>
           <div className="w-full max-w-sm mx-4 rounded-2xl p-6"
                onClick={e => e.stopPropagation()}
                style={{
@@ -1923,7 +1997,7 @@ export default function ChatWindow({ conversation, onLeave }) {
               onChange={e => setNewFolderName(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter')  confirmNewFolder();
-                if (e.key === 'Escape') { setShowNewFolderDialog(false); setNewFolderName(''); }
+                if (e.key === 'Escape') { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderPermission('CAN_DOWNLOAD'); }
               }}
               placeholder="e.g. Q3 Reports"
               style={{
@@ -1946,10 +2020,49 @@ export default function ChatWindow({ conversation, onLeave }) {
               The folder appears as soon as you upload a file into it.
             </p>
 
+            {/* Default download permission */}
+            <div className="mt-5">
+              <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                Default download permission
+              </label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'CAN_DOWNLOAD',        icon: '⬇', label: 'Anyone',     desc: 'Anyone can download'      },
+                  { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
+                  { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setNewFolderPermission(opt.value)}
+                    className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
+                               border transition-all text-center"
+                    style={{
+                      background: newFolderPermission === opt.value
+                        ? 'rgba(14,165,233,0.10)' : '#f8fafc',
+                      borderColor: newFolderPermission === opt.value
+                        ? '#0ea5e9' : '#e2e8f0',
+                      boxShadow: newFolderPermission === opt.value
+                        ? '0 0 0 2px rgba(14,165,233,0.20)' : 'none',
+                    }}>
+                    <span className="text-base leading-none">{opt.icon}</span>
+                    <span style={{
+                      fontSize: '11px', fontWeight: 700,
+                      color: newFolderPermission === opt.value ? '#0284c7' : '#475569',
+                    }}>{opt.label}</span>
+                    <span style={{ fontSize: '9px', color: '#94a3b8', lineHeight: 1.3 }}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Suggested permission for files uploaded into this folder. You can override per-file.
+              </p>
+            </div>
+
             {/* Actions */}
             <div className="flex gap-2 mt-5">
               <button
-                onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}
+                onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderPermission('CAN_DOWNLOAD'); }}
                 style={{
                   flex: 1, padding: '10px', borderRadius: '12px',
                   fontSize: '0.875rem', fontWeight: 700, color: '#475569',

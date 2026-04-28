@@ -46,4 +46,14 @@ public class Folder {
     @Column(nullable = false)
     @Builder.Default
     private Boolean isDeleted = false;
+
+    /**
+     * Default download permission applied to files uploaded into this folder
+     * (used as the suggested permission in the upload dialog). Mirrors the
+     * file-level permission enum on FileMessage.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private FileMessage.DownloadPermission defaultPermission = FileMessage.DownloadPermission.CAN_DOWNLOAD;
 }

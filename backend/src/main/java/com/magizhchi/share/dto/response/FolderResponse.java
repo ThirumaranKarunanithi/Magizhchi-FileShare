@@ -16,6 +16,8 @@ public class FolderResponse {
     private Long    createdById;
     private String  createdByName;
     private Instant createdAt;
+    /** Default download permission for files uploaded into this folder. */
+    private String  defaultPermission;
     /** Breadcrumb path from root to this folder */
     private List<BreadcrumbItem> breadcrumb;
 
