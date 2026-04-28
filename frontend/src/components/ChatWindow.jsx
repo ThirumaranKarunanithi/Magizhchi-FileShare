@@ -8,6 +8,7 @@ import ShareModal        from './ShareModal';
 import GroupInfoModal    from './GroupInfoModal';
 import Avatar            from './Avatar';
 import FilePreviewModal  from './FilePreviewModal';
+import PropertiesModal   from './PropertiesModal';
 
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
@@ -186,6 +187,13 @@ export default function ChatWindow({ conversation, onLeave }) {
   // Map<folderPath, boolean> — whether the current user has pinned this folder.
   // Surfaced in the "Pinned" section at the top of the chat.
   const [folderPathToPinned,     setFolderPathToPinned]     = useState(new Map());
+  // Full FolderResponse keyed by path — used by the Properties dialog so we
+  // can show description, createdBy, createdAt, etc. without an extra fetch.
+  const [folderPathToInfo,       setFolderPathToInfo]       = useState(new Map());
+
+  // Properties dialog target:
+  //   null | { type: 'file', msg } | { type: 'folder', folderPath, info, totalItems, totalSize, pinned }
+  const [propertiesTarget, setPropertiesTarget] = useState(null);
 
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
@@ -254,39 +262,79 @@ export default function ChatWindow({ conversation, onLeave }) {
       const idMap     = new Map();
       const permMap   = new Map();
       const pinnedMap = new Map();
+      const infoMap   = new Map();
       data.forEach(f => {
         const p = buildPath(f);
         idMap.set(p, f.id);
         permMap.set(p, f.defaultPermission || 'CAN_DOWNLOAD');
         pinnedMap.set(p, !!f.pinned);
+        infoMap.set(p, f);
       });
       setFolderPathToId(idMap);
       setFolderPathToPermission(permMap);
       setFolderPathToPinned(pinnedMap);
+      setFolderPathToInfo(infoMap);
     } catch {
       setFolderPathToId(new Map());
       setFolderPathToPermission(new Map());
       setFolderPathToPinned(new Map());
+      setFolderPathToInfo(new Map());
     }
   }, [conversation.id]);
 
   // ── Load files ──────────────────────────────────────────────────────────────
-  const loadFiles = useCallback(async (p = 0, prepend = false) => {
-    if (loading) return;
+  // The API returns newest-first per page (ORDER BY sentAt DESC). We keep the
+  // local `messages` array in that same order — newest at index 0 — so a
+  // straight render shows most-recent at the top.
+  //   - First load:    setMessages(items)
+  //   - Older pages:   append to the END (older = below)
+  //   - New uploads:   unshift to the start (newer = above)
+  // Use a ref instead of `loading` state for the in-flight guard so sequential
+  // calls (e.g. the auto-drain on conversation open) don't return early on a
+  // stale closure.
+  const loadingRef = useRef(false);
+  const loadFiles = useCallback(async (p = 0, append = false) => {
+    if (loadingRef.current) return false;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const { data } = await conversations.fileHistory(conversation.id, p);
       const items = (data.content ?? data).filter(m => !m.isDeleted);
-      if (prepend) {
-        setMessages(prev => [...items.reverse(), ...prev]);
+      if (append) {
+        setMessages(prev => {
+          const seen = new Set(prev.map(m => m.id));
+          return [...prev, ...items.filter(m => !seen.has(m.id))];
+        });
       } else {
-        setMessages(items.reverse());
+        setMessages(items);
         setPage(0);
       }
-      setHasMore(!(data.last ?? items.length === 0));
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  }, [conversation.id, loading]);
+      const more = !(data.last ?? items.length === 0);
+      setHasMore(more);
+      return more;
+    } catch (e) {
+      console.error(e);
+      return false;
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, [conversation.id]);
+
+  // Drain pagination on conversation open — keep fetching pages until either
+  // the API says we've reached the last page or we hit a sane cap. This makes
+  // file-explorer-style browsing work without forcing the user to click
+  // "Load older files" repeatedly.
+  const MAX_AUTO_PAGES = 10; // 10 × 200 = 2000 items max auto-loaded
+  const loadAllFiles = useCallback(async () => {
+    let p = 0;
+    let more = await loadFiles(p, false);
+    while (more && p < MAX_AUTO_PAGES - 1) {
+      p++;
+      more = await loadFiles(p, true);
+    }
+    setPage(p);
+  }, [loadFiles]);
 
   useEffect(() => {
     setMessages([]);
@@ -300,7 +348,7 @@ export default function ChatWindow({ conversation, onLeave }) {
       const raw = localStorage.getItem(`pendingFolders_${conversation.id}`);
       setPendingFolders(raw ? new Set(JSON.parse(raw)) : new Set());
     } catch { setPendingFolders(new Set()); }
-    loadFiles(0, false);
+    loadAllFiles();
     loadFolderRegistry();
     // Build Map<fileMessageId, shares[]> so each row knows WHO the file was shared with
     sharing.sharedByMe()
@@ -452,6 +500,11 @@ export default function ChatWindow({ conversation, onLeave }) {
       setFolderPathToPermission(prev => {
         const next = new Map(prev);
         next.set(newPath, data.defaultPermission || newFolderPermission);
+        return next;
+      });
+      setFolderPathToInfo(prev => {
+        const next = new Map(prev);
+        next.set(newPath, data);
         return next;
       });
     } catch (e) {
@@ -645,13 +698,15 @@ export default function ChatWindow({ conversation, onLeave }) {
   };
 
   // ── Delete ──────────────────────────────────────────────────────────────────
-  const handleDelete = async (msgId) => {
-    if (!window.confirm('Delete this file? This cannot be undone.')) return;
+  // skipConfirm = true → caller has already asked the user once (e.g. bulk
+  // delete) and doesn't want a per-file prompt.
+  const handleDelete = async (msgId, { skipConfirm = false } = {}) => {
+    if (!skipConfirm && !window.confirm('Delete this file? This cannot be undone.')) return;
     try {
       await files.delete(msgId);
       setMessages(prev => prev.filter(m => m.id !== msgId));
       setSelected(prev => { const s = new Set(prev); s.delete(msgId); return s; });
-      toast.success('File deleted.');
+      if (!skipConfirm) toast.success('File deleted.');
     } catch (e) { toast.error('Could not delete: ' + e); }
   };
 
@@ -765,6 +820,25 @@ export default function ChatWindow({ conversation, onLeave }) {
     return false;
   };
 
+  // ── Properties dialog helpers ───────────────────────────────────────────────
+  const openFileProperties = (msg) => {
+    setPropertiesTarget({ type: 'file', msg });
+  };
+  const openFolderProperties = (folderPath) => {
+    const totalItems = fileIdsInFolder(folderPath).length;
+    const totalSize  = messages
+      .filter(m => m.folderPath && m.folderPath.startsWith(folderPath))
+      .reduce((sum, m) => sum + (m.fileSizeBytes || 0), 0);
+    setPropertiesTarget({
+      type:       'folder',
+      folderPath,
+      info:       folderPathToInfo.get(folderPath),
+      totalItems,
+      totalSize,
+      pinned:     !!folderPathToPinned.get(folderPath),
+    });
+  };
+
   // Toggle pin on a folder. Folders with a registered server-side ID can be
   // persisted via the API; for unregistered (legacy) folders we keep an
   // in-memory pin so the UX still works.
@@ -851,6 +925,11 @@ export default function ChatWindow({ conversation, onLeave }) {
       for (const k of [...next.keys()]) if (k.startsWith(folderPath)) next.delete(k);
       return next;
     });
+    setFolderPathToInfo(prev => {
+      const next = new Map(prev);
+      for (const k of [...next.keys()]) if (k.startsWith(folderPath)) next.delete(k);
+      return next;
+    });
     setPendingFolders(prev => {
       const next = new Set(prev);
       for (const k of [...next]) if (k.startsWith(folderPath)) next.delete(k);
@@ -865,9 +944,40 @@ export default function ChatWindow({ conversation, onLeave }) {
     toast.success(`Folder "${folderName}" deleted.`);
   };
 
+  // ── Merge received shares into the file list ────────────────────────────────
+  // Files SHARED WITH the current user aren't part of the conversation's own
+  // file_messages, so they don't appear in `messages`. We synthesize lightweight
+  // message-shaped objects for them (keyed by the underlying fileMessageId so
+  // handlers like preview/download/pin still work) and tag them with
+  // `_isReceivedShare` so the row renderer can show violet accent + disable
+  // owner-only actions. Files YOU shared are already in `messages` and pick up
+  // the violet accent via `sharedFilesMap`.
+  const receivedShareMessages = contextShares
+    .filter(s => s.ownerId !== currentUser?.id)
+    // Avoid duplicating an item that — for any reason — is already in messages
+    .filter(s => !messages.some(m => m.id === s.fileMessageId))
+    .map(s => ({
+      id:                 s.fileMessageId,
+      originalFileName:   s.fileName,
+      contentType:        '',
+      fileSizeBytes:      s.sizeBytes,
+      caption:            null,
+      folderPath:         null,                        // received shares appear at root
+      category:           s.category,
+      downloadPermission: s.permission === 'EDITOR' ? 'CAN_DOWNLOAD' : 'VIEW_ONLY',
+      isPinned:           false,
+      sentAt:             s.sharedAt,
+      isDeleted:          false,
+      senderId:           s.ownerId,
+      senderName:         s.ownerName,
+      _isReceivedShare:   true,
+      _shareData:         s,
+    }));
+  const allItems = [...messages, ...receivedShareMessages];
+
   // ── Filtered + searched list ────────────────────────────────────────────────
   const q = searchQuery.trim().toLowerCase();
-  const displayed = messages
+  const displayed = allItems
     .filter(m => filter === 'ALL' || m.category === filter)
     .filter(m => {
       if (!q) return true;
@@ -888,6 +998,16 @@ export default function ChatWindow({ conversation, onLeave }) {
     .filter(m => {
       if (!currentFolderPath) return true;
       return m.folderPath && m.folderPath.startsWith(currentFolderPath);
+    })
+    // Defensive sort: keep newest at the top regardless of how the array got
+    // built (initial load, paginated load, optimistic upload, WS push). Tied
+    // timestamps fall back to id desc so order is stable.
+    .slice()
+    .sort((a, b) => {
+      const ta = a.sentAt ? Date.parse(a.sentAt) : 0;
+      const tb = b.sentAt ? Date.parse(b.sentAt) : 0;
+      if (tb !== ta) return tb - ta;
+      return (b.id ?? 0) - (a.id ?? 0);
     });
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
 
@@ -1357,11 +1477,30 @@ export default function ChatWindow({ conversation, onLeave }) {
               </button>
               <button
                 onClick={async () => {
-                  if (!window.confirm(`Delete ${selected.size} file(s)?`)) return;
-                  for (const id of [...selected]) {
+                  // Build the list of files the user actually owns (and can
+                  // therefore delete). Files belonging to other users are
+                  // silently skipped — the count in the prompt reflects only
+                  // those that will be removed.
+                  const ownedIds = [...selected].filter(id => {
                     const msg = messages.find(m => m.id === id);
-                    if (msg?.senderId === currentUser?.id) await handleDelete(msg.id);
+                    return msg && msg.senderId === currentUser?.id;
+                  });
+                  const skippedCount = selected.size - ownedIds.length;
+                  if (ownedIds.length === 0) {
+                    toast.error('You can only delete files you uploaded.');
+                    return;
                   }
+                  // ONE prompt for the whole batch — handleDelete is invoked
+                  // with skipConfirm so it never asks again per file.
+                  const msg = `Delete ${ownedIds.length} file${ownedIds.length !== 1 ? 's' : ''}? This cannot be undone.`
+                    + (skippedCount > 0
+                        ? `\n\n(${skippedCount} other file${skippedCount !== 1 ? 's' : ''} in your selection ${skippedCount !== 1 ? 'are' : 'is'} not yours and will be skipped.)`
+                        : '');
+                  if (!window.confirm(msg)) return;
+                  for (const id of ownedIds) {
+                    await handleDelete(id, { skipConfirm: true });
+                  }
+                  toast.success(`Deleted ${ownedIds.length} file${ownedIds.length !== 1 ? 's' : ''}.`);
                 }}
                 className="text-xs px-3 py-1.5 rounded-lg font-semibold text-red-200 transition-all"
                 style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.3)' }}>
@@ -1374,134 +1513,9 @@ export default function ChatWindow({ conversation, onLeave }) {
         {/* File rows */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* ── Shared-in-this-space section ── */}
-          {contextShares.length > 0 && (
-            <div>
-              {/* Section header */}
-              <div className="flex items-center gap-2 px-5 py-2.5 sticky top-0 z-10"
-                   style={{
-                     background: 'rgba(109,40,217,0.30)',
-                     borderBottom: '1px solid rgba(167,139,250,0.35)',
-                   }}>
-                <span className="text-sm">🔗</span>
-                <span className="text-xs font-bold text-violet-200 uppercase tracking-wide">
-                  Shared in this space
-                </span>
-                <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: 'rgba(167,139,250,0.25)', color: '#ddd6fe',
-                               border: '1px solid rgba(167,139,250,0.4)' }}>
-                  {contextShares.length}
-                </span>
-              </div>
-
-              {contextShares.map((share, idx) => {
-                const { emoji, bg } = fileIcon(share.category);
-                const isMyShare = share.ownerId === currentUser?.id;
-                const isLast    = idx === contextShares.length - 1;
-
-                return (
-                  <div key={share.id}
-                       className="flex items-center gap-3 px-5 py-3 group transition-colors cursor-default"
-                       style={{
-                         background: 'rgba(109,40,217,0.12)',
-                         borderBottom: !isLast ? '1px solid rgba(167,139,250,0.15)' : 'none',
-                         borderLeft: '3px solid rgba(167,139,250,0.7)',
-                       }}
-                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(109,40,217,0.22)'}
-                       onMouseLeave={e => e.currentTarget.style.background = 'rgba(109,40,217,0.12)'}>
-
-                    {/* Icon with violet ring */}
-                    <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center
-                                    justify-center text-xl"
-                         style={{ background: 'rgba(139,92,246,0.25)',
-                                  boxShadow: '0 0 0 2px rgba(167,139,250,0.55)' }}>
-                      {emoji}
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-white truncate">
-                          {share.fileName}
-                        </p>
-                        {/* Direction badge — different label for sharer vs receiver */}
-                        <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                              style={{
-                                background: isMyShare ? 'rgba(139,92,246,0.4)' : 'rgba(56,189,248,0.25)',
-                                border: isMyShare ? '1px solid rgba(167,139,250,0.5)' : '1px solid rgba(56,189,248,0.4)',
-                                color: '#ede9fe',
-                              }}>
-                          {isMyShare
-                            ? `📤 Shared with ${share.targetName ?? 'them'}`
-                            : `📥 From ${share.ownerName}`}
-                        </span>
-                        <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ background: share.permission === 'EDITOR'
-                                         ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)',
-                                       border: share.permission === 'EDITOR'
-                                         ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(255,255,255,0.2)',
-                                       color: 'rgba(255,255,255,0.8)' }}>
-                          {share.permission === 'EDITOR' ? '✏️ Edit' : '👁 View'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-violet-200/60 truncate mt-0.5">
-                        {formatBytes(share.sizeBytes)}
-                        {share.sharedAt && ` · ${format(new Date(share.sharedAt), 'd MMM yyyy')}`}
-                      </p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100
-                                    transition-opacity flex-shrink-0">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { data } = await files.downloadUrl(share.fileMessageId);
-                            const a = document.createElement('a');
-                            a.href = data.url; a.download = share.fileName; a.click();
-                          } catch (e) { toast.error('Download failed: ' + e); }
-                        }}
-                        title="Download"
-                        className="p-2 rounded-lg text-sm transition-all"
-                        style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>
-                        ⬇
-                      </button>
-                      {isMyShare && (
-                        <button
-                          onClick={async () => {
-                            if (!window.confirm(`Revoke share of "${share.fileName}"?`)) return;
-                            try {
-                              await sharing.revoke(share.id);
-                              setContextShares(prev => prev.filter(s => s.id !== share.id));
-                              setSharedFilesMap(prev => {
-                                const next = new Map(prev);
-                                const list = (next.get(share.fileMessageId) ?? []).filter(s => s.id !== share.id);
-                                list.length ? next.set(share.fileMessageId, list) : next.delete(share.fileMessageId);
-                                return next;
-                              });
-                              toast.success('Share revoked.');
-                            } catch (e) { toast.error(e?.toString() || 'Could not revoke.'); }
-                          }}
-                          title="Revoke share"
-                          className="p-2 rounded-lg text-sm transition-all"
-                          style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}>
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Divider between shared section and own files */}
-              <div className="px-5 py-2 flex items-center gap-3"
-                   style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }}/>
-                <span className="text-xs text-white/30">conversation files</span>
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }}/>
-              </div>
-            </div>
-          )}
+          {/* (Previously a separate "Shared in this space" section lived here.
+               Received shares are now merged inline with the regular file list,
+               styled with a distinct violet icon to mark them as shared.) */}
 
           {/* ── Breadcrumb — shown when inside a folder ── */}
           {currentFolderPath && (
@@ -1545,16 +1559,6 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
           )}
 
-          {hasMore && (
-            <div className="text-center py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <button onClick={() => { const n = page + 1; setPage(n); loadFiles(n, true); }}
-                      disabled={loading}
-                      className="text-xs text-white/70 hover:text-white hover:underline">
-                {loading ? 'Loading…' : '⬆ Load older files'}
-              </button>
-            </div>
-          )}
-
           {groups.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full py-16 gap-3">
               <span className="text-5xl">{currentFolderPath ? '📂' : '📭'}</span>
@@ -1586,6 +1590,17 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
           )}
 
+          {/* In grid/tiles modes, wrap all groups in ONE outer CSS grid so that
+              folder cells from one group and file cells from another all flow
+              horizontally together (instead of each group becoming its own row).
+              Group-level wrappers use `display: contents` to bubble their cells
+              up as direct children of this grid. */}
+          <div style={(currentView.layout === 'grid' || currentView.layout === 'tiles') ? {
+            display: 'grid',
+            gridTemplateColumns: `repeat(auto-fill, minmax(${currentView.cellSize ?? 144}px, 1fr))`,
+            gap: currentView.layout === 'tiles' ? 12 : 16,
+            padding: '16px 20px 24px',
+          } : undefined}>
           {groups.map((group, gi) => {
             // Tiny "end of pinned folders" separator before the first
             // unpinned folder group, when there's at least one pinned folder.
@@ -1620,14 +1635,18 @@ export default function ChatWindow({ conversation, onLeave }) {
             })();
 
             return (
-              <div key={group.folderPath ?? `ungrouped-${gi}`}>
+              <div key={group.folderPath ?? `ungrouped-${gi}`}
+                   style={(currentView.layout === 'grid' || currentView.layout === 'tiles')
+                          ? { display: 'contents' } : undefined}>
 
-                {/* End-of-pinned separator — sits above the first unpinned folder */}
+                {/* End-of-pinned separator — sits above the first unpinned folder.
+                    In grid/tiles modes it spans the full grid row. */}
                 {showPinSeparator && (
                   <div className="flex items-center gap-2 px-5 py-1"
                        style={{
                          background: 'rgba(255,255,255,0.04)',
                          borderTop: '1px dashed rgba(251,191,36,0.25)',
+                         gridColumn: '1 / -1',
                        }}>
                     <span className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">
                       Other folders
@@ -1720,6 +1739,14 @@ export default function ChatWindow({ conversation, onLeave }) {
                         style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.3)' }}>
                         🗑
                       </button>
+                      <button
+                        type="button"
+                        title="Properties"
+                        onClick={e => { e.stopPropagation(); openFolderProperties(group.folderPath); }}
+                        className="text-xs px-2 py-1 rounded-lg font-semibold text-white"
+                        style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)' }}>
+                        ℹ
+                      </button>
                     </div>
                   </div>
                   );
@@ -1729,22 +1756,30 @@ export default function ChatWindow({ conversation, onLeave }) {
                     Layout switches on currentView.layout: 'details' = existing
                     full row; 'list' = compact row; 'grid'/'tiles' = CSS grid
                     of cells (folder + files together, Windows-Explorer style);
-                    'content' = wider row with prominent caption.   */}
-                {isExpanded && currentView.layout !== 'details' &&
-                 (group.items.length > 0
-                  || ((currentView.layout === 'grid' || currentView.layout === 'tiles') && showFolderHeader)
-                 ) && (() => {
-                  const isGrid  = currentView.layout === 'grid' || currentView.layout === 'tiles';
-                  const isTile  = currentView.layout === 'tiles';
+                    'content' = wider row with prominent caption.
+
+                    Grid/tiles mode: folder groups render a folder CELL (no
+                    inline items), direct-contents groups render only items.
+                    Other compact modes use isExpanded to decide whether items
+                    render (so a folder header collapses its files).        */}
+                {currentView.layout !== 'details' && (() => {
+                  const isGrid       = currentView.layout === 'grid' || currentView.layout === 'tiles';
+                  const isTile       = currentView.layout === 'tiles';
+                  // In grid/tiles modes, a folder header becomes a cell — its
+                  // items don't render here. In other compact modes, items
+                  // follow the normal isExpanded rule.
+                  const renderFolderCell = isGrid && showFolderHeader;
+                  const renderItems      = isGrid
+                                           ? !showFolderHeader && group.items.length > 0
+                                           : isExpanded && group.items.length > 0;
+                  if (!renderFolderCell && !renderItems) return null;
                   const cellMin = currentView.cellSize ?? 144;
                   const iconPx  = isTile ? 44 : Math.min(96, Math.round(cellMin * 0.55));
+                  // Grid/tiles → display:contents so each cell becomes a direct
+                  // child of the OUTER flat grid (declared at the top of the
+                  // file area). Other compact modes keep their own layout.
                   const containerStyle = isGrid
-                    ? {
-                        display: 'grid',
-                        gridTemplateColumns: `repeat(auto-fill, minmax(${cellMin}px, 1fr))`,
-                        gap: isTile ? 12 : 16,
-                        padding: '16px 20px 24px',
-                      }
+                    ? { display: 'contents' }
                     : { padding: 0 };
 
                   // ── Reusable top-right action bar ──
@@ -1762,7 +1797,7 @@ export default function ChatWindow({ conversation, onLeave }) {
 
                   // ── Folder cell (rendered as the first grid cell when at this level) ──
                   let folderCellNode = null;
-                  if (isGrid && showFolderHeader) {
+                  if (renderFolderCell) {
                     const fp = group.folderPath;
                     const folderFullySelected = isFolderFullySelected(fp);
                     const folderTotalFiles    = fileIdsInFolder(fp).length;
@@ -1822,6 +1857,10 @@ export default function ChatWindow({ conversation, onLeave }) {
                                   onClick={e => { e.stopPropagation(); handleDeleteFolder(fp); }}
                                   className="px-1.5 py-1 rounded text-[11px] leading-none"
                                   style={{ background: 'rgba(239,68,68,0.35)', border: '1px solid rgba(239,68,68,0.55)', color: '#fecaca' }}>🗑</button>
+                          <button title="Properties"
+                                  onClick={e => { e.stopPropagation(); openFolderProperties(fp); }}
+                                  className="px-1.5 py-1 rounded text-[11px] leading-none text-white"
+                                  style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.25)' }}>ℹ</button>
                         </ActionBar>
 
                         {/* Body — yellow folder shape with the folder name centered below */}
@@ -1854,11 +1893,12 @@ export default function ChatWindow({ conversation, onLeave }) {
                   return (
                     <div style={containerStyle}>
                       {folderCellNode}
-                      {group.items.map(msg => {
+                      {renderItems && group.items.map(msg => {
                         const { emoji, bg } = fileIcon(msg.category);
                         const isMine   = msg.senderId === currentUser?.id;
                         const isSel    = selected.has(msg.id);
-                        const isShared = (sharedFilesMap.get(msg.id) ?? []).length > 0;
+                        const isShared = (sharedFilesMap.get(msg.id) ?? []).length > 0
+                                       || !!msg._isReceivedShare;
 
                         // Common cell-click → preview
                         const previewBtn = (children, extraClass = '') => (
@@ -1929,6 +1969,9 @@ export default function ChatWindow({ conversation, onLeave }) {
                                           className="px-1.5 py-1 rounded text-[11px] leading-none"
                                           style={{ background: 'rgba(239,68,68,0.35)', border: '1px solid rgba(239,68,68,0.55)', color: '#fecaca' }}>🗑</button>
                                 )}
+                                <button title="Properties" onClick={() => openFileProperties(msg)}
+                                        className="px-1.5 py-1 rounded text-[11px] leading-none text-white"
+                                        style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.25)' }}>ℹ</button>
                               </ActionBar>
 
                               {previewBtn(
@@ -1990,6 +2033,12 @@ export default function ChatWindow({ conversation, onLeave }) {
                               <span className="text-[10px] text-white/45 flex-shrink-0">
                                 {formatBytes(msg.fileSizeBytes)}
                               </span>
+                              <button onClick={() => openFileProperties(msg)} title="Properties"
+                                      className="text-[10px] px-1.5 py-0.5 rounded text-white/80
+                                                 opacity-0 group-hover/list:opacity-100 transition-opacity
+                                                 hover:bg-white/15">
+                                ℹ
+                              </button>
                             </div>
                           );
                         }
@@ -2052,6 +2101,9 @@ export default function ChatWindow({ conversation, onLeave }) {
                                 <button onClick={() => handleDelete(msg.id)} title="Delete"
                                         className="p-2 rounded-lg bg-red-50 text-red-500 text-sm">🗑</button>
                               )}
+                              <button onClick={() => openFileProperties(msg)} title="Properties"
+                                      className="p-2 rounded-lg text-sm text-white"
+                                      style={{ background: 'rgba(255,255,255,0.15)' }}>ℹ</button>
                             </div>
                           </div>
                         );
@@ -2064,8 +2116,11 @@ export default function ChatWindow({ conversation, onLeave }) {
                 {isExpanded && currentView.layout === 'details' && group.items.map((msg, idx) => {
                   const { emoji, bg } = fileIcon(msg.category);
                   const isMine    = msg.senderId === currentUser?.id;
+                  const isReceivedShare = !!msg._isReceivedShare;
                   const myShares  = sharedFilesMap.get(msg.id) ?? [];
-                  const isShared  = myShares.length > 0;
+                  // Visual "shared" treatment: applies if YOU shared this file
+                  // (sharedFilesMap) OR someone shared this file with YOU.
+                  const isShared  = myShares.length > 0 || isReceivedShare;
                   const isLast   = idx === group.items.length - 1 && gi === groups.length - 1;
 
                   // Shared files get a violet left-border accent and a faint violet tint
@@ -2165,19 +2220,37 @@ export default function ChatWindow({ conversation, onLeave }) {
                           )}
                         </div>
                         <p className="text-xs text-white/55 truncate">
-                          {formatBytes(msg.fileSizeBytes)}
+                          <span title="Storage size">{formatBytes(msg.fileSizeBytes)}</span>
                           {' · '}
-                          {format(new Date(msg.sentAt), 'd MMM yyyy')}
+                          <span title="Uploaded on">
+                            {format(new Date(msg.sentAt), 'd MMM yyyy, h:mm a')}
+                          </span>
                           {!isMine && msg.senderName && (
                             <> · <span className="text-sky-200 font-medium">{msg.senderName}</span></>
                           )}
                         </p>
-                        {msg.caption && (
-                          <p className="text-xs text-white/45 italic truncate mt-0.5">
+                        {msg.caption ? (
+                          <p className="text-xs text-white/70 italic line-clamp-2 mt-0.5"
+                             title={msg.caption}>
+                            <span className="not-italic font-semibold text-white/50 mr-1">Description:</span>
                             "{msg.caption}"
                           </p>
+                        ) : (
+                          <p className="text-[10px] text-white/30 italic mt-0.5">
+                            No description
+                          </p>
                         )}
-                        {isShared && (
+                        {isReceivedShare ? (
+                          <p className="text-[11px] mt-0.5 truncate" style={{ color: '#c4b5fd' }}>
+                            📥 Shared with you by&nbsp;
+                            <span className="font-semibold">{msg.senderName}</span>
+                            <span style={{ color: 'rgba(196,181,253,0.6)' }}>
+                              &nbsp;(
+                              {msg._shareData?.permission === 'EDITOR' ? 'Edit' : 'View'}
+                              )
+                            </span>
+                          </p>
+                        ) : isShared && myShares.length > 0 && (
                           <p className="text-[11px] mt-0.5 truncate" style={{ color: '#c4b5fd' }}>
                             Shared with&nbsp;
                             {myShares.map((s, i) => (
@@ -2299,6 +2372,13 @@ export default function ChatWindow({ conversation, onLeave }) {
                             🗑
                           </button>
                         )}
+
+                        {/* Properties — always available */}
+                        <button onClick={() => openFileProperties(msg)} title="Properties"
+                                className="p-2 rounded-lg transition-all text-sm"
+                                style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
+                          ℹ
+                        </button>
                       </div>
                     </div>
                   );
@@ -2306,6 +2386,19 @@ export default function ChatWindow({ conversation, onLeave }) {
               </div>
             );
           })}
+          </div>{/* end outer-grid wrapper */}
+
+          {/* Load-older-files trigger — at the BOTTOM since older files
+              live below the newest in our newest-first layout. */}
+          {hasMore && groups.length > 0 && (
+            <div className="text-center py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button onClick={() => { const n = page + 1; setPage(n); loadFiles(n, true); }}
+                      disabled={loading}
+                      className="text-xs text-white/70 hover:text-white hover:underline disabled:opacity-50">
+                {loading ? 'Loading…' : '⬇ Load older files'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -2736,6 +2829,14 @@ export default function ChatWindow({ conversation, onLeave }) {
         <FilePreviewModal
           file={previewFile}
           onClose={() => setPreviewFile(null)}
+        />
+      )}
+
+      {/* ── Properties dialog ── */}
+      {propertiesTarget && (
+        <PropertiesModal
+          target={propertiesTarget}
+          onClose={() => setPropertiesTarget(null)}
         />
       )}
 

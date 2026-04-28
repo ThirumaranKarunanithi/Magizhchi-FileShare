@@ -64,7 +64,8 @@ export const conversations = {
   removeMember:   (cid, uid)       => api.delete(`/api/conversations/${cid}/members/${uid}`),
   setMemberRole:  (cid, uid, role) => api.patch(`/api/conversations/${cid}/members/${uid}/role`, null, { params: { role } }),
   members:        (cid)            => api.get(`/api/conversations/${cid}/members`),
-  fileHistory:    (cid, p = 0)     => api.get(`/api/conversations/${cid}/files`, { params: { page: p } }),
+  fileHistory:    (cid, p = 0, size = 200) =>
+                    api.get(`/api/conversations/${cid}/files`, { params: { page: p, size } }),
 };
 
 // ── Connections & Privacy ────────────────────────────────────────────────────
