@@ -18,4 +18,7 @@ public class CreateFolderRequest {
      * into this folder will use this as the default download permission.
      */
     private String defaultPermission;
+
+    /** Optional free-text description shown on the folder header. */
+    private String description;
 }

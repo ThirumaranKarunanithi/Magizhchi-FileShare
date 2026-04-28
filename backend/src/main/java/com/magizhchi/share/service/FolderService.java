@@ -50,8 +50,16 @@ public class FolderService {
 
         FileMessage.DownloadPermission perm = parsePermission(req.getDefaultPermission());
 
+        // Inherit VIEW_ONLY from any ancestor — once a folder is locked to
+        // view-only, every descendant inherits the lock so the entire subtree
+        // stays view-only.
+        if (parent != null && isViewOnlyChain(parent)) {
+            perm = FileMessage.DownloadPermission.VIEW_ONLY;
+        }
+
         Folder folder = Folder.builder()
                 .name(req.getName())
+                .description(req.getDescription())
                 .conversation(conv)
                 .createdBy(creator)
                 .parent(parent)
@@ -179,6 +187,7 @@ public class FolderService {
         return FolderResponse.builder()
                 .id(f.getId())
                 .name(f.getName())
+                .description(f.getDescription())
                 .parentId(f.getParent() != null ? f.getParent().getId() : null)
                 .conversationId(f.getConversation().getId())
                 .createdById(f.getCreatedBy().getId())
@@ -189,6 +198,47 @@ public class FolderService {
                         : FileMessage.DownloadPermission.CAN_DOWNLOAD.name())
                 .pinned(pinned)
                 .build();
+    }
+
+    // ── Path / chain helpers ──────────────────────────────────────────────────
+
+    /**
+     * Resolve a path string ("a/b/c/") into the matching Folder entity by
+     * walking the conversation's folder tree segment by segment. Returns
+     * empty when no exact match exists (typical for "legacy" folderPath
+     * strings on file rows that were never created via the Folder API).
+     */
+    public java.util.Optional<Folder> findFolderByPath(Long conversationId, String path) {
+        if (path == null || path.isBlank()) return java.util.Optional.empty();
+        String[] segs = path.replaceAll("/+$", "").split("/");
+        Folder current = null;
+        for (String seg : segs) {
+            List<Folder> children = (current == null)
+                    ? folderRepo.findRootFolders(conversationId)
+                    : folderRepo.findChildFolders(conversationId, current.getId());
+            current = children.stream()
+                    .filter(f -> seg.equals(f.getName()))
+                    .findFirst()
+                    .orElse(null);
+            if (current == null) return java.util.Optional.empty();
+        }
+        return java.util.Optional.ofNullable(current);
+    }
+
+    /**
+     * Whether the given folder OR any of its ancestors is view-only.
+     * Used to cap permissions for new files / sub-folders created inside a
+     * locked subtree, and to deny downloads of files within it.
+     */
+    public boolean isViewOnlyChain(Folder f) {
+        Folder cur = f;
+        while (cur != null) {
+            if (cur.getDefaultPermission() == FileMessage.DownloadPermission.VIEW_ONLY) {
+                return true;
+            }
+            cur = cur.getParent();
+        }
+        return false;
     }
 
     private static FileMessage.DownloadPermission parsePermission(String raw) {

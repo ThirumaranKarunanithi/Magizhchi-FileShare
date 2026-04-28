@@ -11,6 +11,7 @@ import java.util.List;
 public class FolderResponse {
     private Long    id;
     private String  name;
+    private String  description;
     private Long    parentId;
     private Long    conversationId;
     private Long    createdById;

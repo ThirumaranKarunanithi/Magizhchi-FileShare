@@ -43,6 +43,7 @@ public class FileMessageService {
     private final SharingService               sharingService;
     private final UserFilePinRepository        pinRepo;
     private final ActivityService              activityService;
+    private final FolderService                folderService;
 
     /**
      * Upload a file, create the FileMessage record, and push a WebSocket event
@@ -103,6 +104,19 @@ public class FileMessageService {
 
         FileMessage.DownloadPermission effectivePerm =
                 downloadPermission != null ? downloadPermission : FileMessage.DownloadPermission.CAN_DOWNLOAD;
+
+        // If the file lands inside a folder that is (or has any ancestor) marked
+        // VIEW_ONLY, lock the file's permission to VIEW_ONLY regardless of the
+        // requested value. The whole subtree of a view-only folder stays view-only.
+        if (folderPath != null && !folderPath.isBlank()) {
+            boolean inViewOnlyChain = folderService
+                    .findFolderByPath(conversationId, folderPath)
+                    .map(folderService::isViewOnlyChain)
+                    .orElse(false);
+            if (inViewOnlyChain) {
+                effectivePerm = FileMessage.DownloadPermission.VIEW_ONLY;
+            }
+        }
 
         FileMessage msg = FileMessage.builder()
                 .conversation(conv)
@@ -238,6 +252,18 @@ public class FileMessageService {
 
             FileMessage.DownloadPermission effectiveFolderPerm =
                     downloadPermission != null ? downloadPermission : FileMessage.DownloadPermission.CAN_DOWNLOAD;
+
+            // Same view-only-chain enforcement as sendFile — once the target
+            // folder (or any ancestor) is locked, every file inherits VIEW_ONLY.
+            if (folderPath != null && !folderPath.isBlank()) {
+                boolean inViewOnlyChain = folderService
+                        .findFolderByPath(conversationId, folderPath)
+                        .map(folderService::isViewOnlyChain)
+                        .orElse(false);
+                if (inViewOnlyChain) {
+                    effectiveFolderPerm = FileMessage.DownloadPermission.VIEW_ONLY;
+                }
+            }
 
             FileMessage msg = FileMessage.builder()
                     .conversation(conv)
@@ -393,6 +419,21 @@ public class FileMessageService {
 
     private void enforceDownloadPermission(FileMessage msg, Long requesterId) {
         FileMessage.DownloadPermission perm = msg.getDownloadPermission();
+
+        // Folder-level view-only chain trumps the file's own permission. This
+        // catches files uploaded BEFORE the parent folder was made view-only —
+        // they're still inside a locked subtree and must not be downloadable.
+        if (msg.getFolderPath() != null && !msg.getFolderPath().isBlank()) {
+            boolean folderViewOnly = folderService
+                    .findFolderByPath(msg.getConversation().getId(), msg.getFolderPath())
+                    .map(folderService::isViewOnlyChain)
+                    .orElse(false);
+            if (folderViewOnly) {
+                throw new AppException(HttpStatus.FORBIDDEN,
+                        "This file lives in a view-only folder and cannot be downloaded.");
+            }
+        }
+
         if (perm == null) return;  // legacy rows with NULL permission → treat as CAN_DOWNLOAD
         if (perm == FileMessage.DownloadPermission.VIEW_ONLY) {
             throw new AppException(HttpStatus.FORBIDDEN,

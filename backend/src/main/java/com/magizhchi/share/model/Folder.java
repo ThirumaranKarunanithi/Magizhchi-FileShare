@@ -26,6 +26,10 @@ public class Folder {
     @Column(nullable = false, length = 255)
     private String name;
 
+    /** Optional description shown on the folder header. */
+    @Column(length = 500)
+    private String description;
+
     /** Parent folder — null means root level of the conversation */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")

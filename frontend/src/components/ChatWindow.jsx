@@ -74,13 +74,11 @@ function groupByFolder(msgs, currentFolderPath = null, extraFolderPaths = []) {
 }
 
 // ── View modes ───────────────────────────────────────────────────────────────
-// Mirror Windows Explorer's eight layout options. `cellSize` is the grid
-// column min-width (px); `layout` decides the rendering family.
+// Windows-Explorer-style layout options. `cellSize` is the grid column
+// min-width (px); `layout` decides the rendering family.
 const VIEW_MODES = [
-  { key: 'XL',      icon: '⬛', label: 'Extra large icons', layout: 'grid',    cellSize: 192 },
+  { key: 'XL',      icon: '⬛', label: 'Extra large icons', layout: 'grid',    cellSize: 200 },
   { key: 'L',       icon: '⬛', label: 'Large icons',       layout: 'grid',    cellSize: 144 },
-  { key: 'M',       icon: '▣',  label: 'Medium icons',      layout: 'grid',    cellSize: 96  },
-  { key: 'S',       icon: '▦',  label: 'Small icons',       layout: 'grid',    cellSize: 64  },
   { key: 'LIST',    icon: '☰',  label: 'List',              layout: 'list'                    },
   { key: 'DETAILS', icon: '≡',  label: 'Details',           layout: 'details'                 },
   { key: 'TILES',   icon: '▤',  label: 'Tiles',             layout: 'tiles',  cellSize: 220 },
@@ -138,6 +136,7 @@ export default function ChatWindow({ conversation, onLeave }) {
   // New-folder dialog state
   const [showNewFolderDialog,    setShowNewFolderDialog]    = useState(false);
   const [newFolderName,          setNewFolderName]          = useState('');
+  const [newFolderDescription,   setNewFolderDescription]   = useState('');
   // Default download permission for files uploaded into this folder
   const [newFolderPermission,    setNewFolderPermission]    = useState('CAN_DOWNLOAD');
 
@@ -429,12 +428,20 @@ export default function ChatWindow({ conversation, onLeave }) {
     // the user is inside a "legacy" folder that exists only via file folderPaths.
     const parentFolderId = base ? (folderPathToId.get(base) ?? null) : null;
 
+    // If the parent (or any ancestor) is view-only, the new sub-folder must
+    // also be view-only. The backend enforces this too — we mirror it here so
+    // the optimistic state matches what gets persisted.
+    const effectivePermission = isViewOnlyChainPath(base)
+      ? 'VIEW_ONLY'
+      : newFolderPermission;
+
     try {
       const { data } = await foldersApi.create({
         name:              raw,
+        description:       newFolderDescription.trim() || undefined,
         conversationId:    conversation.id,
         parentFolderId,
-        defaultPermission: newFolderPermission,
+        defaultPermission: effectivePermission,
       });
       // Update registry so subsequent sub-folder creates / deletes can find it
       setFolderPathToId(prev => {
@@ -455,6 +462,7 @@ export default function ChatWindow({ conversation, onLeave }) {
     setPendingFolders(prev => new Set([...prev, newPath]));
     setShowNewFolderDialog(false);
     setNewFolderName('');
+    setNewFolderDescription('');
     setNewFolderPermission('CAN_DOWNLOAD');
     toast.success(`📁 "${raw}" created.`);
   };
@@ -521,7 +529,9 @@ export default function ChatWindow({ conversation, onLeave }) {
     if (!pendingUpload) return;
     const caption     = description.trim() || undefined;
     const mentions    = mentionedIds.size > 0 ? [...mentionedIds].join(',') : undefined;
-    const permission  = uploadPermission;
+    // Inside a view-only chain, every uploaded file is forced to VIEW_ONLY
+    // regardless of the picker (the backend enforces this too).
+    const permission  = isViewOnlyChainPath(currentFolderPath) ? 'VIEW_ONLY' : uploadPermission;
     setPendingUpload(null);
     setDescription('');
     setUploadPermission('CAN_DOWNLOAD');
@@ -736,6 +746,23 @@ export default function ChatWindow({ conversation, onLeave }) {
       }
     }
     if (ok > 0) toast.success(`Downloaded ${ok} of ${ids.length} file${ids.length !== 1 ? 's' : ''}.`);
+  };
+
+  // Check whether a folder path (or any ancestor) is set to VIEW_ONLY.
+  // Used to lock the upload + new-folder permission pickers when the user is
+  // working inside a locked subtree.
+  const isViewOnlyChainPath = (path) => {
+    if (!path) return false;
+    // Walk up: "a/b/c/" → "a/b/c/", "a/b/", "a/"
+    let cur = path;
+    while (cur) {
+      if (folderPathToPermission.get(cur) === 'VIEW_ONLY') return true;
+      const trimmed = cur.replace(/\/$/, '');
+      const idx = trimmed.lastIndexOf('/');
+      if (idx < 0) break;
+      cur = trimmed.slice(0, idx + 1); // keep trailing "/"
+    }
+    return false;
   };
 
   // Toggle pin on a folder. Folders with a registered server-side ID can be
@@ -994,7 +1021,12 @@ export default function ChatWindow({ conversation, onLeave }) {
           {/* New Folder — creates a virtual folder you can upload into */}
           <button onClick={() => {
                     setNewFolderName('');
-                    setNewFolderPermission('CAN_DOWNLOAD');
+                    setNewFolderDescription('');
+                    // Inside a view-only chain, the new folder must inherit
+                    // VIEW_ONLY — preselect it (the picker will be locked too).
+                    setNewFolderPermission(
+                      isViewOnlyChainPath(currentFolderPath) ? 'VIEW_ONLY' : 'CAN_DOWNLOAD'
+                    );
                     setShowNewFolderDialog(true);
                   }}
                   disabled={uploading || !!folderProgress || !!multiProgress}
@@ -1604,8 +1636,10 @@ export default function ChatWindow({ conversation, onLeave }) {
                   </div>
                 )}
 
-                {/* ── Folder header (click opens the folder, file-explorer style) ── */}
-                {showFolderHeader && (() => {
+                {/* ── Folder header (click opens the folder, file-explorer style) ──
+                     Hidden in grid/tiles modes — folders render as cells in the
+                     same grid as their files. */}
+                {showFolderHeader && currentView.layout !== 'grid' && currentView.layout !== 'tiles' && (() => {
                   const folderFullySelected = isFolderFullySelected(group.folderPath);
                   const folderTotalFiles    = fileIdsInFolder(group.folderPath).length;
                   const folderPinned        = !!folderPathToPinned.get(group.folderPath);
@@ -1694,20 +1728,132 @@ export default function ChatWindow({ conversation, onLeave }) {
                 {/* ── File items (hidden when folder is collapsed) ──
                     Layout switches on currentView.layout: 'details' = existing
                     full row; 'list' = compact row; 'grid'/'tiles' = CSS grid
-                    of cells; 'content' = wider row with prominent caption.   */}
-                {isExpanded && currentView.layout !== 'details' && group.items.length > 0 && (() => {
+                    of cells (folder + files together, Windows-Explorer style);
+                    'content' = wider row with prominent caption.   */}
+                {isExpanded && currentView.layout !== 'details' &&
+                 (group.items.length > 0
+                  || ((currentView.layout === 'grid' || currentView.layout === 'tiles') && showFolderHeader)
+                 ) && (() => {
                   const isGrid  = currentView.layout === 'grid' || currentView.layout === 'tiles';
+                  const isTile  = currentView.layout === 'tiles';
                   const cellMin = currentView.cellSize ?? 144;
+                  const iconPx  = isTile ? 44 : Math.min(96, Math.round(cellMin * 0.55));
                   const containerStyle = isGrid
                     ? {
                         display: 'grid',
                         gridTemplateColumns: `repeat(auto-fill, minmax(${cellMin}px, 1fr))`,
-                        gap: currentView.layout === 'tiles' ? 12 : 10,
-                        padding: '12px ' + (showFolderHeader ? '20px 16px 48px' : '20px'),
+                        gap: isTile ? 12 : 16,
+                        padding: '16px 20px 24px',
                       }
                     : { padding: 0 };
+
+                  // ── Reusable top-right action bar ──
+                  // Shared between folder cells and file cells. Buttons sit in
+                  // the top-right corner (Windows Explorer-style) and reveal on
+                  // cell hover. The pin button stays visible while pinned.
+                  const ActionBar = ({ children, alwaysVisible = false }) => (
+                    <div
+                      className={`absolute top-1.5 right-1.5 flex items-center gap-1 z-10
+                                  transition-opacity ${alwaysVisible ? '' : 'opacity-0 group-hover/cell:opacity-100'}`}
+                      onClick={e => e.stopPropagation()}>
+                      {children}
+                    </div>
+                  );
+
+                  // ── Folder cell (rendered as the first grid cell when at this level) ──
+                  let folderCellNode = null;
+                  if (isGrid && showFolderHeader) {
+                    const fp = group.folderPath;
+                    const folderFullySelected = isFolderFullySelected(fp);
+                    const folderTotalFiles    = fileIdsInFolder(fp).length;
+                    const folderPinned        = !!folderPathToPinned.get(fp);
+                    folderCellNode = (
+                      <div
+                        key={'folder-cell-' + fp}
+                        className="group/cell relative rounded-xl transition-all cursor-pointer"
+                        onClick={() => setCurrentFolderPath(fp)}
+                        title={`Open "${folderDisplayName}"`}
+                        style={{
+                          background: folderFullySelected
+                            ? 'rgba(255,255,255,0.18)' : 'transparent',
+                          border: '1px solid ' + (folderFullySelected
+                            ? 'rgba(255,255,255,0.4)' : 'transparent'),
+                        }}
+                        onMouseEnter={e => {
+                          if (!folderFullySelected)
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
+                        }}
+                        onMouseLeave={e => {
+                          if (!folderFullySelected)
+                            e.currentTarget.style.background = 'transparent';
+                        }}>
+
+                        {/* Top-left checkbox */}
+                        <input
+                          type="checkbox"
+                          className="absolute top-1.5 left-1.5 w-3.5 h-3.5 accent-sky-500 z-10
+                                     opacity-0 group-hover/cell:opacity-100 transition-opacity"
+                          style={{ opacity: folderFullySelected ? 1 : undefined }}
+                          checked={folderFullySelected}
+                          title={folderFullySelected ? 'Deselect folder' : 'Select all files in folder'}
+                          onChange={() => toggleSelectFolder(fp)}
+                          onClick={e => e.stopPropagation()}
+                        />
+
+                        {/* Top-right action bar */}
+                        <ActionBar alwaysVisible={folderPinned}>
+                          <button title={folderPinned ? 'Unpin folder' : 'Pin folder'}
+                                  onClick={e => { e.stopPropagation(); handleTogglePinFolder(fp); }}
+                                  className="px-1.5 py-1 rounded text-[11px] leading-none"
+                                  style={{
+                                    background: folderPinned ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.35)',
+                                    color: folderPinned ? '#fde68a' : 'white',
+                                    border: '1px solid ' + (folderPinned ? 'rgba(251,191,36,0.6)' : 'rgba(255,255,255,0.25)'),
+                                  }}>📌</button>
+                          <button title="Download all"
+                                  onClick={e => { e.stopPropagation(); handleDownloadFolder(fp); }}
+                                  className="px-1.5 py-1 rounded text-[11px] leading-none text-white"
+                                  style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.25)' }}>⬇</button>
+                          <button title="Share folder"
+                                  onClick={e => { e.stopPropagation(); handleShareFolder(fp); }}
+                                  className="px-1.5 py-1 rounded text-[11px] leading-none text-white"
+                                  style={{ background: 'rgba(139,92,246,0.45)', border: '1px solid rgba(167,139,250,0.55)' }}>🔗</button>
+                          <button title="Delete folder"
+                                  onClick={e => { e.stopPropagation(); handleDeleteFolder(fp); }}
+                                  className="px-1.5 py-1 rounded text-[11px] leading-none"
+                                  style={{ background: 'rgba(239,68,68,0.35)', border: '1px solid rgba(239,68,68,0.55)', color: '#fecaca' }}>🗑</button>
+                        </ActionBar>
+
+                        {/* Body — yellow folder shape with the folder name centered below */}
+                        <div className={isTile
+                          ? 'flex items-center gap-3 p-3'
+                          : 'flex flex-col items-center gap-2 pt-5 pb-3 px-3'}>
+                          {/* Folder visual: SVG shape so it stays crisp at any size */}
+                          <svg width={iconPx} height={iconPx * 0.78} viewBox="0 0 64 50"
+                               className="drop-shadow"
+                               style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))' }}>
+                            <path d="M4 10 q0 -6 6 -6 h14 l6 6 h30 q6 0 6 6 v28 q0 6 -6 6 h-50 q-6 0 -6 -6 z"
+                                  fill="#facc15" stroke="#ca8a04" strokeWidth="0.8"/>
+                            <path d="M4 14 h60 v2 h-60 z" fill="#fde047" opacity="0.6"/>
+                          </svg>
+                          <div className={isTile ? 'flex-1 min-w-0' : 'w-full text-center min-w-0'}>
+                            <p className="text-xs font-semibold text-white truncate flex items-center gap-1 justify-center"
+                               title={folderDisplayName}>
+                              {folderPinned && <span className="text-amber-300 text-[10px]">📌</span>}
+                              {folderDisplayName}
+                            </p>
+                            <p className="text-[10px] text-white/55 truncate">
+                              {folderTotalFiles} item{folderTotalFiles !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div style={containerStyle}>
+                      {folderCellNode}
                       {group.items.map(msg => {
                         const { emoji, bg } = fileIcon(msg.category);
                         const isMine   = msg.senderId === currentUser?.id;
@@ -1724,22 +1870,28 @@ export default function ChatWindow({ conversation, onLeave }) {
                           </button>
                         );
 
-                        // ── Grid / Tiles / Small icons cell ──
+                        // ── Grid / Tiles cell — Windows-Explorer-style ──
                         if (isGrid) {
-                          const isTile = currentView.layout === 'tiles';
-                          const isSmall = currentView.key === 'S';
                           return (
                             <div key={msg.id}
-                                 className="group/cell relative rounded-xl border transition-all"
+                                 className="group/cell relative rounded-xl transition-all"
                                  style={{
                                    background: isSel
                                      ? 'rgba(255,255,255,0.18)'
-                                     : isShared ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.06)',
-                                   borderColor: isSel
-                                     ? 'rgba(255,255,255,0.45)'
-                                     : isShared ? 'rgba(167,139,250,0.45)' : 'rgba(255,255,255,0.10)',
+                                     : isShared ? 'rgba(139,92,246,0.14)' : 'transparent',
+                                   border: '1px solid ' + (isSel
+                                     ? 'rgba(255,255,255,0.4)'
+                                     : isShared ? 'rgba(167,139,250,0.4)' : 'transparent'),
+                                 }}
+                                 onMouseEnter={e => {
+                                   if (!isSel && !isShared)
+                                     e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
+                                 }}
+                                 onMouseLeave={e => {
+                                   if (!isSel && !isShared)
+                                     e.currentTarget.style.background = 'transparent';
                                  }}>
-                              {/* Top-left checkbox (always visible when selected, else on hover) */}
+                              {/* Top-left checkbox (visible when hovered or selected) */}
                               <input
                                 type="checkbox"
                                 className="absolute top-1.5 left-1.5 w-3.5 h-3.5 accent-sky-500 z-10
@@ -1749,24 +1901,49 @@ export default function ChatWindow({ conversation, onLeave }) {
                                 onChange={() => toggleSelect(msg.id)}
                                 onClick={e => e.stopPropagation()}
                               />
-                              {/* Top-right pin indicator */}
-                              {msg.isPinned && (
-                                <span className="absolute top-1.5 right-1.5 text-amber-300 text-xs">📌</span>
-                              )}
+
+                              {/* Top-right action bar — pin / download / share / delete */}
+                              <ActionBar alwaysVisible={msg.isPinned}>
+                                <button title={msg.isPinned ? 'Unpin' : 'Pin'}
+                                        onClick={() => handlePin(msg)}
+                                        disabled={pinLoading.has(msg.id)}
+                                        className="px-1.5 py-1 rounded text-[11px] leading-none"
+                                        style={{
+                                          background: msg.isPinned ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.35)',
+                                          color: msg.isPinned ? '#fde68a' : 'white',
+                                          border: '1px solid ' + (msg.isPinned ? 'rgba(251,191,36,0.6)' : 'rgba(255,255,255,0.25)'),
+                                        }}>📌</button>
+                                {msg.downloadPermission !== 'VIEW_ONLY' && (
+                                  <button title="Download" onClick={() => handleDownload(msg)}
+                                          className="px-1.5 py-1 rounded text-[11px] leading-none text-white"
+                                          style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.25)' }}>⬇</button>
+                                )}
+                                {isMine && (
+                                  <button title="Share"
+                                          onClick={() => { setSelected(new Set([msg.id])); setShowShare(true); }}
+                                          className="px-1.5 py-1 rounded text-[11px] leading-none"
+                                          style={{ background: 'rgba(139,92,246,0.45)', border: '1px solid rgba(167,139,250,0.55)', color: '#ddd6fe' }}>🔗</button>
+                                )}
+                                {isMine && (
+                                  <button title="Delete" onClick={() => handleDelete(msg.id)}
+                                          className="px-1.5 py-1 rounded text-[11px] leading-none"
+                                          style={{ background: 'rgba(239,68,68,0.35)', border: '1px solid rgba(239,68,68,0.55)', color: '#fecaca' }}>🗑</button>
+                                )}
+                              </ActionBar>
 
                               {previewBtn(
                                 <div className={isTile
                                   ? 'flex items-center gap-3 p-3'
-                                  : 'flex flex-col items-center gap-2 p-3'}
-                                  style={{ minHeight: isSmall ? 56 : undefined }}>
+                                  : 'flex flex-col items-center gap-2 pt-5 pb-3 px-3'}>
                                   <div
                                     className="rounded-xl flex items-center justify-center flex-shrink-0"
                                     style={{
-                                      width:  isTile ? 44 : (isSmall ? 28 : Math.min(72, cellMin * 0.45)),
-                                      height: isTile ? 44 : (isSmall ? 28 : Math.min(72, cellMin * 0.45)),
-                                      fontSize: isTile ? 22 : (isSmall ? 16 : Math.min(36, cellMin * 0.22)),
-                                      background: isShared ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.10)',
-                                      boxShadow: isShared ? '0 0 0 2px rgba(167,139,250,0.6)' : undefined,
+                                      width:  iconPx,
+                                      height: iconPx,
+                                      fontSize: Math.round(iconPx * 0.55),
+                                      background: isShared ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.06)',
+                                      boxShadow: isShared ? '0 0 0 2px rgba(167,139,250,0.55)' : undefined,
+                                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))',
                                     }}>
                                     {isShared ? '🔗' : emoji}
                                   </div>
@@ -1785,24 +1962,6 @@ export default function ChatWindow({ conversation, onLeave }) {
                                 </div>,
                                 'w-full'
                               )}
-
-                              {/* Hover micro-actions bottom-right */}
-                              <div className="absolute bottom-1 right-1 flex gap-1 opacity-0
-                                              group-hover/cell:opacity-100 transition-opacity">
-                                {msg.downloadPermission !== 'VIEW_ONLY' && (
-                                  <button onClick={() => handleDownload(msg)} title="Download"
-                                          className="px-1.5 py-0.5 rounded text-[10px]
-                                                     bg-white/20 text-white border border-white/30">⬇</button>
-                                )}
-                                <button onClick={() => handlePin(msg)} title={msg.isPinned ? 'Unpin' : 'Pin'}
-                                        disabled={pinLoading.has(msg.id)}
-                                        className="px-1.5 py-0.5 rounded text-[10px] border"
-                                        style={{
-                                          background: msg.isPinned ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.18)',
-                                          color: msg.isPinned ? '#fde68a' : 'white',
-                                          borderColor: msg.isPinned ? 'rgba(251,191,36,0.6)' : 'rgba(255,255,255,0.3)',
-                                        }}>📌</button>
-                              </div>
                             </div>
                           );
                         }
@@ -2291,40 +2450,55 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
 
             {/* ── Permission picker ── */}
-            <div className="mb-5">
-              <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
-                Download Permission
-              </label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'CAN_DOWNLOAD',        icon: '⬇', label: 'Anyone',     desc: 'Anyone can download'      },
-                  { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
-                  { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setUploadPermission(opt.value)}
-                    className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
-                               border transition-all text-center"
-                    style={{
-                      background: uploadPermission === opt.value
-                        ? 'rgba(14,165,233,0.10)' : '#f8fafc',
-                      borderColor: uploadPermission === opt.value
-                        ? '#0ea5e9' : '#e2e8f0',
-                      boxShadow: uploadPermission === opt.value
-                        ? '0 0 0 2px rgba(14,165,233,0.20)' : 'none',
-                    }}>
-                    <span className="text-base leading-none">{opt.icon}</span>
-                    <span style={{
-                      fontSize: '11px', fontWeight: 700,
-                      color: uploadPermission === opt.value ? '#0284c7' : '#475569',
-                    }}>{opt.label}</span>
-                    <span style={{ fontSize: '9px', color: '#94a3b8', lineHeight: 1.3 }}>{opt.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {(() => {
+              const lockedToViewOnly = isViewOnlyChainPath(currentFolderPath);
+              const effectiveValue   = lockedToViewOnly ? 'VIEW_ONLY' : uploadPermission;
+              return (
+                <div className="mb-5">
+                  <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                    Download Permission
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'CAN_DOWNLOAD',        icon: '⬇', label: 'Anyone',     desc: 'Anyone can download'      },
+                      { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
+                      { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
+                    ].map(opt => {
+                      const disabled = lockedToViewOnly && opt.value !== 'VIEW_ONLY';
+                      const selected = effectiveValue === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setUploadPermission(opt.value)}
+                          className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
+                                     border transition-all text-center"
+                          style={{
+                            background: selected ? 'rgba(14,165,233,0.10)' : '#f8fafc',
+                            borderColor: selected ? '#0ea5e9' : '#e2e8f0',
+                            boxShadow: selected ? '0 0 0 2px rgba(14,165,233,0.20)' : 'none',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            opacity: disabled ? 0.4 : 1,
+                          }}>
+                          <span className="text-base leading-none">{opt.icon}</span>
+                          <span style={{
+                            fontSize: '11px', fontWeight: 700,
+                            color: selected ? '#0284c7' : '#475569',
+                          }}>{opt.label}</span>
+                          <span style={{ fontSize: '9px', color: '#94a3b8', lineHeight: 1.3 }}>{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {lockedToViewOnly && (
+                    <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#dc2626' }}>
+                      🔒 You are inside a view-only folder — uploaded files are locked to view-only.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Actions */}
             <div className="flex gap-2.5">
@@ -2366,7 +2540,7 @@ export default function ChatWindow({ conversation, onLeave }) {
       {showNewFolderDialog && (
         <div className="absolute inset-0 flex items-center justify-center"
              style={{ background: 'rgba(0,0,0,0.55)', zIndex: 200 }}
-             onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderPermission('CAN_DOWNLOAD'); }}>
+             onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderDescription(''); setNewFolderPermission('CAN_DOWNLOAD'); }}>
           <div className="w-full max-w-sm mx-4 rounded-2xl p-6"
                onClick={e => e.stopPropagation()}
                style={{
@@ -2403,7 +2577,7 @@ export default function ChatWindow({ conversation, onLeave }) {
               onChange={e => setNewFolderName(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter')  confirmNewFolder();
-                if (e.key === 'Escape') { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderPermission('CAN_DOWNLOAD'); }
+                if (e.key === 'Escape') { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderDescription(''); setNewFolderPermission('CAN_DOWNLOAD'); }
               }}
               placeholder="e.g. Q3 Reports"
               style={{
@@ -2426,49 +2600,95 @@ export default function ChatWindow({ conversation, onLeave }) {
               The folder appears as soon as you upload a file into it.
             </p>
 
+            {/* Description (optional) */}
+            <label className="block text-xs font-bold text-gray-500 mb-2 mt-4 uppercase tracking-wider">
+              Description <span className="text-gray-400 font-medium normal-case">(optional)</span>
+            </label>
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={newFolderDescription}
+              onChange={e => setNewFolderDescription(e.target.value)}
+              placeholder="What lives in this folder?"
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: '12px',
+                fontSize: '0.8rem', color: '#1e293b', resize: 'none',
+                outline: 'none', background: '#f8fafc',
+                border: '1.5px solid #cbd5e1', caretColor: '#0ea5e9',
+                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
+              }}
+              onFocus={e => {
+                e.target.style.border = '1.5px solid #0ea5e9';
+                e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.12)';
+              }}
+              onBlur={e => {
+                e.target.style.border = '1.5px solid #cbd5e1';
+                e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.05)';
+              }}
+            />
+            <p className="text-[10px] text-gray-400 mt-1 text-right">
+              {newFolderDescription.length} / 500
+            </p>
+
             {/* Default download permission */}
-            <div className="mt-5">
-              <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
-                Default download permission
-              </label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'CAN_DOWNLOAD',        icon: '⬇', label: 'Anyone',     desc: 'Anyone can download'      },
-                  { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
-                  { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setNewFolderPermission(opt.value)}
-                    className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
-                               border transition-all text-center"
-                    style={{
-                      background: newFolderPermission === opt.value
-                        ? 'rgba(14,165,233,0.10)' : '#f8fafc',
-                      borderColor: newFolderPermission === opt.value
-                        ? '#0ea5e9' : '#e2e8f0',
-                      boxShadow: newFolderPermission === opt.value
-                        ? '0 0 0 2px rgba(14,165,233,0.20)' : 'none',
-                    }}>
-                    <span className="text-base leading-none">{opt.icon}</span>
-                    <span style={{
-                      fontSize: '11px', fontWeight: 700,
-                      color: newFolderPermission === opt.value ? '#0284c7' : '#475569',
-                    }}>{opt.label}</span>
-                    <span style={{ fontSize: '9px', color: '#94a3b8', lineHeight: 1.3 }}>{opt.desc}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1.5">
-                Suggested permission for files uploaded into this folder. You can override per-file.
-              </p>
-            </div>
+            {(() => {
+              const lockedToViewOnly = isViewOnlyChainPath(currentFolderPath);
+              return (
+                <div className="mt-3">
+                  <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                    Default download permission
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'CAN_DOWNLOAD',        icon: '⬇', label: 'Anyone',     desc: 'Anyone can download'      },
+                      { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
+                      { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
+                    ].map(opt => {
+                      // When locked to view-only, every option except VIEW_ONLY is disabled.
+                      const disabled = lockedToViewOnly && opt.value !== 'VIEW_ONLY';
+                      const selected = (lockedToViewOnly ? 'VIEW_ONLY' : newFolderPermission) === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setNewFolderPermission(opt.value)}
+                          className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
+                                     border transition-all text-center"
+                          style={{
+                            background: selected ? 'rgba(14,165,233,0.10)' : '#f8fafc',
+                            borderColor: selected ? '#0ea5e9' : '#e2e8f0',
+                            boxShadow: selected ? '0 0 0 2px rgba(14,165,233,0.20)' : 'none',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            opacity: disabled ? 0.4 : 1,
+                          }}>
+                          <span className="text-base leading-none">{opt.icon}</span>
+                          <span style={{
+                            fontSize: '11px', fontWeight: 700,
+                            color: selected ? '#0284c7' : '#475569',
+                          }}>{opt.label}</span>
+                          <span style={{ fontSize: '9px', color: '#94a3b8', lineHeight: 1.3 }}>{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {lockedToViewOnly ? (
+                    <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#dc2626' }}>
+                      🔒 This folder lives inside a view-only chain — sub-folders inherit view-only.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 mt-1.5">
+                      Suggested permission for files uploaded into this folder. You can override per-file.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Actions */}
             <div className="flex gap-2 mt-5">
               <button
-                onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderPermission('CAN_DOWNLOAD'); }}
+                onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); setNewFolderDescription(''); setNewFolderPermission('CAN_DOWNLOAD'); }}
                 style={{
                   flex: 1, padding: '10px', borderRadius: '12px',
                   fontSize: '0.875rem', fontWeight: 700, color: '#475569',
