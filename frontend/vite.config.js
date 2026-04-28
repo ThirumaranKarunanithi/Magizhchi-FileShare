@@ -37,8 +37,11 @@ export default defineConfig(({ mode }) => {
           // Let Vite/Rollup handle React splitting automatically via its built-in
           // vendor-detection heuristics.
           manualChunks: {
+            // ONLY split libraries that have NO React peer-dependency.
+            // Putting react-hot-toast here caused a TDZ crash because
+            // the ui chunk tried to access React before index.js was ready.
             stomp: ['@stomp/stompjs'],
-            ui:    ['react-hot-toast', 'date-fns'],
+            utils: ['date-fns'],
           },
         },
       },
