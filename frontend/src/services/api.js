@@ -138,6 +138,8 @@ export const folders = {
   breadcrumb: (folderId)                    => api.get(`/api/folders/${folderId}/breadcrumb`),
   rename:     (folderId, name)              => api.patch(`/api/folders/${folderId}`, { name }),
   delete:     (folderId)                    => api.delete(`/api/folders/${folderId}`),
+  pin:        (folderId)                    => api.post(`/api/folders/${folderId}/pin`),
+  unpin:      (folderId)                    => api.delete(`/api/folders/${folderId}/pin`),
 };
 
 // ── Activity ─────────────────────────────────────────────────────────────────

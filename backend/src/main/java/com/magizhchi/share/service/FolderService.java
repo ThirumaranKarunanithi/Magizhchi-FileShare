@@ -7,7 +7,10 @@ import com.magizhchi.share.model.FileMessage;
 import com.magizhchi.share.model.Folder;
 import com.magizhchi.share.repository.ConversationMemberRepository;
 import com.magizhchi.share.repository.ConversationRepository;
+import com.magizhchi.share.model.User;
+import com.magizhchi.share.model.UserFolderPin;
 import com.magizhchi.share.repository.FolderRepository;
+import com.magizhchi.share.repository.UserFolderPinRepository;
 import com.magizhchi.share.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ public class FolderService {
     private final ConversationRepository        convRepo;
     private final ConversationMemberRepository  memberRepo;
     private final UserRepository                userRepo;
+    private final UserFolderPinRepository       folderPinRepo;
     private final ActivityService               activityService;
 
     @Transactional
@@ -59,7 +64,7 @@ public class FolderService {
                 creator.getDisplayName() + " created folder \"" + req.getName() + "\"");
 
         log.info("Folder created: id={}, name={}, conv={}", folder.getId(), folder.getName(), req.getConversationId());
-        return toResponse(folder);
+        return toResponse(folder, userId);
     }
 
     public List<FolderResponse> listFolders(Long conversationId, Long parentFolderId, Long userId) {
@@ -67,14 +72,18 @@ public class FolderService {
         List<Folder> folders = parentFolderId == null
                 ? folderRepo.findRootFolders(conversationId)
                 : folderRepo.findChildFolders(conversationId, parentFolderId);
-        return folders.stream().map(this::toResponse).toList();
+        Set<Long> pinned = folderPinRepo.findPinnedFolderIdsByConversation(userId, conversationId);
+        return folders.stream().map(f -> toResponse(f, pinned.contains(f.getId()))).toList();
     }
 
     /** Flat listing of every non-deleted folder in the conversation (any depth). */
     public List<FolderResponse> listAllFolders(Long conversationId, Long userId) {
         requireMember(conversationId, userId);
+        Set<Long> pinned = folderPinRepo.findPinnedFolderIdsByConversation(userId, conversationId);
         return folderRepo.findAllByConversationId(conversationId)
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .map(f -> toResponse(f, pinned.contains(f.getId())))
+                .toList();
     }
 
     public List<FolderResponse> getBreadcrumb(Long folderId, Long userId) {
@@ -88,7 +97,35 @@ public class FolderService {
             path.add(0, current);
             current = current.getParent();
         }
-        return path.stream().map(this::toResponse).toList();
+        return path.stream().map(f -> toResponse(f, userId)).toList();
+    }
+
+    // ── Pin / unpin (per user) ────────────────────────────────────────────────
+
+    @Transactional
+    public FolderResponse pinFolder(Long folderId, Long userId) {
+        Folder folder = folderRepo.findById(folderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Folder not found."));
+        requireMember(folder.getConversation().getId(), userId);
+        if (!folderPinRepo.existsByUserIdAndFolderId(userId, folderId)) {
+            User user = userRepo.findById(userId)
+                    .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found."));
+            folderPinRepo.save(UserFolderPin.builder()
+                    .user(user)
+                    .folder(folder)
+                    .build());
+        }
+        return toResponse(folder, true);
+    }
+
+    @Transactional
+    public FolderResponse unpinFolder(Long folderId, Long userId) {
+        Folder folder = folderRepo.findById(folderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Folder not found."));
+        requireMember(folder.getConversation().getId(), userId);
+        folderPinRepo.findByUserIdAndFolderId(userId, folderId)
+                .ifPresent(folderPinRepo::delete);
+        return toResponse(folder, false);
     }
 
     @Transactional
@@ -96,7 +133,7 @@ public class FolderService {
         Folder folder = getOwnedFolder(folderId, userId);
         folder.setName(newName);
         folderRepo.save(folder);
-        return toResponse(folder);
+        return toResponse(folder, userId);
     }
 
     @Transactional
@@ -130,7 +167,15 @@ public class FolderService {
         }
     }
 
-    public FolderResponse toResponse(Folder f) {
+    /** Single-folder response — looks up pin status for the given user. */
+    public FolderResponse toResponse(Folder f, Long userId) {
+        boolean pinned = userId != null
+                && folderPinRepo.existsByUserIdAndFolderId(userId, f.getId());
+        return toResponse(f, pinned);
+    }
+
+    /** Bulk-friendly response — caller passes the pinned flag (avoids N+1). */
+    public FolderResponse toResponse(Folder f, boolean pinned) {
         return FolderResponse.builder()
                 .id(f.getId())
                 .name(f.getName())
@@ -142,6 +187,7 @@ public class FolderService {
                 .defaultPermission(f.getDefaultPermission() != null
                         ? f.getDefaultPermission().name()
                         : FileMessage.DownloadPermission.CAN_DOWNLOAD.name())
+                .pinned(pinned)
                 .build();
     }
 

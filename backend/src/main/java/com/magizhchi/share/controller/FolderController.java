@@ -84,4 +84,20 @@ public class FolderController {
         folderService.deleteFolder(id, user.getId());
         return ResponseEntity.ok(Map.of("message", "Folder deleted."));
     }
+
+    /** Pin a folder for the requesting user (idempotent). */
+    @PostMapping("/{id}/pin")
+    public ResponseEntity<FolderResponse> pin(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(folderService.pinFolder(id, user.getId()));
+    }
+
+    /** Unpin a folder for the requesting user (idempotent). */
+    @DeleteMapping("/{id}/pin")
+    public ResponseEntity<FolderResponse> unpin(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(folderService.unpinFolder(id, user.getId()));
+    }
 }

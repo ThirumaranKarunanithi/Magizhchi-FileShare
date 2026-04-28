@@ -2,10 +2,12 @@ com\magizhchi\share\controller\ConnectionController.class
 com\magizhchi\share\controller\FolderController.class
 com\magizhchi\share\websocket\NotificationEvent.class
 com\magizhchi\share\service\OtpService.class
+com\magizhchi\share\repository\UserFolderPinRepository.class
 com\magizhchi\share\config\FileProperties.class
 com\magizhchi\share\security\JwtTokenProvider.class
 com\magizhchi\share\service\ConversationService.class
 com\magizhchi\share\dto\request\CreateFolderRequest.class
+com\magizhchi\share\model\UserFolderPin$UserFolderPinBuilder.class
 com\magizhchi\share\config\SecurityConfig.class
 com\magizhchi\share\model\ConversationMember.class
 com\magizhchi\share\model\OtpCode$OtpCodeBuilder.class
@@ -103,6 +105,7 @@ com\magizhchi\share\config\DbMigrationRunner.class
 com\magizhchi\share\dto\response\FolderResponse$FolderResponseBuilder.class
 com\magizhchi\share\dto\response\FolderResponse$BreadcrumbItem$BreadcrumbItemBuilder.class
 com\magizhchi\share\controller\SharingController.class
+com\magizhchi\share\model\UserFolderPin.class
 com\magizhchi\share\dto\response\AuthResponse.class
 com\magizhchi\share\model\Conversation$ConversationType.class
 com\magizhchi\share\dto\request\VerifyOtpRequest.class

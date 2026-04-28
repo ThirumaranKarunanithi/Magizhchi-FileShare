@@ -18,6 +18,8 @@ public class FolderResponse {
     private Instant createdAt;
     /** Default download permission for files uploaded into this folder. */
     private String  defaultPermission;
+    /** True when the requesting user has pinned this folder. */
+    private boolean pinned;
     /** Breadcrumb path from root to this folder */
     private List<BreadcrumbItem> breadcrumb;
 

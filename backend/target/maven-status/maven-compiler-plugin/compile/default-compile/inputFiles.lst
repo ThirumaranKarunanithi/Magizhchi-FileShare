@@ -30,6 +30,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\StorageService.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\config\DbMigrationRunner.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\config\FileProperties.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\UserFolderPinRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\StorageController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\FileController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\response\StorageResponse.java
@@ -50,6 +51,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\RegisterRequest.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\ActivityEventRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\Conversation.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\UserFolderPin.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\AuthController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\VerifyOtpRequest.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\SharingService.java

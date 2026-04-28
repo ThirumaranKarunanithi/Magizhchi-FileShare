@@ -145,6 +145,9 @@ export default function ChatWindow({ conversation, onLeave }) {
   // Same shape: Map<folderPath, "CAN_DOWNLOAD" | "VIEW_ONLY" | "ADMIN_ONLY_DOWNLOAD">.
   // Used to seed the upload dialog's permission picker from the folder's default.
   const [folderPathToPermission, setFolderPathToPermission] = useState(new Map());
+  // Map<folderPath, boolean> — whether the current user has pinned this folder.
+  // Surfaced in the "Pinned" section at the top of the chat.
+  const [folderPathToPinned,     setFolderPathToPinned]     = useState(new Map());
 
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
@@ -210,18 +213,22 @@ export default function ChatWindow({ conversation, onLeave }) {
         }
         return segs.join('/') + '/';
       };
-      const idMap   = new Map();
-      const permMap = new Map();
+      const idMap     = new Map();
+      const permMap   = new Map();
+      const pinnedMap = new Map();
       data.forEach(f => {
         const p = buildPath(f);
         idMap.set(p, f.id);
         permMap.set(p, f.defaultPermission || 'CAN_DOWNLOAD');
+        pinnedMap.set(p, !!f.pinned);
       });
       setFolderPathToId(idMap);
       setFolderPathToPermission(permMap);
+      setFolderPathToPinned(pinnedMap);
     } catch {
       setFolderPathToId(new Map());
       setFolderPathToPermission(new Map());
+      setFolderPathToPinned(new Map());
     }
   }, [conversation.id]);
 
@@ -692,6 +699,33 @@ export default function ChatWindow({ conversation, onLeave }) {
     if (ok > 0) toast.success(`Downloaded ${ok} of ${ids.length} file${ids.length !== 1 ? 's' : ''}.`);
   };
 
+  // Toggle pin on a folder. Folders with a registered server-side ID can be
+  // persisted via the API; for unregistered (legacy) folders we keep an
+  // in-memory pin so the UX still works.
+  const handleTogglePinFolder = async (folderPath) => {
+    const folderId = folderPathToId.get(folderPath);
+    const wasPinned = !!folderPathToPinned.get(folderPath);
+    // Optimistic flip
+    setFolderPathToPinned(prev => {
+      const next = new Map(prev);
+      next.set(folderPath, !wasPinned);
+      return next;
+    });
+    if (folderId == null) return; // unregistered — local-only pin is fine
+    try {
+      if (wasPinned) await foldersApi.unpin(folderId);
+      else           await foldersApi.pin(folderId);
+    } catch (e) {
+      // Roll back on error
+      setFolderPathToPinned(prev => {
+        const next = new Map(prev);
+        next.set(folderPath, wasPinned);
+        return next;
+      });
+      toast.error('Could not update pin: ' + e);
+    }
+  };
+
   // Open the share modal pre-loaded with all files inside the folder.
   const handleShareFolder = (folderPath) => {
     const ids = fileIdsInFolder(folderPath);
@@ -797,7 +831,36 @@ export default function ChatWindow({ conversation, onLeave }) {
     ...pendingFolders,
     ...folderPathToId.keys(),
   ]);
-  const groups = groupByFolder(displayed, currentFolderPath, extraFolderPaths);
+  const rawGroups = groupByFolder(displayed, currentFolderPath, extraFolderPaths);
+
+  // ── Pin sort ───────────────────────────────────────────────────────────────
+  // Pinned folders bubble to the top of the group list; pinned files bubble
+  // to the top of each group's items list. Items keep their original relative
+  // order otherwise (Array#sort is stable in modern JS engines).
+  const groups = [...rawGroups]
+    .map(g => ({
+      ...g,
+      items: [...g.items].sort(
+        (a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)
+      ),
+    }))
+    .sort((a, b) => {
+      const ap = a.folderPath && folderPathToPinned.get(a.folderPath) ? 1 : 0;
+      const bp = b.folderPath && folderPathToPinned.get(b.folderPath) ? 1 : 0;
+      return bp - ap;
+    });
+
+  // Whether anything is pinned at the current view (so we can render a divider)
+  const hasPinnedHere =
+    groups.some(g => g.folderPath && folderPathToPinned.get(g.folderPath)) ||
+    displayed.some(m => m.isPinned);
+
+  // Index of the first non-pinned-folder group. Used to render a tiny
+  // separator between pinned and unpinned folder rows. (-1 means every group
+  // is a pinned folder; 0 means none are — both cases skip the separator.)
+  const firstNonPinnedFolderGroupIdx = groups.findIndex(g =>
+    !g.folderPath || !folderPathToPinned.get(g.folderPath)
+  );
 
   const toggleAll = () => {
     if (allChecked) setSelected(new Set());
@@ -1394,7 +1457,29 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
           )}
 
+          {/* ── Pinned divider — shown only when at least one pinned folder/file is in view ── */}
+          {hasPinnedHere && (
+            <div className="flex items-center gap-2 px-5 py-1.5"
+                 style={{
+                   background: 'rgba(251,191,36,0.18)',
+                   borderBottom: '1px solid rgba(251,191,36,0.35)',
+                 }}>
+              <span className="text-amber-200 text-xs">📌</span>
+              <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wider">
+                Pinned
+              </span>
+              <div className="flex-1 h-px"
+                   style={{ background: 'rgba(251,191,36,0.20)' }}/>
+            </div>
+          )}
+
           {groups.map((group, gi) => {
+            // Tiny "end of pinned folders" separator before the first
+            // unpinned folder group, when there's at least one pinned folder.
+            const showPinSeparator =
+              firstNonPinnedFolderGroupIdx > 0 &&
+              gi === firstNonPinnedFolderGroupIdx;
+
             const isFolder = !!group.folderPath;
 
             // When inside a folder, its direct contents (exact path match) render flat —
@@ -1424,10 +1509,25 @@ export default function ChatWindow({ conversation, onLeave }) {
             return (
               <div key={group.folderPath ?? `ungrouped-${gi}`}>
 
+                {/* End-of-pinned separator — sits above the first unpinned folder */}
+                {showPinSeparator && (
+                  <div className="flex items-center gap-2 px-5 py-1"
+                       style={{
+                         background: 'rgba(255,255,255,0.04)',
+                         borderTop: '1px dashed rgba(251,191,36,0.25)',
+                       }}>
+                    <span className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">
+                      Other folders
+                    </span>
+                    <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }}/>
+                  </div>
+                )}
+
                 {/* ── Folder header (click opens the folder, file-explorer style) ── */}
                 {showFolderHeader && (() => {
                   const folderFullySelected = isFolderFullySelected(group.folderPath);
                   const folderTotalFiles    = fileIdsInFolder(group.folderPath).length;
+                  const folderPinned        = !!folderPathToPinned.get(group.folderPath);
                   return (
                   <div
                     className="folder-row group/folder w-full flex items-center gap-3 px-5 py-3 sticky top-0 z-10
@@ -1453,8 +1553,11 @@ export default function ChatWindow({ conversation, onLeave }) {
                       title="Open folder"
                       className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
                       <span className="text-lg">📁</span>
-                      <span className="text-sm font-semibold text-white truncate flex-1">
+                      <span className="text-sm font-semibold text-white truncate flex-1 flex items-center gap-1.5">
                         {folderDisplayName}
+                        {folderPinned && (
+                          <span title="Pinned" className="text-amber-300 text-xs">📌</span>
+                        )}
                       </span>
                       <span className="flex-shrink-0 text-xs font-semibold px-2 py-0.5
                                        rounded-full text-white"
@@ -1463,9 +1566,21 @@ export default function ChatWindow({ conversation, onLeave }) {
                       </span>
                     </button>
 
-                    {/* Folder action buttons — visible on hover */}
+                    {/* Folder action buttons — visible on hover (pin button always visible when pinned) */}
                     <div className="flex items-center gap-1 flex-shrink-0
                                     opacity-0 group-hover/folder:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        title={folderPinned ? 'Unpin folder' : 'Pin folder'}
+                        onClick={e => { e.stopPropagation(); handleTogglePinFolder(group.folderPath); }}
+                        className="text-xs px-2 py-1 rounded-lg font-semibold"
+                        style={{
+                          background: folderPinned ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.2)',
+                          border: folderPinned ? '1px solid rgba(251,191,36,0.6)' : '1px solid rgba(255,255,255,0.3)',
+                          color: folderPinned ? '#fde68a' : 'white',
+                        }}>
+                        📌
+                      </button>
                       <button
                         type="button"
                         title={`Download all ${folderTotalFiles} file${folderTotalFiles !== 1 ? 's' : ''}`}
