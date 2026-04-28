@@ -29,10 +29,6 @@
         <item name="android:textColorPrimary">@color/textPrimary</item>
         <item name="android:textColorSecondary">@color/textSecondary</item>
 
-        <!-- Chip colors -->
-        <item name="chipBackgroundColor">@color/colorGlassWhite</item>
-        <item name="chipStrokeColor">@color/strokeGlass</item>
-        <item name="chipTextColor">@android:color/white</item>
     </style>
 
 </resources>

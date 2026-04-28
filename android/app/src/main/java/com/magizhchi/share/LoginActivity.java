@@ -81,7 +81,24 @@ public class LoginActivity extends AppCompatActivity {
                     intent.putExtra(OtpActivity.EXTRA_IS_REGISTRATION, false);
                     startActivity(intent);
                 } else {
-                    String msg = "No account found. Please check your details or create an account.";
+                    String msg;
+                    try {
+                        String body = response.errorBody() != null
+                                ? response.errorBody().string() : "";
+                        if (response.code() == 404 || body.toLowerCase().contains("no account")) {
+                            msg = "No account found for \"" + identifier + "\". Please register first.";
+                        } else if (response.code() == 403 || body.toLowerCase().contains("not verified")) {
+                            msg = "Account not verified. Please complete registration first.";
+                        } else if (response.code() >= 500) {
+                            msg = "Server error (" + response.code() + "). Please try again later.";
+                        } else {
+                            msg = body.isEmpty()
+                                    ? "Login failed (" + response.code() + "). Please try again."
+                                    : body;
+                        }
+                    } catch (Exception e) {
+                        msg = "Login failed. Please try again.";
+                    }
                     Toast.makeText(LoginActivity.this, msg, Toast.LENGTH_LONG).show();
                 }
             }

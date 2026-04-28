@@ -96,9 +96,5 @@
         <item name="android:textColorPrimary">@color/textPrimary</item>
         <item name="android:textColorSecondary">@color/textSecondary</item>
 
-        
-        <item name="chipBackgroundColor">@color/colorGlassWhite</item>
-        <item name="chipStrokeColor">@color/strokeGlass</item>
-        <item name="chipTextColor">@android:color/white</item>
     </style>
 </resources>

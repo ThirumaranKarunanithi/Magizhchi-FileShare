@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
@@ -30,12 +31,17 @@ public final class ActivityLoginBinding implements ViewBinding {
   @NonNull
   public final ProgressBar progressBar;
 
+  @NonNull
+  public final TextView tvSignUp;
+
   private ActivityLoginBinding(@NonNull FrameLayout rootView, @NonNull Button btnSendOtp,
-      @NonNull TextInputEditText etIdentifier, @NonNull ProgressBar progressBar) {
+      @NonNull TextInputEditText etIdentifier, @NonNull ProgressBar progressBar,
+      @NonNull TextView tvSignUp) {
     this.rootView = rootView;
     this.btnSendOtp = btnSendOtp;
     this.etIdentifier = etIdentifier;
     this.progressBar = progressBar;
+    this.tvSignUp = tvSignUp;
   }
 
   @Override
@@ -83,8 +89,14 @@ public final class ActivityLoginBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityLoginBinding((FrameLayout) rootView, btnSendOtp, etIdentifier,
-          progressBar);
+      id = R.id.tvSignUp;
+      TextView tvSignUp = ViewBindings.findChildViewById(rootView, id);
+      if (tvSignUp == null) {
+        break missingId;
+      }
+
+      return new ActivityLoginBinding((FrameLayout) rootView, btnSendOtp, etIdentifier, progressBar,
+          tvSignUp);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

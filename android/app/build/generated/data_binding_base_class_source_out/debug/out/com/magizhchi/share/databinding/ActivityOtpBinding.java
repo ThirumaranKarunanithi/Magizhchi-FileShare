@@ -38,15 +38,19 @@ public final class ActivityOtpBinding implements ViewBinding {
   @NonNull
   public final TextView tvOtpSubtitle;
 
+  @NonNull
+  public final TextView tvOtpTitle;
+
   private ActivityOtpBinding(@NonNull FrameLayout rootView, @NonNull ImageButton btnBack,
       @NonNull Button btnVerify, @NonNull EditText etOtp, @NonNull ProgressBar progressBar,
-      @NonNull TextView tvOtpSubtitle) {
+      @NonNull TextView tvOtpSubtitle, @NonNull TextView tvOtpTitle) {
     this.rootView = rootView;
     this.btnBack = btnBack;
     this.btnVerify = btnVerify;
     this.etOtp = etOtp;
     this.progressBar = progressBar;
     this.tvOtpSubtitle = tvOtpSubtitle;
+    this.tvOtpTitle = tvOtpTitle;
   }
 
   @Override
@@ -106,8 +110,14 @@ public final class ActivityOtpBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tvOtpTitle;
+      TextView tvOtpTitle = ViewBindings.findChildViewById(rootView, id);
+      if (tvOtpTitle == null) {
+        break missingId;
+      }
+
       return new ActivityOtpBinding((FrameLayout) rootView, btnBack, btnVerify, etOtp, progressBar,
-          tvOtpSubtitle);
+          tvOtpSubtitle, tvOtpTitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
