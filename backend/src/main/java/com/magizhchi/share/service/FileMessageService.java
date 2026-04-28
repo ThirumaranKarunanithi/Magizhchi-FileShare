@@ -270,7 +270,7 @@ public class FileMessageService {
     public String getDownloadUrl(Long messageId, Long requesterId) {
         FileMessage msg = getAccessibleMessage(messageId, requesterId);
         enforceDownloadPermission(msg, requesterId);
-        msg.setDownloadCount(msg.getDownloadCount() + 1);
+        msg.setDownloadCount((msg.getDownloadCount() != null ? msg.getDownloadCount() : 0) + 1);
         msgRepo.save(msg);
         return storage.generatePresignedUrl(msg.getS3Key());
     }
@@ -344,7 +344,7 @@ public class FileMessageService {
                                              FileMessage.DownloadPermission permission) {
         FileMessage msg = msgRepo.findById(messageId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Message not found."));
-        if (msg.getIsDeleted()) {
+        if (Boolean.TRUE.equals(msg.getIsDeleted())) {
             throw new AppException(HttpStatus.GONE, "This file has been deleted.");
         }
 
@@ -369,6 +369,7 @@ public class FileMessageService {
 
     private void enforceDownloadPermission(FileMessage msg, Long requesterId) {
         FileMessage.DownloadPermission perm = msg.getDownloadPermission();
+        if (perm == null) return;  // legacy rows with NULL permission → treat as CAN_DOWNLOAD
         if (perm == FileMessage.DownloadPermission.VIEW_ONLY) {
             throw new AppException(HttpStatus.FORBIDDEN,
                     "This file is view-only and cannot be downloaded.");
@@ -421,7 +422,7 @@ public class FileMessageService {
     private FileMessage getAccessibleMessage(Long messageId, Long userId) {
         FileMessage msg = msgRepo.findById(messageId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Message not found."));
-        if (msg.getIsDeleted()) {
+        if (Boolean.TRUE.equals(msg.getIsDeleted())) {
             throw new AppException(HttpStatus.GONE, "This file has been deleted.");
         }
         // Allow access if user is a conversation member OR the file was shared with them

@@ -362,7 +362,9 @@ public class ConversationService {
                 .caption(fm.getCaption())
                 .folderPath(fm.getFolderPath())
                 .folderId(fm.getFolder() != null ? fm.getFolder().getId() : null)
-                .downloadPermission(fm.getDownloadPermission().name())
+                .downloadPermission(fm.getDownloadPermission() != null
+                        ? fm.getDownloadPermission().name()
+                        : FileMessage.DownloadPermission.CAN_DOWNLOAD.name())
                 .isPinned(pinned)
                 .hasThumbnail(fm.getThumbnailKey() != null)
                 .conversationName(conversationName)
