@@ -27,16 +27,17 @@ public class FileController {
     private final FileMessageService  fileService;
     private final ConversationService convService;
 
-    /** Upload a single file (optionally with a caption). */
+    /** Upload a single file (optionally with a caption and @mention list). */
     @PostMapping("/send/{conversationId}")
     public ResponseEntity<FileMessageResponse> sendFile(
             @PathVariable Long conversationId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "caption",    required = false) String caption,
-            @RequestParam(value = "folderPath", required = false) String folderPath,
+            @RequestParam(value = "caption",           required = false) String caption,
+            @RequestParam(value = "folderPath",         required = false) String folderPath,
+            @RequestParam(value = "mentionedUserIds",   required = false) String mentionedUserIds,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(
-                fileService.sendFile(conversationId, user.getId(), file, caption, folderPath));
+                fileService.sendFile(conversationId, user.getId(), file, caption, folderPath, mentionedUserIds));
     }
 
     /**

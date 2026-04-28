@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -45,12 +46,19 @@ public class FileMessageService {
     @Transactional
     public FileMessageResponse sendFile(Long conversationId, Long senderId,
                                         MultipartFile file, String caption) {
-        return sendFile(conversationId, senderId, file, caption, null);
+        return sendFile(conversationId, senderId, file, caption, null, null);
     }
 
     @Transactional
     public FileMessageResponse sendFile(Long conversationId, Long senderId,
                                         MultipartFile file, String caption, String folderPath) {
+        return sendFile(conversationId, senderId, file, caption, folderPath, null);
+    }
+
+    @Transactional
+    public FileMessageResponse sendFile(Long conversationId, Long senderId,
+                                        MultipartFile file, String caption,
+                                        String folderPath, String mentionedUserIds) {
         // Check membership
         if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(conversationId, senderId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "You are not a member of this conversation.");
@@ -116,6 +124,27 @@ public class FileMessageService {
                                 "fileName",         msg.getOriginalFileName(),
                                 "fileMessageId",    msg.getId()
                         ))));
+
+        // ── @mention notifications ────────────────────────────────────────────────
+        if (mentionedUserIds != null && !mentionedUserIds.isBlank()) {
+            Arrays.stream(mentionedUserIds.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(s -> {
+                        try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
+                    })
+                    .filter(id -> id != null && !id.equals(senderId))
+                    .forEach(mentionedId ->
+                        messagingTemplate.convertAndSend(
+                                "/topic/user/" + mentionedId + "/notifications",
+                                new NotificationEvent("MENTION", Map.of(
+                                        "conversationId", conversationId,
+                                        "senderName",     sender.getDisplayName(),
+                                        "fileName",       msg.getOriginalFileName(),
+                                        "caption",        caption != null ? caption : "",
+                                        "fileMessageId",  msg.getId()
+                                ))));
+        }
 
         log.info("File sent: msgId={}, conv={}, sender={}, size={}", msg.getId(), conversationId, senderId, fileSize);
         return response;

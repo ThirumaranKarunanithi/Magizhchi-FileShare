@@ -84,6 +84,14 @@ export default function ChatWindow({ conversation }) {
   const [description,     setDescription]     = useState('');
   const [multiProgress,   setMultiProgress]   = useState(null); // { done, total } for multi-file upload
 
+  // ── @mention ───────────────────────────────────────────────────────────────
+  const [groupMembers,    setGroupMembers]    = useState([]);       // all members (minus self)
+  const [mentionedIds,    setMentionedIds]    = useState(new Set()); // user IDs tagged in caption
+  const [mentionQuery,    setMentionQuery]    = useState('');        // text after @
+  const [mentionRange,    setMentionRange]    = useState(null);      // { start, end } in textarea
+  const [showMentions,    setShowMentions]    = useState(false);
+  const captionRef = useRef(null);
+
   // ── Search ─────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   // 'ALL' | 'NAME' | 'DESC' | 'SENDER'
@@ -161,6 +169,14 @@ export default function ChatWindow({ conversation }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // ── Load group members for @mention ────────────────────────────────────────
+  useEffect(() => {
+    if (conversation.type !== 'GROUP') { setGroupMembers([]); return; }
+    conversations.members(conversation.id)
+      .then(r => setGroupMembers(r.data.filter(m => m.userId !== currentUser?.id)))
+      .catch(() => {});
+  }, [conversation.id]); // eslint-disable-line
+
   // ── Real-time ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = subscribeToConversation(conversation.id, event => {
@@ -194,6 +210,7 @@ export default function ChatWindow({ conversation }) {
     if (!picked.length) return;
     e.target.value = '';
     setDescription('');
+    setMentionedIds(new Set());
     setPendingUpload({ type: 'files', files: picked });
   };
 
@@ -208,18 +225,74 @@ export default function ChatWindow({ conversation }) {
     setPendingUpload({ type: 'folder', picked, folderName });
   };
 
+  // ── Caption @mention handlers ──────────────────────────────────────────────
+  const handleCaptionChange = e => {
+    const val    = e.target.value;
+    const cursor = e.target.selectionStart;
+    setDescription(val);
+
+    if (conversation.type !== 'GROUP') return;
+    // Check if cursor is right after an @word
+    const before = val.slice(0, cursor);
+    const match  = before.match(/@(\w*)$/);
+    if (match) {
+      setMentionQuery(match[1].toLowerCase());
+      setMentionRange({ start: cursor - match[0].length, end: cursor });
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
+    }
+  };
+
+  const insertMention = member => {
+    const firstName = member.displayName.split(' ')[0];
+    const tag       = `@${firstName} `;
+    const before    = description.slice(0, mentionRange.start);
+    const after     = description.slice(mentionRange.end);
+    const next      = before + tag + after;
+    setDescription(next);
+    setMentionedIds(prev => new Set([...prev, member.userId]));
+    setShowMentions(false);
+    setMentionQuery('');
+    // Re-focus textarea and move cursor to end of inserted tag
+    setTimeout(() => {
+      if (captionRef.current) {
+        const pos = (before + tag).length;
+        captionRef.current.focus();
+        captionRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
+
+  const filteredMentions = groupMembers.filter(m =>
+    m.displayName.toLowerCase().includes(mentionQuery)
+  );
+
   // Called when the user confirms the description dialog
   const confirmUpload = async () => {
     if (!pendingUpload) return;
-    const caption = description.trim() || undefined;
+    const caption   = description.trim() || undefined;
+    const mentions  = mentionedIds.size > 0 ? [...mentionedIds].join(',') : undefined;
     setPendingUpload(null);
     setDescription('');
+    setMentionedIds(new Set());
+    setShowMentions(false);
 
     if (pendingUpload.type === 'files') {
       const { files: picked } = pendingUpload;
       if (picked.length === 1) {
-        // Single file — same path as before
-        await sendFile(picked[0], caption);
+        // Single file
+        setUploading(true);
+        try {
+          const fd = new FormData();
+          fd.append('file', picked[0]);
+          if (caption)  fd.append('caption', caption);
+          if (mentions) fd.append('mentionedUserIds', mentions);
+          const { data } = await files.send(conversation.id, fd);
+          setMessages(prev => [data, ...prev]);
+          toast.success(`"${picked[0].name}" uploaded!`);
+        } catch (e) { toast.error('Upload failed: ' + e); }
+        finally { setUploading(false); }
       } else {
         // Multiple files — upload sequentially, show live counter
         setMultiProgress({ done: 0, total: picked.length });
@@ -228,7 +301,8 @@ export default function ChatWindow({ conversation }) {
           try {
             const fd = new FormData();
             fd.append('file', file);
-            if (caption) fd.append('caption', caption);
+            if (caption)  fd.append('caption', caption);
+            if (mentions) fd.append('mentionedUserIds', mentions);
             const { data } = await files.send(conversation.id, fd);
             setMessages(prev => [data, ...prev]);
             succeeded++;
@@ -1082,36 +1156,79 @@ export default function ChatWindow({ conversation }) {
             {/* Description textarea */}
             <div className="mb-5">
               <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
-                Description <span className="text-gray-400 normal-case font-normal">(optional)</span>
+                {conversation.type === 'GROUP'
+                  ? <>Description &amp; @mentions <span className="text-gray-400 normal-case font-normal">(optional)</span></>
+                  : <>Description <span className="text-gray-400 normal-case font-normal">(optional)</span></>}
               </label>
-              <textarea
-                autoFocus
-                rows={3}
-                maxLength={500}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) confirmUpload();
-                  if (e.key === 'Escape') { setPendingUpload(null); setDescription(''); }
-                }}
-                placeholder="What is this file about? (e.g. Q3 report, project assets…)"
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: '12px',
-                  fontSize: '0.875rem', color: '#1e293b', resize: 'none',
-                  outline: 'none', background: '#f8fafc',
-                  border: '1.5px solid #cbd5e1', caretColor: '#0ea5e9',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
-                }}
-                onFocus={e => {
-                  e.target.style.border = '1.5px solid #0ea5e9';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.12)';
-                }}
-                onBlur={e => {
-                  e.target.style.border = '1.5px solid #cbd5e1';
-                  e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.05)';
-                }}
-              />
-              <p className="text-right text-[10px] text-gray-400 mt-1">{description.length} / 500</p>
+              <div className="relative">
+                <textarea
+                  ref={captionRef}
+                  autoFocus
+                  rows={3}
+                  maxLength={500}
+                  value={description}
+                  onChange={handleCaptionChange}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape' && showMentions) {
+                      e.stopPropagation();
+                      setShowMentions(false);
+                      return;
+                    }
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) confirmUpload();
+                    if (e.key === 'Escape') { setPendingUpload(null); setDescription(''); }
+                  }}
+                  placeholder={
+                    conversation.type === 'GROUP'
+                      ? 'Add a description… type @ to mention a member'
+                      : 'What is this file about? (e.g. Q3 report, project assets…)'
+                  }
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: '12px',
+                    fontSize: '0.875rem', color: '#1e293b', resize: 'none',
+                    outline: 'none', background: '#f8fafc',
+                    border: '1.5px solid #cbd5e1', caretColor: '#0ea5e9',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
+                  }}
+                  onFocus={e => {
+                    e.target.style.border = '1.5px solid #0ea5e9';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.12)';
+                  }}
+                  onBlur={e => {
+                    e.target.style.border = '1.5px solid #cbd5e1';
+                    e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.05)';
+                  }}
+                />
+
+                {/* @mention autocomplete dropdown */}
+                {showMentions && filteredMentions.length > 0 && (
+                  <div className="absolute left-0 right-0 bottom-full mb-1 rounded-xl border
+                                  border-slate-200 overflow-hidden shadow-lg z-10"
+                       style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)' }}>
+                    {filteredMentions.map(m => (
+                      <button
+                        key={m.userId}
+                        onMouseDown={e => { e.preventDefault(); insertMention(m); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2
+                                   hover:bg-sky-50 transition-colors text-left border-b
+                                   border-slate-100 last:border-0">
+                        <Avatar name={m.displayName} photoUrl={m.profilePhotoUrl} size="xs"/>
+                        <span className="text-sm font-semibold text-slate-800">{m.displayName}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between mt-1">
+                {mentionedIds.size > 0 ? (
+                  <p className="text-[10px] text-sky-600 font-medium">
+                    @mentioning {mentionedIds.size} member{mentionedIds.size !== 1 ? 's' : ''}
+                  </p>
+                ) : (
+                  <span/>
+                )}
+                <p className="text-[10px] text-gray-400">{description.length} / 500</p>
+              </div>
             </div>
 
             {/* Actions */}
