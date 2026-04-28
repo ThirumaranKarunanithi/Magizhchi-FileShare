@@ -11,22 +11,52 @@ import FilePreviewModal  from './FilePreviewModal';
 
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
-/** Group a flat array of messages into [{folderPath, items}] preserving display order. */
-function groupByFolder(msgs) {
+/**
+ * Group a flat array of messages into [{folderPath, items}] for display
+ * at the given folder level — like a file-explorer view.
+ *
+ * At root (currentFolderPath = null):
+ *   - Groups by the FIRST path segment, so all files under
+ *     "MagizhchiAdmission/…" (any depth) collapse into one "MagizhchiAdmission/" group.
+ *
+ * Inside a folder (e.g. currentFolderPath = "MagizhchiAdmission/"):
+ *   - Files whose folderPath === currentFolderPath → direct-contents group (no header).
+ *   - Files one level deeper → grouped by the NEXT segment
+ *     ("MagizhchiAdmission/.vscode/file" → ".vscode/" group).
+ *   - Files even deeper also collapse into that next-segment group.
+ */
+function groupByFolder(msgs, currentFolderPath = null) {
   const groups = [];
-  const seen   = new Map(); // folderPath → index
+  const seen   = new Map(); // groupKey → index
 
   for (const msg of msgs) {
     const fp = msg.folderPath || null;
-    if (fp && seen.has(fp)) {
-      groups[seen.get(fp)].items.push(msg);
-    } else if (fp) {
-      seen.set(fp, groups.length);
-      groups.push({ folderPath: fp, items: [msg] });
+
+    let groupKey = null; // null → standalone file row (no folder header)
+
+    if (fp) {
+      if (!currentFolderPath) {
+        // Root view: key = first path segment + "/"
+        groupKey = fp.split('/')[0] + '/';
+      } else if (fp === currentFolderPath) {
+        // Exact match: direct contents of the current folder
+        groupKey = fp;
+      } else {
+        // Deeper: key = currentFolderPath + next segment + "/"
+        const remainder  = fp.slice(currentFolderPath.length);
+        const nextSeg    = remainder.split('/')[0];
+        groupKey = currentFolderPath + nextSeg + '/';
+      }
+    }
+
+    if (seen.has(groupKey)) {
+      groups[seen.get(groupKey)].items.push(msg);
     } else {
-      groups.push({ folderPath: null, items: [msg] });
+      seen.set(groupKey, groups.length);
+      groups.push({ folderPath: groupKey, items: [msg] });
     }
   }
+
   return groups;
 }
 
@@ -472,7 +502,7 @@ export default function ChatWindow({ conversation, onLeave }) {
       return m.folderPath && m.folderPath.startsWith(currentFolderPath);
     });
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
-  const groups     = groupByFolder(displayed);
+  const groups     = groupByFolder(displayed, currentFolderPath);
 
   const toggleAll = () => {
     if (allChecked) setSelected(new Set());
