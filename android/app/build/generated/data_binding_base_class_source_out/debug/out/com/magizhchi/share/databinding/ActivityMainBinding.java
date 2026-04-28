@@ -16,8 +16,6 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.magizhchi.share.R;
 import java.lang.NullPointerException;
@@ -38,13 +36,10 @@ public final class ActivityMainBinding implements ViewBinding {
   public final LinearLayout cardStorage;
 
   @NonNull
-  public final Chip chipFiles;
+  public final TextView chipFiles;
 
   @NonNull
-  public final ChipGroup chipGroupToggle;
-
-  @NonNull
-  public final Chip chipPeople;
+  public final TextView chipPeople;
 
   @NonNull
   public final EditText etSearch;
@@ -62,10 +57,10 @@ public final class ActivityMainBinding implements ViewBinding {
   public final RecyclerView recyclerConversations;
 
   @NonNull
-  public final TextView tvAvatarInitials;
+  public final ProgressBar storageProgressBar;
 
   @NonNull
-  public final TextView tvBellBadge;
+  public final TextView tvAvatarInitials;
 
   @NonNull
   public final TextView tvStorageUsed;
@@ -74,26 +69,25 @@ public final class ActivityMainBinding implements ViewBinding {
   public final TextView tvWelcome;
 
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView, @NonNull ImageButton btnBell,
-      @NonNull LinearLayout cardShared, @NonNull LinearLayout cardStorage, @NonNull Chip chipFiles,
-      @NonNull ChipGroup chipGroupToggle, @NonNull Chip chipPeople, @NonNull EditText etSearch,
+      @NonNull LinearLayout cardShared, @NonNull LinearLayout cardStorage,
+      @NonNull TextView chipFiles, @NonNull TextView chipPeople, @NonNull EditText etSearch,
       @NonNull FloatingActionButton fabNewGroup, @NonNull ImageView ivAvatar,
       @NonNull ProgressBar progressBar, @NonNull RecyclerView recyclerConversations,
-      @NonNull TextView tvAvatarInitials, @NonNull TextView tvBellBadge,
+      @NonNull ProgressBar storageProgressBar, @NonNull TextView tvAvatarInitials,
       @NonNull TextView tvStorageUsed, @NonNull TextView tvWelcome) {
     this.rootView = rootView;
     this.btnBell = btnBell;
     this.cardShared = cardShared;
     this.cardStorage = cardStorage;
     this.chipFiles = chipFiles;
-    this.chipGroupToggle = chipGroupToggle;
     this.chipPeople = chipPeople;
     this.etSearch = etSearch;
     this.fabNewGroup = fabNewGroup;
     this.ivAvatar = ivAvatar;
     this.progressBar = progressBar;
     this.recyclerConversations = recyclerConversations;
+    this.storageProgressBar = storageProgressBar;
     this.tvAvatarInitials = tvAvatarInitials;
-    this.tvBellBadge = tvBellBadge;
     this.tvStorageUsed = tvStorageUsed;
     this.tvWelcome = tvWelcome;
   }
@@ -144,19 +138,13 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       id = R.id.chipFiles;
-      Chip chipFiles = ViewBindings.findChildViewById(rootView, id);
+      TextView chipFiles = ViewBindings.findChildViewById(rootView, id);
       if (chipFiles == null) {
         break missingId;
       }
 
-      id = R.id.chipGroupToggle;
-      ChipGroup chipGroupToggle = ViewBindings.findChildViewById(rootView, id);
-      if (chipGroupToggle == null) {
-        break missingId;
-      }
-
       id = R.id.chipPeople;
-      Chip chipPeople = ViewBindings.findChildViewById(rootView, id);
+      TextView chipPeople = ViewBindings.findChildViewById(rootView, id);
       if (chipPeople == null) {
         break missingId;
       }
@@ -191,15 +179,15 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.tvAvatarInitials;
-      TextView tvAvatarInitials = ViewBindings.findChildViewById(rootView, id);
-      if (tvAvatarInitials == null) {
+      id = R.id.storageProgressBar;
+      ProgressBar storageProgressBar = ViewBindings.findChildViewById(rootView, id);
+      if (storageProgressBar == null) {
         break missingId;
       }
 
-      id = R.id.tvBellBadge;
-      TextView tvBellBadge = ViewBindings.findChildViewById(rootView, id);
-      if (tvBellBadge == null) {
+      id = R.id.tvAvatarInitials;
+      TextView tvAvatarInitials = ViewBindings.findChildViewById(rootView, id);
+      if (tvAvatarInitials == null) {
         break missingId;
       }
 
@@ -216,8 +204,8 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, btnBell, cardShared, cardStorage,
-          chipFiles, chipGroupToggle, chipPeople, etSearch, fabNewGroup, ivAvatar, progressBar,
-          recyclerConversations, tvAvatarInitials, tvBellBadge, tvStorageUsed, tvWelcome);
+          chipFiles, chipPeople, etSearch, fabNewGroup, ivAvatar, progressBar,
+          recyclerConversations, storageProgressBar, tvAvatarInitials, tvStorageUsed, tvWelcome);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

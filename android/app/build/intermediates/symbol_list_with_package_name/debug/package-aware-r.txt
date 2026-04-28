@@ -3002,10 +3002,15 @@ drawable abc_textfield_search_material
 drawable abc_vector_test
 drawable avd_hide_password
 drawable avd_show_password
+drawable bg_avatar_direct
+drawable bg_avatar_glass
+drawable bg_avatar_group
 drawable bg_card_direct
 drawable bg_card_group
 drawable bg_card_shared
 drawable bg_card_storage
+drawable bg_chip_active
+drawable bg_chip_inactive
 drawable bg_glass_card
 drawable bg_input
 drawable bg_pill_active
@@ -3249,7 +3254,6 @@ id checkbox
 id checked
 id chipFiles
 id chipGroupFilter
-id chipGroupToggle
 id chipPeople
 id chronometer
 id circle_center
@@ -3577,6 +3581,7 @@ id startVertical
 id staticLayout
 id staticPostLayout
 id stop
+id storageProgressBar
 id stretch
 id submenuarrow
 id submit_area
@@ -3629,7 +3634,6 @@ id transition_scene_layoutid_cache
 id transition_transform
 id triangle
 id tvAvatarInitials
-id tvBellBadge
 id tvCaption
 id tvCategory
 id tvDate

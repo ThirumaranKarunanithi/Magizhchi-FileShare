@@ -23,7 +23,7 @@ public class ApiClient {
 
     // TODO: Replace with your actual Railway backend URL before running
     // Example: "https://magizhchi-share-production.up.railway.app/"
-    public static final String BASE_URL = "https://magizhchi-share-production.up.railway.app/";
+    public static final String BASE_URL = "https://box.magizhchi.software/";
 
     private static ApiClient instance;
     private final ApiService apiService;

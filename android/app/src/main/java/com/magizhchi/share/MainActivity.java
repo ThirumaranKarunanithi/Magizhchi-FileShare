@@ -23,8 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
+import android.graphics.Color;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
 import com.magizhchi.share.adapter.ConversationAdapter;
@@ -56,13 +55,15 @@ public class MainActivity extends AppCompatActivity {
     private ImageView ivAvatar;
     private TextView tvAvatarInitials;
     private ImageButton btnBell;
-    private TextView tvBellBadge;
     private TextView tvStorageUsed;
     private LinearLayout cardStorage;
     private LinearLayout cardShared;
     private EditText etSearch;
-    private ChipGroup chipGroupToggle;
+    private TextView chipPeople;
+    private TextView chipFiles;
+    private ProgressBar storageProgressBar;
     private RecyclerView recyclerConversations;
+    private boolean showingPeople = true;
     private WebSocket webSocket;
     private int pendingNotifications = 0;
 
@@ -110,16 +111,21 @@ public class MainActivity extends AppCompatActivity {
         ivAvatar           = findViewById(R.id.ivAvatar);
         tvAvatarInitials   = findViewById(R.id.tvAvatarInitials);
         btnBell            = findViewById(R.id.btnBell);
-        tvBellBadge        = findViewById(R.id.tvBellBadge);
         tvStorageUsed      = findViewById(R.id.tvStorageUsed);
         cardStorage        = findViewById(R.id.cardStorage);
         cardShared         = findViewById(R.id.cardShared);
-        etSearch           = findViewById(R.id.etSearch);
-        chipGroupToggle    = findViewById(R.id.chipGroupToggle);
+        etSearch              = findViewById(R.id.etSearch);
+        chipPeople            = findViewById(R.id.chipPeople);
+        chipFiles             = findViewById(R.id.chipFiles);
+        storageProgressBar    = findViewById(R.id.storageProgressBar);
         recyclerConversations = findViewById(R.id.recyclerConversations);
 
         btnBell.setOnClickListener(v ->
                 Toast.makeText(this, "Notifications coming soon", Toast.LENGTH_SHORT).show());
+
+        // Pill tab toggle
+        chipPeople.setOnClickListener(v -> setActiveTab(true));
+        chipFiles.setOnClickListener(v  -> setActiveTab(false));
     }
 
     private void setupConversationList() {
@@ -158,6 +164,22 @@ public class MainActivity extends AppCompatActivity {
                 popup.show();
             }
         });
+    }
+
+    private void setActiveTab(boolean people) {
+        showingPeople = people;
+        if (people) {
+            chipPeople.setBackgroundResource(R.drawable.bg_chip_active);
+            chipPeople.setTextColor(getResources().getColor(R.color.primaryMid, null));
+            chipFiles.setBackgroundColor(Color.TRANSPARENT);
+            chipFiles.setTextColor(0xCCFFFFFF);
+        } else {
+            chipFiles.setBackgroundResource(R.drawable.bg_chip_active);
+            chipFiles.setTextColor(getResources().getColor(R.color.primaryMid, null));
+            chipPeople.setBackgroundColor(Color.TRANSPARENT);
+            chipPeople.setTextColor(0xCCFFFFFF);
+        }
+        filterConversations(etSearch.getText().toString());
     }
 
     private void setupSearchBar() {
@@ -245,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (displayName != null) {
             String firstName = displayName.split(" ")[0];
-            tvWelcome.setText("Welcome back 👋 " + firstName);
+            tvWelcome.setText(firstName);
         }
 
         if (photoUrl != null && !photoUrl.isEmpty()) {
@@ -317,6 +339,9 @@ public class MainActivity extends AppCompatActivity {
                             + " / " + FormatUtils.formatBytes(usage.getLimitBytes())
                             + " (" + String.format("%.0f%%", usage.getUsedPercent()) + ")";
                     tvStorageUsed.setText(text);
+                    if (storageProgressBar != null) {
+                        storageProgressBar.setProgress((int) Math.min(usage.getUsedPercent(), 100));
+                    }
                 }
             }
 
@@ -344,11 +369,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onMessage(@androidx.annotation.NonNull WebSocket webSocket,
                                   @androidx.annotation.NonNull String text) {
-                runOnUiThread(() -> {
-                    pendingNotifications++;
-                    tvBellBadge.setVisibility(View.VISIBLE);
-                    tvBellBadge.setText(String.valueOf(pendingNotifications));
-                });
+                runOnUiThread(() -> pendingNotifications++);
             }
 
             @Override

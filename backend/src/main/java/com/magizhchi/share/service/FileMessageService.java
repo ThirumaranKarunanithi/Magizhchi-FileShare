@@ -2,11 +2,14 @@ package com.magizhchi.share.service;
 
 import com.magizhchi.share.dto.response.FileMessageResponse;
 import com.magizhchi.share.exception.AppException;
+import com.magizhchi.share.model.ConversationMember;
 import com.magizhchi.share.model.FileMessage;
 import com.magizhchi.share.model.User;
+import com.magizhchi.share.model.UserFilePin;
 import com.magizhchi.share.repository.ConversationMemberRepository;
 import com.magizhchi.share.repository.ConversationRepository;
 import com.magizhchi.share.repository.FileMessageRepository;
+import com.magizhchi.share.repository.UserFilePinRepository;
 import com.magizhchi.share.repository.UserRepository;
 import com.magizhchi.share.websocket.FileMessageEvent;
 import com.magizhchi.share.websocket.NotificationEvent;
@@ -38,6 +41,8 @@ public class FileMessageService {
     private final ConnectionService            connService;
     private final SimpMessagingTemplate        messagingTemplate;
     private final SharingService               sharingService;
+    private final UserFilePinRepository        pinRepo;
+    private final ActivityService              activityService;
 
     /**
      * Upload a file, create the FileMessage record, and push a WebSocket event
@@ -146,6 +151,9 @@ public class FileMessageService {
                                 ))));
         }
 
+        activityService.record("FILE_UPLOADED", senderId, conversationId, msg.getId(), null,
+                sender.getDisplayName() + " uploaded "" + msg.getOriginalFileName() + """);
+
         log.info("File sent: msgId={}, conv={}, sender={}, size={}", msg.getId(), conversationId, senderId, fileSize);
         return response;
     }
@@ -247,6 +255,8 @@ public class FileMessageService {
                                     "senderName",     folderSenderName,
                                     "fileName",       "📁 " + folderName + " (" + fileCount + " files)"
                             ))));
+            activityService.record("FOLDER_UPLOADED", senderId, conversationId, null, null,
+                    folderSenderName + " uploaded folder "" + folderName + "" (" + fileCount + " files)");
         }
 
         return results;
@@ -254,13 +264,24 @@ public class FileMessageService {
 
     /**
      * Get a short-lived presigned download URL, and increment download counter.
+     * Enforces downloadPermission: VIEW_ONLY → always denied; ADMIN_ONLY_DOWNLOAD → only admins.
      */
     @Transactional
     public String getDownloadUrl(Long messageId, Long requesterId) {
         FileMessage msg = getAccessibleMessage(messageId, requesterId);
+        enforceDownloadPermission(msg, requesterId);
         msg.setDownloadCount(msg.getDownloadCount() + 1);
         msgRepo.save(msg);
         return storage.generatePresignedUrl(msg.getS3Key());
+    }
+
+    /**
+     * Get a presigned URL that opens the file inline in the browser (for preview).
+     * Always allowed for any conversation member — VIEW_ONLY files can still be previewed.
+     */
+    public String getPreviewUrl(Long messageId, Long requesterId) {
+        FileMessage msg = getAccessibleMessage(messageId, requesterId);
+        return storage.generateInlinePresignedUrl(msg.getS3Key());
     }
 
     /** Get presigned thumbnail URL (images/videos only) */
@@ -270,6 +291,98 @@ public class FileMessageService {
             throw new AppException(HttpStatus.NOT_FOUND, "No thumbnail available for this file.");
         }
         return storage.generatePresignedUrl(msg.getThumbnailKey());
+    }
+
+    // ── Pin / Unpin ───────────────────────────────────────────────────────────
+
+    /** Pin a file for the requesting user. Idempotent. */
+    @Transactional
+    public FileMessageResponse pinFile(Long messageId, Long requesterId) {
+        FileMessage msg = getAccessibleMessage(messageId, requesterId);
+        if (!pinRepo.existsByUserIdAndFileMessageId(requesterId, messageId)) {
+            User user = userRepo.findById(requesterId)
+                    .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found."));
+            pinRepo.save(UserFilePin.builder()
+                    .user(user)
+                    .fileMessage(msg)
+                    .build());
+            activityService.record("FILE_PINNED", requesterId, msg.getConversation().getId(),
+                    messageId, null,
+                    user.getDisplayName() + " pinned "" + msg.getOriginalFileName() + """);
+        }
+        return convService.toMessageResponse(msg, null, requesterId);
+    }
+
+    /** Unpin a file for the requesting user. Idempotent. */
+    @Transactional
+    public FileMessageResponse unpinFile(Long messageId, Long requesterId) {
+        FileMessage msg = getAccessibleMessage(messageId, requesterId);
+        pinRepo.findByUserIdAndFileMessageId(requesterId, messageId)
+                .ifPresent(pinRepo::delete);
+        return convService.toMessageResponse(msg, null, requesterId);
+    }
+
+    /** List all files pinned by the requesting user in a conversation. */
+    public List<FileMessageResponse> getPinnedFiles(Long conversationId, Long requesterId) {
+        if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(conversationId, requesterId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "You are not a member of this conversation.");
+        }
+        return pinRepo.findPinnedInConversation(requesterId, conversationId)
+                .stream()
+                .map(p -> convService.toMessageResponse(p.getFileMessage(), null, requesterId))
+                .toList();
+    }
+
+    // ── Permissions ───────────────────────────────────────────────────────────
+
+    /**
+     * Change the download permission on a file.
+     * Only the original sender or a conversation admin can do this.
+     */
+    @Transactional
+    public FileMessageResponse setPermission(Long messageId, Long requesterId,
+                                             FileMessage.DownloadPermission permission) {
+        FileMessage msg = msgRepo.findById(messageId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Message not found."));
+        if (msg.getIsDeleted()) {
+            throw new AppException(HttpStatus.GONE, "This file has been deleted.");
+        }
+
+        boolean isSender = msg.getSender().getId().equals(requesterId);
+        boolean isAdmin  = memberRepo.findByConversationIdAndUserId(
+                msg.getConversation().getId(), requesterId)
+                .map(m -> m.getRole() == ConversationMember.MemberRole.ADMIN)
+                .orElse(false);
+
+        if (!isSender && !isAdmin) {
+            throw new AppException(HttpStatus.FORBIDDEN,
+                    "Only the file sender or a group admin can change download permissions.");
+        }
+
+        msg.setDownloadPermission(permission);
+        msgRepo.save(msg);
+        log.info("Permission updated: msgId={}, permission={}, by={}", messageId, permission, requesterId);
+        return convService.toMessageResponse(msg, null, requesterId);
+    }
+
+    // ── Permission enforcement helper ─────────────────────────────────────────
+
+    private void enforceDownloadPermission(FileMessage msg, Long requesterId) {
+        FileMessage.DownloadPermission perm = msg.getDownloadPermission();
+        if (perm == FileMessage.DownloadPermission.VIEW_ONLY) {
+            throw new AppException(HttpStatus.FORBIDDEN,
+                    "This file is view-only and cannot be downloaded.");
+        }
+        if (perm == FileMessage.DownloadPermission.ADMIN_ONLY_DOWNLOAD) {
+            boolean isAdmin = memberRepo.findByConversationIdAndUserId(
+                    msg.getConversation().getId(), requesterId)
+                    .map(m -> m.getRole() == ConversationMember.MemberRole.ADMIN)
+                    .orElse(false);
+            if (!isAdmin) {
+                throw new AppException(HttpStatus.FORBIDDEN,
+                        "Only group admins can download this file.");
+            }
+        }
     }
 
     /**

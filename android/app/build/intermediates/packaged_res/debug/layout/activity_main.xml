@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingTop="40dp">
+        android:paddingTop="44dp">
 
         <!-- ── Header ──────────────────────────────────────────────────── -->
         <LinearLayout
@@ -20,71 +20,65 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="8dp">
+            android:paddingBottom="14dp">
 
-            <!-- Avatar -->
+            <!-- Circular Avatar -->
             <FrameLayout
-                android:layout_width="44dp"
-                android:layout_height="44dp">
+                android:layout_width="52dp"
+                android:layout_height="52dp">
 
                 <ImageView
                     android:id="@+id/ivAvatar"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_glass_card"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
                     android:visibility="gone"
                     android:contentDescription="Avatar" />
 
                 <TextView
                     android:id="@+id/tvAvatarInitials"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_card_direct"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_avatar_glass"
                     android:gravity="center"
                     android:textColor="@android:color/white"
-                    android:textSize="16sp"
+                    android:textSize="18sp"
                     android:textStyle="bold" />
             </FrameLayout>
 
-            <!-- Welcome text -->
-            <TextView
-                android:id="@+id/tvWelcome"
+            <!-- Welcome text (two lines) -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="Welcome back 👋"
-                android:textColor="@android:color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <!-- Bell -->
-            <FrameLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp">
-
-                <ImageButton
-                    android:id="@+id/btnBell"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@android:drawable/ic_dialog_info"
-                    android:tint="@android:color/white"
-                    android:contentDescription="Notifications" />
+                android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tvBellBadge"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_gravity="top|end"
-                    android:background="@drawable/bg_card_group"
-                    android:gravity="center"
-                    android:text="0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Welcome back 👋"
+                    android:textColor="#CCffffff"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvWelcome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Loading…"
                     android:textColor="@android:color/white"
-                    android:textSize="10sp"
-                    android:visibility="gone" />
-            </FrameLayout>
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Info/Bell button -->
+            <ImageButton
+                android:id="@+id/btnBell"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_avatar_glass"
+                android:src="@android:drawable/ic_dialog_info"
+                android:tint="@android:color/white"
+                android:contentDescription="Info" />
 
         </LinearLayout>
 
@@ -95,25 +89,25 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="12dp">
+            android:paddingBottom="14dp">
 
             <!-- My Storage -->
             <LinearLayout
                 android:id="@+id/cardStorage"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_card_storage"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="☁ My Storage"
+                    android:text="☁️ My Storage"
                     android:textColor="@android:color/white"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -122,8 +116,19 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="Loading…"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="12sp" />
+                    android:textColor="#CCffffff"
+                    android:textSize="11sp" />
+
+                <ProgressBar
+                    android:id="@+id/storageProgressBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="8dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressBackgroundTint="#33FFFFFF"
+                    android:progressTint="@android:color/white" />
             </LinearLayout>
 
             <!-- Shared Files -->
@@ -131,18 +136,18 @@
                 android:id="@+id/cardShared"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_card_shared"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="🔗 Shared Files"
                     android:textColor="@android:color/white"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -150,8 +155,14 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="Browse shared"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="12sp" />
+                    android:textColor="#CCffffff"
+                    android:textSize="11sp" />
+
+                <!-- Spacer to match height of storage card -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="8dp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -162,47 +173,60 @@
             android:orientation="vertical"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="8dp">
+            android:paddingBottom="10dp">
 
             <EditText
                 android:id="@+id/etSearch"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:background="@drawable/bg_input"
+                android:layout_height="46dp"
+                android:background="@drawable/bg_glass_card"
                 android:drawableStart="@android:drawable/ic_menu_search"
-                android:drawableTint="@color/textSecondary"
+                android:drawableTint="#99FFFFFF"
+                android:drawablePadding="8dp"
                 android:hint="@string/hint_search"
                 android:inputType="text"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
                 android:textColor="@color/textPrimary"
-                android:textColorHint="@color/textSecondary" />
+                android:textColorHint="@color/textSecondary"
+                android:textSize="14sp" />
 
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupToggle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                app:selectionRequired="true"
-                app:singleSelection="true">
+            <!-- People / Files pill toggles -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_glass_card"
+                android:orientation="horizontal"
+                android:padding="3dp">
 
-                <com.google.android.material.chip.Chip
+                <TextView
                     android:id="@+id/chipPeople"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_chip_active"
+                    android:gravity="center"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
                     android:text="People"
-                    android:textColor="@android:color/white" />
+                    android:textColor="@color/primaryMid"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
-                <com.google.android.material.chip.Chip
+                <TextView
                     android:id="@+id/chipFiles"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
                     android:text="Files"
-                    android:textColor="@android:color/white" />
+                    android:textColor="#CCffffff"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
-            </com.google.android.material.chip.ChipGroup>
         </LinearLayout>
 
         <!-- ── Conversations list ───────────────────────────────────────── -->
@@ -235,7 +259,7 @@
         android:layout_margin="16dp"
         android:contentDescription="New Group"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/primaryMid"
-        app:tint="@android:color/white" />
+        app:backgroundTint="@android:color/white"
+        app:tint="@color/primaryMid" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -67,6 +67,22 @@ public class FileMessage {
     @Builder.Default
     private FileCategory category = FileCategory.OTHER;
 
+    /** Managed folder this file belongs to (null = root / legacy flat upload) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "folder_id")
+    private Folder folder;
+
+    /** Per-file download permission set by the uploader */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private DownloadPermission downloadPermission = DownloadPermission.CAN_DOWNLOAD;
+
+    /** True when this file is pinned (used for quick top-sort; per-user pins in UserFilePin) */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isPinned = false;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant sentAt;
@@ -84,6 +100,15 @@ public class FileMessage {
 
     public enum FileCategory {
         IMAGE, VIDEO, DOCUMENT, AUDIO, ARCHIVE, OTHER
+    }
+
+    public enum DownloadPermission {
+        /** Anyone with access can view but cannot download */
+        VIEW_ONLY,
+        /** Anyone with access can download (default) */
+        CAN_DOWNLOAD,
+        /** Only group admins can download; regular members can view only */
+        ADMIN_ONLY_DOWNLOAD
     }
 
     /** Determines file category from MIME type */

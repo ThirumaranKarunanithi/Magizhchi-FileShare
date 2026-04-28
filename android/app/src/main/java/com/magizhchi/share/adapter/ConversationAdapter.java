@@ -76,7 +76,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
             holder.tvInitials.setVisibility(View.VISIBLE);
             holder.tvInitials.setText(FormatUtils.initials(conv.getName()));
             holder.tvInitials.setBackgroundResource(
-                    isDirect ? R.drawable.bg_card_direct : R.drawable.bg_card_group);
+                    isDirect ? R.drawable.bg_avatar_direct : R.drawable.bg_avatar_group);
         }
 
         // Name

@@ -96,13 +96,29 @@ public class FileStorageService {
 
     // ── Download ──────────────────────────────────────────────────────────────
 
-    /** Generate a short-lived presigned GET URL for a file. */
+    /** Generate a short-lived presigned GET URL for a file (forces download). */
     public String generatePresignedUrl(String s3Key) {
         GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(presignedUrlExpiryMinutes))
                 .getObjectRequest(GetObjectRequest.builder()
                         .bucket(bucket)
                         .key(s3Key)
+                        .build())
+                .build();
+        return s3Presigner.presignGetObject(presignReq).url().toString();
+    }
+
+    /**
+     * Generate a presigned URL that opens inline in the browser (for preview).
+     * Sets response-content-disposition to "inline" so browsers render it directly.
+     */
+    public String generateInlinePresignedUrl(String s3Key) {
+        GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(presignedUrlExpiryMinutes))
+                .getObjectRequest(GetObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(s3Key)
+                        .responseContentDisposition("inline")
                         .build())
                 .build();
         return s3Presigner.presignGetObject(presignReq).url().toString();

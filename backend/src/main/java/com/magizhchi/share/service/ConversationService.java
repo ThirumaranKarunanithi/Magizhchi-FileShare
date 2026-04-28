@@ -8,6 +8,7 @@ import com.magizhchi.share.exception.AppException;
 import com.magizhchi.share.model.*;
 import com.magizhchi.share.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ConversationService {
 
     private final ConversationRepository       convRepo;
@@ -29,6 +31,7 @@ public class ConversationService {
     private final UserRepository               userRepo;
     private final FileStorageService           storage;
     private final ConnectionService            connService;
+    private final UserFilePinRepository        pinRepo;
 
     // ── List ──────────────────────────────────────────────────────────────────
 
@@ -258,7 +261,7 @@ public class ConversationService {
                                                      int page, int size) {
         requireMember(conversationId, userId);
         return msgRepo.findByConversationId(conversationId, PageRequest.of(page, size))
-                .map(this::toMessageResponse);
+                .map(fm -> toMessageResponse(fm, null, userId));
     }
 
     // ── Details ───────────────────────────────────────────────────────────────
@@ -336,10 +339,16 @@ public class ConversationService {
     }
 
     FileMessageResponse toMessageResponse(FileMessage fm) {
-        return toMessageResponse(fm, null);
+        return toMessageResponse(fm, null, null);
     }
 
     FileMessageResponse toMessageResponse(FileMessage fm, String conversationName) {
+        return toMessageResponse(fm, conversationName, null);
+    }
+
+    FileMessageResponse toMessageResponse(FileMessage fm, String conversationName, Long requesterId) {
+        boolean pinned = requesterId != null
+                && pinRepo.existsByUserIdAndFileMessageId(requesterId, fm.getId());
         return FileMessageResponse.builder()
                 .id(fm.getId())
                 .conversationId(fm.getConversation().getId())
@@ -352,6 +361,9 @@ public class ConversationService {
                 .category(fm.getCategory().name())
                 .caption(fm.getCaption())
                 .folderPath(fm.getFolderPath())
+                .folderId(fm.getFolder() != null ? fm.getFolder().getId() : null)
+                .downloadPermission(fm.getDownloadPermission().name())
+                .isPinned(pinned)
                 .hasThumbnail(fm.getThumbnailKey() != null)
                 .conversationName(conversationName)
                 .sentAt(fm.getSentAt())

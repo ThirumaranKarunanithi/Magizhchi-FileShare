@@ -36,10 +36,15 @@ dimen text_heading
 dimen text_small
 dimen text_subheading
 dimen text_title
+drawable bg_avatar_direct
+drawable bg_avatar_glass
+drawable bg_avatar_group
 drawable bg_card_direct
 drawable bg_card_group
 drawable bg_card_shared
 drawable bg_card_storage
+drawable bg_chip_active
+drawable bg_chip_inactive
 drawable bg_glass_card
 drawable bg_input
 drawable bg_pill_active
@@ -71,7 +76,6 @@ id cardStorage
 id checkBox
 id chipFiles
 id chipGroupFilter
-id chipGroupToggle
 id chipPeople
 id etDisplayName
 id etEmail
@@ -88,9 +92,9 @@ id recyclerConversations
 id recyclerFiles
 id recyclerMembers
 id recyclerSearchResults
+id storageProgressBar
 id toolbar
 id tvAvatarInitials
-id tvBellBadge
 id tvCaption
 id tvCategory
 id tvDate

@@ -3,12 +3,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import CountryCodePicker from '../components/CountryCodePicker';
 
 export default function Login() {
   const navigate  = useNavigate();
   const { login } = useAuth();
 
   const [step,        setStep]        = useState(1);
+  const [loginMode,   setLoginMode]   = useState('PHONE'); // 'PHONE' | 'EMAIL'
+  const [countryCode, setCountryCode] = useState('+91');
+  const [localNumber, setLocalNumber] = useState('');
   const [identifier,  setIdentifier]  = useState('');
   const [otp,         setOtp]         = useState('');
   const [loading,     setLoading]     = useState(false);
@@ -16,12 +20,18 @@ export default function Login() {
   const [error,       setError]       = useState('');
   const [resendTimer, setResendTimer] = useState(0);
 
+  // Resolve the full identifier (E.164 phone or email)
+  const resolvedIdentifier = loginMode === 'PHONE'
+    ? countryCode + localNumber.trim().replace(/^\+?0*/, '').replace(/\s+/g, '')
+    : identifier.trim();
+
   const handleSendOtp = async e => {
     e.preventDefault();
-    if (!identifier.trim()) { setError('Please enter your mobile number or email.'); return; }
+    const id = resolvedIdentifier;
+    if (!id) { setError('Please enter your mobile number or email.'); return; }
     setError(''); setLoading(true);
     try {
-      await auth.loginSendOtp({ identifier: identifier.trim() });
+      await auth.loginSendOtp({ identifier: id });
       setStep(2); startCountdown(60);
       toast.success('Verification code sent!');
     } catch (msg) {
@@ -48,7 +58,7 @@ export default function Login() {
     if (!otp.trim()) { setError('Please enter the verification code.'); return; }
     setError(''); setLoading(true);
     try {
-      const { data } = await auth.loginVerify({ identifier: identifier.trim(), code: otp.trim() });
+      const { data } = await auth.loginVerify({ identifier: resolvedIdentifier, code: otp.trim() });
       login(data); navigate('/');
     } catch (msg) { setError(msg); }
     finally { setLoading(false); }
@@ -58,7 +68,7 @@ export default function Login() {
     if (resendTimer > 0 || resending) return;
     setResending(true);
     try {
-      await auth.loginSendOtp({ identifier });
+      await auth.loginSendOtp({ identifier: resolvedIdentifier });
       startCountdown(60);
       toast.success('Code resent!');
     } catch (msg) {
@@ -140,20 +150,73 @@ export default function Login() {
 
               <form onSubmit={handleSendOtp} className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mobile number or email
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={identifier}
-                    onChange={e => setIdentifier(e.target.value)}
-                    placeholder="+91 9876543210 or you@example.com"
-                    autoComplete="username"
-                    autoFocus/>
-                  <p className="mt-1.5 text-xs text-gray-400">
-                    📱 Mobile → OTP via SMS &nbsp;·&nbsp; 📧 Email → OTP via email
-                  </p>
+                  {/* Mode toggle */}
+                  <div className="flex rounded-xl overflow-hidden mb-3"
+                       style={{ background: 'rgba(0,0,0,0.06)', padding: '3px', gap: '3px' }}>
+                    {[
+                      { key: 'PHONE', label: '📱 Phone' },
+                      { key: 'EMAIL', label: '📧 Email' },
+                    ].map(m => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => { setLoginMode(m.key); setError(''); }}
+                        className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                        style={{
+                          background: loginMode === m.key ? 'white' : 'transparent',
+                          color: loginMode === m.key ? '#0369a1' : '#64748b',
+                          boxShadow: loginMode === m.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                        }}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {loginMode === 'PHONE' ? (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Mobile number
+                      </label>
+                      <div className="flex rounded-xl overflow-visible"
+                           style={{ border: '1.5px solid #cbd5e1', background: 'rgba(15,23,42,0.92)' }}>
+                        <CountryCodePicker value={countryCode} onChange={setCountryCode}/>
+                        <input
+                          type="tel"
+                          value={localNumber}
+                          onChange={e => setLocalNumber(e.target.value)}
+                          placeholder="9876543210"
+                          autoFocus
+                          autoComplete="tel"
+                          required
+                          style={{
+                            flex: 1, padding: '10px 12px', background: 'transparent',
+                            border: 'none', outline: 'none', color: 'white',
+                            fontSize: '0.9rem', borderRadius: '0 10px 10px 0',
+                            caretColor: 'white',
+                          }}/>
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-400">
+                        OTP sent to {countryCode} number via SMS
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email address
+                      </label>
+                      <input
+                        type="email"
+                        className="input-field"
+                        value={identifier}
+                        onChange={e => setIdentifier(e.target.value)}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        autoFocus/>
+                      <p className="mt-1.5 text-xs text-gray-400">
+                        OTP sent to your email inbox
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <button
@@ -206,8 +269,8 @@ export default function Login() {
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Enter verification code</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  A 6-digit code was sent {identifier.includes('@') ? 'to' : 'via SMS to'}<br/>
-                  <span className="font-semibold text-gray-700">{identifier}</span>
+                  A 6-digit code was sent {loginMode === 'EMAIL' ? 'to' : 'via SMS to'}<br/>
+                  <span className="font-semibold text-gray-700">{resolvedIdentifier}</span>
                 </p>
               </div>
 

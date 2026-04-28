@@ -4,9 +4,10 @@ import { subscribeToConversation } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import ShareModal     from './ShareModal';
-import GroupInfoModal from './GroupInfoModal';
-import Avatar         from './Avatar';
+import ShareModal        from './ShareModal';
+import GroupInfoModal    from './GroupInfoModal';
+import Avatar            from './Avatar';
+import FilePreviewModal  from './FilePreviewModal';
 
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
@@ -78,6 +79,14 @@ export default function ChatWindow({ conversation, onLeave }) {
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
 
+  // Close the permission menu on outside click
+  useEffect(() => {
+    if (!permMenuId) return;
+    const handler = () => setPermMenuId(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [permMenuId]);
+
   // ── Description dialog ─────────────────────────────────────────────────────
   // pendingUpload: null | { type:'files', files:File[] } | { type:'folder', picked:File[], folderName:string }
   const [pendingUpload,   setPendingUpload]   = useState(null);
@@ -102,6 +111,9 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [showShare,      setShowShare]      = useState(false);
   const [showGroupInfo,  setShowGroupInfo]  = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
+  const [previewFile,    setPreviewFile]    = useState(null);   // file to preview
+  const [pinLoading,     setPinLoading]     = useState(new Set()); // msgIds being pinned
+  const [permMenuId,     setPermMenuId]     = useState(null);   // msgId with open perm menu
   const settingsRef = useRef(null);
   // memberCount kept in sync after add/remove so the header subtitle stays accurate
   const [memberCount,    setMemberCount]    = useState(conversation.memberCount ?? 0);
@@ -379,6 +391,32 @@ export default function ChatWindow({ conversation, onLeave }) {
       setSelected(prev => { const s = new Set(prev); s.delete(msgId); return s; });
       toast.success('File deleted.');
     } catch (e) { toast.error('Could not delete: ' + e); }
+  };
+
+  // ── Pin / Unpin ─────────────────────────────────────────────────────────────
+  const handlePin = async (msg) => {
+    if (pinLoading.has(msg.id)) return;
+    setPinLoading(prev => new Set([...prev, msg.id]));
+    try {
+      const isPinned = msg.isPinned;
+      const { data } = isPinned
+        ? await files.unpin(msg.id)
+        : await files.pin(msg.id);
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isPinned: !isPinned } : m));
+      toast.success(isPinned ? 'Unpinned.' : 'Pinned!');
+    } catch (e) { toast.error('Could not update pin: ' + e); }
+    finally { setPinLoading(prev => { const s = new Set(prev); s.delete(msg.id); return s; }); }
+  };
+
+  // ── Change download permission ───────────────────────────────────────────────
+  const handlePermission = async (msgId, permission) => {
+    setPermMenuId(null);
+    try {
+      const { data } = await files.setPermission(msgId, permission);
+      setMessages(prev => prev.map(m => m.id === msgId
+        ? { ...m, downloadPermission: data.downloadPermission } : m));
+      toast.success('Permission updated.');
+    } catch (e) { toast.error('Could not update permission: ' + e); }
   };
 
   // ── Selection ───────────────────────────────────────────────────────────────
@@ -1030,22 +1068,57 @@ export default function ChatWindow({ conversation, onLeave }) {
                              checked={selected.has(msg.id)}
                              onChange={() => toggleSelect(msg.id)}/>
 
-                      {/* Icon — violet ring when shared */}
-                      <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center
-                                      justify-center text-xl ${isShared ? '' : bg}`}
-                           style={isShared ? {
-                             background: 'rgba(139,92,246,0.25)',
-                             boxShadow: '0 0 0 2px rgba(167,139,250,0.6)',
-                           } : {}}>
+                      {/* Icon — clickable to preview; violet ring when shared */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setPreviewFile(msg)}
+                        onKeyDown={e => e.key === 'Enter' && setPreviewFile(msg)}
+                        title="Preview"
+                        className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center
+                                    justify-center text-xl cursor-pointer transition-transform
+                                    hover:scale-110 ${isShared ? '' : bg}`}
+                        style={isShared ? {
+                          background: 'rgba(139,92,246,0.25)',
+                          boxShadow: '0 0 0 2px rgba(167,139,250,0.6)',
+                        } : {}}>
                         {isShared ? '🔗' : emoji}
                       </div>
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-white truncate">
+                          {/* Clickable filename → preview */}
+                          <p
+                            className="text-sm font-semibold text-white truncate cursor-pointer
+                                       hover:text-sky-200 transition-colors"
+                            onClick={() => setPreviewFile(msg)}>
                             {msg.originalFileName}
                           </p>
+                          {/* Pin badge */}
+                          {msg.isPinned && (
+                            <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                  style={{
+                                    background: 'rgba(251,191,36,0.25)',
+                                    border: '1px solid rgba(251,191,36,0.5)',
+                                    color: '#fde68a',
+                                  }}>
+                              📌 Pinned
+                            </span>
+                          )}
+                          {/* Permission badge */}
+                          {msg.downloadPermission && msg.downloadPermission !== 'CAN_DOWNLOAD' && (
+                            <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                  style={{
+                                    background: msg.downloadPermission === 'VIEW_ONLY'
+                                      ? 'rgba(239,68,68,0.2)' : 'rgba(234,179,8,0.2)',
+                                    border: msg.downloadPermission === 'VIEW_ONLY'
+                                      ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(234,179,8,0.4)',
+                                    color: msg.downloadPermission === 'VIEW_ONLY' ? '#fca5a5' : '#fde68a',
+                                  }}>
+                              {msg.downloadPermission === 'VIEW_ONLY' ? '👁 View Only' : '🛡 Admin DL'}
+                            </span>
+                          )}
                           {isShared && (
                             <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                                   style={{
@@ -1090,24 +1163,101 @@ export default function ChatWindow({ conversation, onLeave }) {
 
                       {/* Hover actions */}
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100
-                                      transition-opacity flex-shrink-0">
-                        <button onClick={() => handleDownload(msg)} title="Download"
-                                className="p-2 rounded-lg bg-sky-50 hover:bg-sky-100
-                                           text-sky-600 transition-all text-sm">
-                          ⬇
+                                      transition-opacity flex-shrink-0 relative">
+
+                        {/* Preview */}
+                        <button onClick={() => setPreviewFile(msg)} title="Preview"
+                                className="p-2 rounded-lg transition-all text-sm"
+                                style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
+                          👁
                         </button>
+
+                        {/* Download — hidden for VIEW_ONLY */}
+                        {msg.downloadPermission !== 'VIEW_ONLY' && (
+                          <button onClick={() => handleDownload(msg)} title="Download"
+                                  className="p-2 rounded-lg bg-sky-50 hover:bg-sky-100
+                                             text-sky-600 transition-all text-sm">
+                            ⬇
+                          </button>
+                        )}
+
+                        {/* Pin / Unpin */}
+                        <button
+                          onClick={() => handlePin(msg)}
+                          disabled={pinLoading.has(msg.id)}
+                          title={msg.isPinned ? 'Unpin' : 'Pin'}
+                          className="p-2 rounded-lg transition-all text-sm"
+                          style={{
+                            background: msg.isPinned
+                              ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.12)',
+                            color: msg.isPinned ? '#fde68a' : 'rgba(255,255,255,0.7)',
+                            opacity: pinLoading.has(msg.id) ? 0.5 : 1,
+                          }}>
+                          {pinLoading.has(msg.id) ? '…' : '📌'}
+                        </button>
+
+                        {/* Share (sender only) */}
                         {isMine && (
                           <button
-                            onClick={() => {
-                              setSelected(new Set([msg.id]));
-                              setShowShare(true);
-                            }}
+                            onClick={() => { setSelected(new Set([msg.id])); setShowShare(true); }}
                             title="Share"
                             className="p-2 rounded-lg transition-all text-sm"
                             style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>
                             🔗
                           </button>
                         )}
+
+                        {/* Permissions menu (sender only) */}
+                        {isMine && (
+                          <div className="relative">
+                            <button
+                              onClick={() => setPermMenuId(permMenuId === msg.id ? null : msg.id)}
+                              title="Change permissions"
+                              className="p-2 rounded-lg transition-all text-sm"
+                              style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}>
+                              🔒
+                            </button>
+                            {permMenuId === msg.id && (
+                              <div className="absolute right-0 bottom-full mb-1 rounded-xl overflow-hidden
+                                              shadow-2xl z-50"
+                                   style={{
+                                     background: 'rgba(15,23,42,0.97)',
+                                     backdropFilter: 'blur(16px)',
+                                     border: '1px solid rgba(255,255,255,0.12)',
+                                     width: '200px',
+                                   }}>
+                                <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider
+                                              px-3 pt-2.5 pb-1">
+                                  Download Permission
+                                </p>
+                                {[
+                                  { value: 'CAN_DOWNLOAD',        label: '⬇ Anyone can download', desc: 'Default' },
+                                  { value: 'VIEW_ONLY',           label: '👁 View only',           desc: 'No downloads' },
+                                  { value: 'ADMIN_ONLY_DOWNLOAD', label: '🛡 Admins only',         desc: 'Admins can download' },
+                                ].map(opt => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => handlePermission(msg.id, opt.value)}
+                                    className="w-full flex flex-col px-3 py-2 text-left transition-colors"
+                                    style={{
+                                      background: msg.downloadPermission === opt.value
+                                        ? 'rgba(14,165,233,0.2)' : 'transparent',
+                                      color: msg.downloadPermission === opt.value
+                                        ? '#7dd3fc' : 'rgba(255,255,255,0.8)',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                                    onMouseLeave={e => e.currentTarget.style.background =
+                                      msg.downloadPermission === opt.value ? 'rgba(14,165,233,0.2)' : 'transparent'}>
+                                    <span className="text-xs font-semibold">{opt.label}</span>
+                                    <span className="text-[10px] text-white/40">{opt.desc}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Delete (sender only) */}
                         {isMine && (
                           <button onClick={() => handleDelete(msg.id)} title="Delete"
                                   className="p-2 rounded-lg bg-red-50 hover:bg-red-100
@@ -1311,6 +1461,14 @@ export default function ChatWindow({ conversation, onLeave }) {
               .then(r => setMemberCount(r.data.length))
               .catch(() => {});
           }}
+        />
+      )}
+
+      {/* ── File preview modal ── */}
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
         />
       )}
 

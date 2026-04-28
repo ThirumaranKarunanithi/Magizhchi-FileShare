@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import CountryCodePicker from '../components/CountryCodePicker';
 
 export default function Register() {
   const navigate  = useNavigate();
@@ -10,6 +11,7 @@ export default function Register() {
 
   const [step,        setStep]        = useState(1);
   const [form,        setForm]        = useState({ displayName: '', mobileNumber: '', email: '' });
+  const [countryCode, setCountryCode] = useState('+91');
   const [otpChannel,  setOtpChannel]  = useState('EMAIL'); // 'EMAIL' | 'SMS' — default email
   const [otp,         setOtp]         = useState('');
   const [loading,     setLoading]     = useState(false);
@@ -24,11 +26,14 @@ export default function Register() {
     if (!form.displayName.trim())   { setError('Full name is required.'); return; }
     if (!form.mobileNumber.trim())  { setError('Mobile number is required.'); return; }
     if (!form.email.trim())         { setError('Email address is required.'); return; }
+    // Compose E.164: strip any leading zeros from local number, prepend country code
+    const localDigits = form.mobileNumber.trim().replace(/^\+?0*/, '').replace(/\s+/g, '');
+    const fullPhone   = countryCode + localDigits;
     setError(''); setLoading(true);
     try {
       await auth.registerSendOtp({
         displayName:  form.displayName.trim(),
-        mobileNumber: form.mobileNumber.trim(),
+        mobileNumber: fullPhone,
         email:        form.email.trim(),
         otpChannel,
       });
@@ -70,9 +75,10 @@ export default function Register() {
     if (resendTimer > 0 || resending) return;
     setResending(true);
     try {
+      const localDigitsResend = form.mobileNumber.trim().replace(/^\+?0*/, '').replace(/\s+/g, '');
       await auth.registerSendOtp({
         displayName:  form.displayName,
-        mobileNumber: form.mobileNumber,
+        mobileNumber: countryCode + localDigitsResend,
         email:        form.email,
         otpChannel,
       });
@@ -195,13 +201,25 @@ export default function Register() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Mobile number <span className="text-red-400 font-normal text-xs">*</span>
                   </label>
-                  <input
-                    type="tel"
-                    className="input-field"
-                    value={form.mobileNumber}
-                    onChange={e => set('mobileNumber', e.target.value)}
-                    placeholder="+91 9876543210"
-                    required/>
+                  <div className="flex rounded-xl overflow-visible"
+                       style={{ border: '1.5px solid #cbd5e1', background: 'rgba(15,23,42,0.92)' }}>
+                    <CountryCodePicker value={countryCode} onChange={setCountryCode}/>
+                    <input
+                      type="tel"
+                      value={form.mobileNumber}
+                      onChange={e => set('mobileNumber', e.target.value)}
+                      placeholder="9876543210"
+                      required
+                      style={{
+                        flex: 1, padding: '10px 12px', background: 'transparent',
+                        border: 'none', outline: 'none', color: 'white',
+                        fontSize: '0.9rem', borderRadius: '0 10px 10px 0',
+                        caretColor: 'white',
+                      }}/>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Enter local number — country code is added automatically ({countryCode})
+                  </p>
                 </div>
 
                 <div>

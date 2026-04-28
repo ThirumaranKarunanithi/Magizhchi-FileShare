@@ -113,15 +113,35 @@ export const sharing = {
 
 // ── Files ────────────────────────────────────────────────────────────────────
 export const files = {
-  search:       q               => api.get('/api/files/search', { params: { q } }),
-  send:         (cid, formData)  => api.post(`/api/files/send/${cid}`, formData),
-  sendFolder:   (cid, formData, onProgress) =>
-                  api.post(`/api/files/send-folder/${cid}`, formData, {
-                    onUploadProgress: onProgress,
-                  }),
-  downloadUrl:  id               => api.get(`/api/files/${id}/download-url`),
-  thumbnailUrl: id               => api.get(`/api/files/${id}/thumbnail-url`),
-  delete:       id               => api.delete(`/api/files/${id}`),
+  search:        q               => api.get('/api/files/search', { params: { q } }),
+  send:          (cid, formData)  => api.post(`/api/files/send/${cid}`, formData),
+  sendFolder:    (cid, formData, onProgress) =>
+                   api.post(`/api/files/send-folder/${cid}`, formData, {
+                     onUploadProgress: onProgress,
+                   }),
+  downloadUrl:   id               => api.get(`/api/files/${id}/download-url`),
+  previewUrl:    id               => api.get(`/api/files/${id}/preview-url`),
+  thumbnailUrl:  id               => api.get(`/api/files/${id}/thumbnail-url`),
+  delete:        id               => api.delete(`/api/files/${id}`),
+  pin:           id               => api.post(`/api/files/${id}/pin`),
+  unpin:         id               => api.delete(`/api/files/${id}/pin`),
+  pinned:        conversationId   => api.get('/api/files/pinned', { params: { conversationId } }),
+  setPermission: (id, permission) => api.patch(`/api/files/${id}/permissions`, { permission }),
+};
+
+// ── Folders ──────────────────────────────────────────────────────────────────
+export const folders = {
+  create:     (body)                        => api.post('/api/folders', body),
+  list:       (conversationId, parentId)    => api.get('/api/folders', { params: { conversationId, parentFolderId: parentId } }),
+  breadcrumb: (folderId)                    => api.get(`/api/folders/${folderId}/breadcrumb`),
+  rename:     (folderId, name)              => api.patch(`/api/folders/${folderId}`, { name }),
+  delete:     (folderId)                    => api.delete(`/api/folders/${folderId}`),
+};
+
+// ── Activity ─────────────────────────────────────────────────────────────────
+export const activity = {
+  get: (conversationId, limit = 20) =>
+    api.get('/api/activity', { params: { conversationId, limit } }),
 };
 
 export default api;

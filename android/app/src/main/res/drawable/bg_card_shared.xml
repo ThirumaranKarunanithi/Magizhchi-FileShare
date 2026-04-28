@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Shared Files card: #6A1B9A at 85% alpha with glass stroke -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-
-    <solid android:color="#D96A1B9A" />
-
-    <stroke
-        android:width="1dp"
-        android:color="#4DFFFFFF" />
-
-    <corners android:radius="16dp" />
-
-</shape>
+<!-- Shared Files card: deep purple gradient -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#E64A148C"
+                android:endColor="#E66A1B9A"
+                android:type="linear" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <stroke android:width="1dp" android:color="#4DCE93F9" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</layer-list>
