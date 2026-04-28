@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -70,6 +71,23 @@ public class ConversationService {
 
     // ── Direct chat ───────────────────────────────────────────────────────────
 
+    /**
+     * Per-user-pair locks for getOrCreateDirect. Without this, two simultaneous
+     * "open direct chat" requests (e.g. user clicks twice, or both clients open
+     * the chat right after a connection accept) can each pass the
+     * findDirectConversation() check and then both insert a row, leaving the
+     * pair with two distinct DIRECT conversations.
+     *
+     * Locks are interned per canonical "minId:maxId" key so both directions
+     * share the same lock object.
+     */
+    private static final ConcurrentHashMap<String, Object> DIRECT_LOCKS = new ConcurrentHashMap<>();
+
+    private static Object directLockFor(Long a, Long b) {
+        long lo = Math.min(a, b), hi = Math.max(a, b);
+        return DIRECT_LOCKS.computeIfAbsent(lo + ":" + hi, k -> new Object());
+    }
+
     @Transactional
     public ConversationResponse getOrCreateDirect(Long currentUserId, Long targetUserId) {
         if (currentUserId.equals(targetUserId)) {
@@ -82,18 +100,27 @@ public class ConversationService {
         // Privacy guard — must be connected and not blocked
         connService.requireConnected(currentUserId, targetUserId);
 
-        return convRepo.findDirectConversation(currentUserId, targetUserId)
-                .map(c -> toResponse(c, currentUserId))
-                .orElseGet(() -> {
-                    Conversation conv = Conversation.builder()
-                            .type(Conversation.ConversationType.DIRECT)
-                            .createdBy(currentUser)
-                            .build();
-                    convRepo.save(conv);
-                    addMember(conv, currentUser, ConversationMember.MemberRole.MEMBER);
-                    addMember(conv, targetUser,  ConversationMember.MemberRole.MEMBER);
-                    return toResponse(conv, currentUserId);
-                });
+        // Fast path — already exists, no lock needed.
+        var existing = convRepo.findDirectConversation(currentUserId, targetUserId);
+        if (existing.isPresent()) return toResponse(existing.get(), currentUserId);
+
+        // Slow path — serialize creation per user-pair so concurrent callers
+        // can't both insert. Re-check inside the lock in case another thread
+        // created it while we were waiting.
+        synchronized (directLockFor(currentUserId, targetUserId)) {
+            return convRepo.findDirectConversation(currentUserId, targetUserId)
+                    .map(c -> toResponse(c, currentUserId))
+                    .orElseGet(() -> {
+                        Conversation conv = Conversation.builder()
+                                .type(Conversation.ConversationType.DIRECT)
+                                .createdBy(currentUser)
+                                .build();
+                        convRepo.save(conv);
+                        addMember(conv, currentUser, ConversationMember.MemberRole.MEMBER);
+                        addMember(conv, targetUser,  ConversationMember.MemberRole.MEMBER);
+                        return toResponse(conv, currentUserId);
+                    });
+        }
     }
 
     // ── Group ─────────────────────────────────────────────────────────────────

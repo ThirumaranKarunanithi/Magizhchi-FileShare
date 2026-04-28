@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { conversations, files, connections, sharing } from '../services/api';
+import { conversations, files, connections, sharing, folders as foldersApi } from '../services/api';
 import { subscribeToConversation } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
@@ -12,49 +12,62 @@ import FilePreviewModal  from './FilePreviewModal';
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
 /**
+ * Compute the group key (folder bucket) a given folderPath belongs to,
+ * relative to the currentFolderPath the user is viewing.
+ *
+ *   At root (currentFolderPath = null):
+ *     - "MagizhchiAdmission/sub/x.txt"  → "MagizhchiAdmission/"
+ *
+ *   Inside "MagizhchiAdmission/":
+ *     - "MagizhchiAdmission/"           → "MagizhchiAdmission/"  (direct contents)
+ *     - "MagizhchiAdmission/sub/x.txt"  → "MagizhchiAdmission/sub/"
+ *
+ *   Returns null when the path doesn't belong at this level.
+ */
+function bucketForPath(fp, currentFolderPath) {
+  if (!fp) return null;
+  if (!currentFolderPath) {
+    return fp.split('/')[0] + '/';
+  }
+  if (!fp.startsWith(currentFolderPath)) return null;
+  if (fp === currentFolderPath) return fp;
+  const remainder = fp.slice(currentFolderPath.length);
+  const nextSeg   = remainder.split('/')[0];
+  return currentFolderPath + nextSeg + '/';
+}
+
+/**
  * Group a flat array of messages into [{folderPath, items}] for display
  * at the given folder level — like a file-explorer view.
  *
- * At root (currentFolderPath = null):
- *   - Groups by the FIRST path segment, so all files under
- *     "MagizhchiAdmission/…" (any depth) collapse into one "MagizhchiAdmission/" group.
- *
- * Inside a folder (e.g. currentFolderPath = "MagizhchiAdmission/"):
- *   - Files whose folderPath === currentFolderPath → direct-contents group (no header).
- *   - Files one level deeper → grouped by the NEXT segment
- *     ("MagizhchiAdmission/.vscode/file" → ".vscode/" group).
- *   - Files even deeper also collapse into that next-segment group.
+ * extraFolderPaths: Iterable of folderPath strings ("a/b/") for empty/registered
+ *   folders that have no files yet — they still get rendered as folder headers
+ *   so the user can navigate into / upload to / share / delete them.
  */
-function groupByFolder(msgs, currentFolderPath = null) {
+function groupByFolder(msgs, currentFolderPath = null, extraFolderPaths = []) {
   const groups = [];
   const seen   = new Map(); // groupKey → index
 
+  const ensure = (groupKey) => {
+    if (seen.has(groupKey)) return groups[seen.get(groupKey)];
+    seen.set(groupKey, groups.length);
+    const g = { folderPath: groupKey, items: [] };
+    groups.push(g);
+    return g;
+  };
+
   for (const msg of msgs) {
     const fp = msg.folderPath || null;
+    const groupKey = bucketForPath(fp, currentFolderPath); // null → ungrouped row
+    ensure(groupKey).items.push(msg);
+  }
 
-    let groupKey = null; // null → standalone file row (no folder header)
-
-    if (fp) {
-      if (!currentFolderPath) {
-        // Root view: key = first path segment + "/"
-        groupKey = fp.split('/')[0] + '/';
-      } else if (fp === currentFolderPath) {
-        // Exact match: direct contents of the current folder
-        groupKey = fp;
-      } else {
-        // Deeper: key = currentFolderPath + next segment + "/"
-        const remainder  = fp.slice(currentFolderPath.length);
-        const nextSeg    = remainder.split('/')[0];
-        groupKey = currentFolderPath + nextSeg + '/';
-      }
-    }
-
-    if (seen.has(groupKey)) {
-      groups[seen.get(groupKey)].items.push(msg);
-    } else {
-      seen.set(groupKey, groups.length);
-      groups.push({ folderPath: groupKey, items: [msg] });
-    }
+  // Add empty-folder groups for any registered folder that doesn't already
+  // have files at this level.
+  for (const fp of extraFolderPaths) {
+    const groupKey = bucketForPath(fp, currentFolderPath);
+    if (!groupKey) continue;
+    ensure(groupKey); // creates an empty {folderPath, items: []} if new
   }
 
   return groups;
@@ -104,9 +117,29 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [selected,  setSelected]  = useState(new Set());
   const [dragOver,       setDragOver]       = useState(false);
   const [filter,         setFilter]         = useState('ALL');
-  const [expandedFolders, setExpandedFolders] = useState(new Set());
   // Folder navigation — null = root view, string = inside that folderPath
   const [currentFolderPath, setCurrentFolderPath] = useState(null);
+
+  // New-folder dialog state
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFolderName,       setNewFolderName]       = useState('');
+
+  // Empty/pending folders the user created locally but hasn't uploaded into yet.
+  // Stored as a Set of "path/" strings, persisted per-conversation in localStorage
+  // so the folders survive reloads until files materialize them server-side.
+  const pendingFoldersKey = `pendingFolders_${conversation.id}`;
+  const [pendingFolders, setPendingFolders] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`pendingFolders_${conversation.id}`);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  // Server-side folder registry: Map<folderPath "a/b/", folderId>.
+  // Populated from GET /api/folders?flat=true; lets us call DELETE on the
+  // folder record when the user removes the folder, and resolve parentFolderId
+  // when creating a sub-folder.
+  const [folderPathToId, setFolderPathToId] = useState(new Map());
 
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
@@ -157,6 +190,29 @@ export default function ChatWindow({ conversation, onLeave }) {
   // Shares visible inside this specific conversation (bidirectional for DIRECT, group-wide for GROUP)
   const [contextShares,  setContextShares]  = useState([]);
 
+  // ── Load folder registry ────────────────────────────────────────────────────
+  // Walk the flat folder list and build "Parent/Child/" path strings.
+  const loadFolderRegistry = useCallback(async () => {
+    try {
+      const { data } = await foldersApi.listAll(conversation.id);
+      const byId = new Map(data.map(f => [f.id, f]));
+      const buildPath = (f) => {
+        const segs = [];
+        let cur = f;
+        while (cur) {
+          segs.unshift(cur.name);
+          cur = cur.parentId ? byId.get(cur.parentId) : null;
+        }
+        return segs.join('/') + '/';
+      };
+      const map = new Map();
+      data.forEach(f => map.set(buildPath(f), f.id));
+      setFolderPathToId(map);
+    } catch {
+      setFolderPathToId(new Map());
+    }
+  }, [conversation.id]);
+
   // ── Load files ──────────────────────────────────────────────────────────────
   const loadFiles = useCallback(async (p = 0, prepend = false) => {
     if (loading) return;
@@ -182,7 +238,13 @@ export default function ChatWindow({ conversation, onLeave }) {
     setSelected(new Set());
     setCurrentFolderPath(null);
     setMemberCount(conversation.memberCount ?? 0);
+    // Reload pending folders for the new conversation
+    try {
+      const raw = localStorage.getItem(`pendingFolders_${conversation.id}`);
+      setPendingFolders(raw ? new Set(JSON.parse(raw)) : new Set());
+    } catch { setPendingFolders(new Set()); }
     loadFiles(0, false);
+    loadFolderRegistry();
     // Build Map<fileMessageId, shares[]> so each row knows WHO the file was shared with
     sharing.sharedByMe()
       .then(r => {
@@ -225,6 +287,13 @@ export default function ChatWindow({ conversation, onLeave }) {
       .catch(() => {});
   }, [conversation.id]); // eslint-disable-line
 
+  // ── Persist pending (empty) folders per-conversation ────────────────────────
+  useEffect(() => {
+    try {
+      localStorage.setItem(pendingFoldersKey, JSON.stringify([...pendingFolders]));
+    } catch {}
+  }, [pendingFolders, pendingFoldersKey]);
+
   // ── Real-time ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = subscribeToConversation(conversation.id, event => {
@@ -252,7 +321,7 @@ export default function ChatWindow({ conversation, onLeave }) {
       fd.append('file', file);
       if (caption?.trim()) fd.append('caption', caption.trim());
       const { data } = await files.send(conversation.id, fd);
-      setMessages(prev => [data, ...prev]);
+      setMessages(prev => prev.some(m => m.id === data.id) ? prev : [data, ...prev]);
       toast.success(`"${file.name}" uploaded!`);
     } catch (e) { toast.error('Upload failed: ' + e); }
     finally { setUploading(false); }
@@ -267,6 +336,58 @@ export default function ChatWindow({ conversation, onLeave }) {
     setUploadPermission('CAN_DOWNLOAD');
     setMentionedIds(new Set());
     setPendingUpload({ type: 'files', files: picked });
+  };
+
+  // ── New folder ──────────────────────────────────────────────────────────────
+  // Creates a folder server-side via /api/folders so it is persisted and visible
+  // to every conversation member, then mirrors it into the local pendingFolders
+  // set so it shows up immediately even when there are no files in it yet.
+  const confirmNewFolder = async () => {
+    const raw = newFolderName.trim();
+    if (!raw) {
+      toast.error('Folder name cannot be empty.');
+      return;
+    }
+    if (/[\\/]/.test(raw)) {
+      toast.error('Folder name cannot contain "/" or "\\".');
+      return;
+    }
+    const base = currentFolderPath || '';
+    const newPath = `${base}${raw}/`;
+    // Reject if a folder with this exact path already exists (real or pending)
+    const alreadyReal = messages.some(
+      m => m.folderPath && (m.folderPath === newPath || m.folderPath.startsWith(newPath))
+    );
+    if (alreadyReal || pendingFolders.has(newPath) || folderPathToId.has(newPath)) {
+      toast.error(`Folder "${raw}" already exists.`);
+      return;
+    }
+
+    // Resolve parentFolderId from the registry. null when at root, or when
+    // the user is inside a "legacy" folder that exists only via file folderPaths.
+    const parentFolderId = base ? (folderPathToId.get(base) ?? null) : null;
+
+    try {
+      const { data } = await foldersApi.create({
+        name:           raw,
+        conversationId: conversation.id,
+        parentFolderId,
+      });
+      // Update registry so subsequent sub-folder creates / deletes can find it
+      setFolderPathToId(prev => {
+        const next = new Map(prev);
+        next.set(newPath, data.id);
+        return next;
+      });
+    } catch (e) {
+      toast.error('Could not create folder: ' + e);
+      return;
+    }
+
+    setPendingFolders(prev => new Set([...prev, newPath]));
+    setShowNewFolderDialog(false);
+    setNewFolderName('');
+    toast.success(`📁 "${raw}" created.`);
   };
 
   // ── Folder upload ───────────────────────────────────────────────────────────
@@ -336,6 +457,10 @@ export default function ChatWindow({ conversation, onLeave }) {
     setMentionedIds(new Set());
     setShowMentions(false);
 
+    // If the user is currently inside a folder (real or freshly created),
+    // pin uploads to that folderPath so they land inside it.
+    const targetFolder = currentFolderPath || null;
+
     if (pendingUpload.type === 'files') {
       const { files: picked } = pendingUpload;
       if (picked.length === 1) {
@@ -344,11 +469,12 @@ export default function ChatWindow({ conversation, onLeave }) {
         try {
           const fd = new FormData();
           fd.append('file', picked[0]);
-          if (caption)    fd.append('caption', caption);
-          if (mentions)   fd.append('mentionedUserIds', mentions);
-          if (permission) fd.append('permission', permission);
+          if (caption)      fd.append('caption', caption);
+          if (mentions)     fd.append('mentionedUserIds', mentions);
+          if (permission)   fd.append('permission', permission);
+          if (targetFolder) fd.append('folderPath', targetFolder);
           const { data } = await files.send(conversation.id, fd);
-          setMessages(prev => [data, ...prev]);
+          setMessages(prev => prev.some(m => m.id === data.id) ? prev : [data, ...prev]);
           toast.success(`"${picked[0].name}" uploaded!`);
         } catch (e) { toast.error('Upload failed: ' + e); }
         finally { setUploading(false); }
@@ -360,11 +486,12 @@ export default function ChatWindow({ conversation, onLeave }) {
           try {
             const fd = new FormData();
             fd.append('file', file);
-            if (caption)    fd.append('caption', caption);
-            if (mentions)   fd.append('mentionedUserIds', mentions);
-            if (permission) fd.append('permission', permission);
+            if (caption)      fd.append('caption', caption);
+            if (mentions)     fd.append('mentionedUserIds', mentions);
+            if (permission)   fd.append('permission', permission);
+            if (targetFolder) fd.append('folderPath', targetFolder);
             const { data } = await files.send(conversation.id, fd);
-            setMessages(prev => [data, ...prev]);
+            setMessages(prev => prev.some(m => m.id === data.id) ? prev : [data, ...prev]);
             succeeded++;
           } catch {
             toast.error(`Failed to upload "${file.name}"`);
@@ -378,13 +505,15 @@ export default function ChatWindow({ conversation, onLeave }) {
       }
       return;
     } else {
-      // Folder upload
+      // Folder upload — when inside a folder, prefix every relativePath with it
+      // so the picked tree gets nested under the current folder.
       const { picked, folderName } = pendingUpload;
       setFolderProgress({ done: 0, total: picked.length });
       const fd = new FormData();
       picked.forEach(f => {
+        const rel = f.webkitRelativePath || f.name;
         fd.append('files', f);
-        fd.append('relativePaths', f.webkitRelativePath || f.name);
+        fd.append('relativePaths', targetFolder ? targetFolder + rel : rel);
       });
       if (caption)    fd.append('caption', caption);
       if (permission) fd.append('permission', permission);
@@ -477,6 +606,105 @@ export default function ChatWindow({ conversation, onLeave }) {
     });
   };
 
+  // ── Folder-level helpers ────────────────────────────────────────────────────
+  // All file IDs whose folderPath is at or below the given folder.
+  const fileIdsInFolder = (folderPath) =>
+    messages
+      .filter(m => m.folderPath && m.folderPath.startsWith(folderPath))
+      .map(m => m.id);
+
+  // Whether every file inside a folder is currently selected (used for the
+  // folder-row checkbox state).
+  const isFolderFullySelected = (folderPath) => {
+    const ids = fileIdsInFolder(folderPath);
+    return ids.length > 0 && ids.every(id => selected.has(id));
+  };
+
+  // Toggle selection for ALL files inside a folder. If every file is already
+  // selected, deselect them; otherwise select them all.
+  const toggleSelectFolder = (folderPath) => {
+    const ids = fileIdsInFolder(folderPath);
+    if (ids.length === 0) {
+      toast('This folder is empty.', { icon: '📭' });
+      return;
+    }
+    const allSelected = ids.every(id => selected.has(id));
+    setSelected(prev => {
+      const s = new Set(prev);
+      if (allSelected) ids.forEach(id => s.delete(id));
+      else             ids.forEach(id => s.add(id));
+      return s;
+    });
+  };
+
+  // Open the share modal pre-loaded with all files inside the folder.
+  const handleShareFolder = (folderPath) => {
+    const ids = fileIdsInFolder(folderPath);
+    if (ids.length === 0) {
+      toast('Folder is empty — add files before sharing.', { icon: '📭' });
+      return;
+    }
+    setSelected(new Set(ids));
+    setShowShare(true);
+  };
+
+  // Delete every file inside the folder (the user must own / have permission
+  // for each), then delete the folder record itself if it's registered.
+  const handleDeleteFolder = async (folderPath) => {
+    const folderName = folderPath.replace(/\/$/, '').split('/').pop();
+    const ids = fileIdsInFolder(folderPath);
+    const deletable = ids
+      .map(id => messages.find(m => m.id === id))
+      .filter(m => m && m.senderId === currentUser?.id);
+
+    const confirmMsg = ids.length === 0
+      ? `Delete empty folder "${folderName}"?`
+      : `Delete folder "${folderName}" — ${deletable.length} of ${ids.length} file(s) will be removed (you can only delete files you own).`;
+    if (!window.confirm(confirmMsg)) return;
+
+    // Soft-delete owned files
+    for (const msg of deletable) {
+      try {
+        await files.delete(msg.id);
+      } catch (e) {
+        toast.error(`Could not delete "${msg.originalFileName}": ${e}`);
+      }
+    }
+    // Drop them from local state in one pass
+    setMessages(prev => prev.filter(m => !deletable.find(d => d.id === m.id)));
+    setSelected(prev => {
+      const s = new Set(prev);
+      deletable.forEach(d => s.delete(d.id));
+      return s;
+    });
+
+    // Remove the folder record (server-side and local state)
+    const folderId = folderPathToId.get(folderPath);
+    if (folderId != null) {
+      try { await foldersApi.delete(folderId); } catch (e) {
+        toast.error('Could not delete folder record: ' + e);
+      }
+    }
+    setFolderPathToId(prev => {
+      const next = new Map(prev);
+      // remove this path and any descendant paths
+      for (const k of [...next.keys()]) if (k.startsWith(folderPath)) next.delete(k);
+      return next;
+    });
+    setPendingFolders(prev => {
+      const next = new Set(prev);
+      for (const k of [...next]) if (k.startsWith(folderPath)) next.delete(k);
+      return next;
+    });
+
+    // If the user is currently inside the deleted folder (or a descendant), pop out
+    if (currentFolderPath && currentFolderPath.startsWith(folderPath)) {
+      setCurrentFolderPath(null);
+    }
+
+    toast.success(`Folder "${folderName}" deleted.`);
+  };
+
   // ── Filtered + searched list ────────────────────────────────────────────────
   const q = searchQuery.trim().toLowerCase();
   const displayed = messages
@@ -502,19 +730,18 @@ export default function ChatWindow({ conversation, onLeave }) {
       return m.folderPath && m.folderPath.startsWith(currentFolderPath);
     });
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
-  const groups     = groupByFolder(displayed, currentFolderPath);
+
+  // Combine all registered/empty folder paths so they show up in the grouped
+  // view even before any files exist inside them.
+  const extraFolderPaths = new Set([
+    ...pendingFolders,
+    ...folderPathToId.keys(),
+  ]);
+  const groups = groupByFolder(displayed, currentFolderPath, extraFolderPaths);
 
   const toggleAll = () => {
     if (allChecked) setSelected(new Set());
     else setSelected(new Set(displayed.map(m => m.id)));
-  };
-
-  const toggleFolder = (fp) => {
-    setExpandedFolders(prev => {
-      const next = new Set(prev);
-      next.has(fp) ? next.delete(fp) : next.add(fp);
-      return next;
-    });
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -600,6 +827,19 @@ export default function ChatWindow({ conversation, onLeave }) {
               ? <><span className="animate-spin">⏳</span> {folderProgress.done}/{folderProgress.total}</>
               : <><span>📁</span> Upload Folder</>
             }
+          </button>
+
+          {/* New Folder — creates a virtual folder you can upload into */}
+          <button onClick={() => { setNewFolderName(''); setShowNewFolderDialog(true); }}
+                  disabled={uploading || !!folderProgress || !!multiProgress}
+                  title={currentFolderPath
+                    ? `Create a sub-folder inside "${currentFolderPath}"`
+                    : 'Create a new folder'}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl
+                             bg-white/20 text-white border border-white/40
+                             font-bold text-sm shadow hover:bg-white/30
+                             disabled:opacity-60 transition-all active:scale-95">
+            <span>➕</span> New Folder
           </button>
 
           {/* ⚙ Settings gear — hidden for PERSONAL storage */}
@@ -1060,7 +1300,7 @@ export default function ChatWindow({ conversation, onLeave }) {
                 );
               })}
               <span className="ml-auto text-[10px] text-white/40 italic">
-                double-click a sub-folder to open it
+                click a folder to open it
               </span>
             </div>
           )}
@@ -1075,12 +1315,17 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
           )}
 
-          {displayed.length === 0 && !loading && (
+          {groups.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full py-16 gap-3">
-              <span className="text-5xl">📭</span>
-              <p className="text-sm font-semibold text-white/70">No files here yet</p>
+              <span className="text-5xl">{currentFolderPath ? '📂' : '📭'}</span>
+              <p className="text-sm font-semibold text-white/70">
+                {currentFolderPath
+                  ? `"${currentFolderPath.replace(/\/$/, '').split('/').pop()}" is empty`
+                  : 'No files here yet'}
+              </p>
               <p className="text-xs text-white/50">
-                Drop a file or click <strong className="text-white font-bold">Upload File</strong>
+                Drop a file or click <strong className="text-white font-bold">Upload Files</strong>
+                {currentFolderPath ? ' to fill this folder' : ''}
               </p>
             </div>
           )}
@@ -1094,9 +1339,9 @@ export default function ChatWindow({ conversation, onLeave }) {
                                      group.folderPath === currentFolderPath;
             const showFolderHeader = isFolder && !isDirectContents;
 
-            const isExpanded = showFolderHeader
-              ? expandedFolders.has(group.folderPath)
-              : true; // direct contents and non-folder groups always expand
+            // Files always render inline under their folder header. Clicking the
+            // header navigates into the folder for a focused view.
+            const isExpanded = true;
 
             // Display name: relative to currentFolderPath when inside a folder
             const folderDisplayName = (() => {
@@ -1113,48 +1358,68 @@ export default function ChatWindow({ conversation, onLeave }) {
             return (
               <div key={group.folderPath ?? `ungrouped-${gi}`}>
 
-                {/* ── Folder header (single-click collapses, double-click navigates in) ── */}
-                {showFolderHeader && (
-                  <button
-                    onClick={() => toggleFolder(group.folderPath)}
-                    onDoubleClick={e => {
-                      e.stopPropagation();
-                      setCurrentFolderPath(group.folderPath);
-                      // Ensure it's expanded when we navigate into it
-                      setExpandedFolders(prev => new Set([...prev, group.folderPath]));
-                    }}
-                    title="Click to expand · Double-click to open"
-                    className="w-full flex items-center gap-3 px-5 py-3 sticky top-0 z-10
-                               transition-colors cursor-pointer select-none"
+                {/* ── Folder header (click opens the folder, file-explorer style) ── */}
+                {showFolderHeader && (() => {
+                  const folderFullySelected = isFolderFullySelected(group.folderPath);
+                  const folderTotalFiles    = fileIdsInFolder(group.folderPath).length;
+                  return (
+                  <div
+                    className="folder-row group/folder w-full flex items-center gap-3 px-5 py-3 sticky top-0 z-10
+                               transition-colors select-none"
                     style={{ background: 'rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.15)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}>
 
-                    {/* Chevron */}
-                    <span className={`text-white/60 text-xs transition-transform duration-200
-                                      ${isExpanded ? 'rotate-90' : ''}`}>
-                      ▶
-                    </span>
+                    {/* Folder checkbox — selects every file recursively under the folder */}
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-sky-500 cursor-pointer flex-shrink-0"
+                      checked={folderFullySelected}
+                      title={folderFullySelected ? 'Deselect folder' : 'Select all files in folder'}
+                      onChange={() => toggleSelectFolder(group.folderPath)}
+                      onClick={e => e.stopPropagation()}
+                    />
 
-                    {/* Folder icon + name */}
-                    <span className="text-lg">📁</span>
-                    <span className="text-sm font-semibold text-white truncate flex-1 text-left">
-                      {folderDisplayName}
-                    </span>
+                    {/* Body — click to navigate into the folder */}
+                    <button
+                      type="button"
+                      onClick={() => setCurrentFolderPath(group.folderPath)}
+                      title="Open folder"
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
+                      <span className="text-lg">📁</span>
+                      <span className="text-sm font-semibold text-white truncate flex-1">
+                        {folderDisplayName}
+                      </span>
+                      <span className="flex-shrink-0 text-xs font-semibold px-2 py-0.5
+                                       rounded-full text-white"
+                            style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)' }}>
+                        {folderTotalFiles} file{folderTotalFiles !== 1 ? 's' : ''}
+                      </span>
+                    </button>
 
-                    {/* Hint */}
-                    <span className="flex-shrink-0 text-[10px] text-white/35 italic hidden group-hover:inline">
-                      double-click to open
-                    </span>
-
-                    {/* File count badge */}
-                    <span className="flex-shrink-0 text-xs font-semibold px-2 py-0.5
-                                     rounded-full text-white"
-                          style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                      {group.items.length} file{group.items.length !== 1 ? 's' : ''}
-                    </span>
-                  </button>
-                )}
+                    {/* Folder action buttons — visible on hover */}
+                    <div className="flex items-center gap-1 flex-shrink-0
+                                    opacity-0 group-hover/folder:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        title="Share folder"
+                        onClick={e => { e.stopPropagation(); handleShareFolder(group.folderPath); }}
+                        className="text-xs px-2 py-1 rounded-lg font-semibold text-white"
+                        style={{ background: 'rgba(139,92,246,0.35)', border: '1px solid rgba(167,139,250,0.5)' }}>
+                        🔗
+                      </button>
+                      <button
+                        type="button"
+                        title="Delete folder"
+                        onClick={e => { e.stopPropagation(); handleDeleteFolder(group.folderPath); }}
+                        className="text-xs px-2 py-1 rounded-lg font-semibold text-red-200"
+                        style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                  );
+                })()}
 
                 {/* ── File rows (hidden when folder is collapsed) ── */}
                 {isExpanded && group.items.map((msg, idx) => {
@@ -1612,6 +1877,102 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
             <p style={{ textAlign: 'center', fontSize: '10px', color: '#94a3b8', marginTop: '10px' }}>
               Ctrl+Enter to upload · Esc to cancel
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── New folder dialog ── */}
+      {showNewFolderDialog && (
+        <div className="absolute inset-0 flex items-center justify-center"
+             style={{ background: 'rgba(0,0,0,0.55)', zIndex: 200 }}
+             onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}>
+          <div className="w-full max-w-sm mx-4 rounded-2xl p-6"
+               onClick={e => e.stopPropagation()}
+               style={{
+                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
+                 border: '1px solid rgba(255,255,255,0.8)',
+                 boxShadow: '0 24px 56px rgba(0,0,0,0.35)',
+               }}>
+
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center
+                              text-2xl bg-sky-50 border border-sky-100">
+                📁
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-gray-900 font-bold text-base leading-tight">New folder</h3>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  {currentFolderPath
+                    ? <>Inside <strong className="text-gray-700">{currentFolderPath}</strong></>
+                    : 'At the top level'}
+                </p>
+              </div>
+            </div>
+
+            {/* Name input */}
+            <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+              Folder name
+            </label>
+            <input
+              autoFocus
+              type="text"
+              value={newFolderName}
+              maxLength={120}
+              onChange={e => setNewFolderName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter')  confirmNewFolder();
+                if (e.key === 'Escape') { setShowNewFolderDialog(false); setNewFolderName(''); }
+              }}
+              placeholder="e.g. Q3 Reports"
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: '12px',
+                fontSize: '0.875rem', color: '#1e293b',
+                outline: 'none', background: '#f8fafc',
+                border: '1.5px solid #cbd5e1', caretColor: '#0ea5e9',
+                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
+              }}
+              onFocus={e => {
+                e.target.style.border = '1.5px solid #0ea5e9';
+                e.target.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.12)';
+              }}
+              onBlur={e => {
+                e.target.style.border = '1.5px solid #cbd5e1';
+                e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.05)';
+              }}
+            />
+            <p className="text-[10px] text-gray-400 mt-1.5">
+              The folder appears as soon as you upload a file into it.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '12px',
+                  fontSize: '0.875rem', fontWeight: 700, color: '#475569',
+                  background: '#e2e8f0', border: 'none', cursor: 'pointer',
+                }}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmNewFolder}
+                disabled={!newFolderName.trim()}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '12px',
+                  fontSize: '0.875rem', fontWeight: 700, color: 'white',
+                  background: '#0F172A', border: 'none',
+                  cursor: newFolderName.trim() ? 'pointer' : 'not-allowed',
+                  boxShadow: '0 4px 16px rgba(15,23,42,0.25)',
+                  opacity: newFolderName.trim() ? 1 : 0.5,
+                }}>
+                ➕ Create
+              </button>
+            </div>
+            <p style={{ textAlign: 'center', fontSize: '10px', color: '#94a3b8', marginTop: '10px' }}>
+              Enter to create · Esc to cancel
             </p>
           </div>
         </div>

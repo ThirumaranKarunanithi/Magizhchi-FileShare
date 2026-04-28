@@ -133,6 +133,8 @@ export const files = {
 export const folders = {
   create:     (body)                        => api.post('/api/folders', body),
   list:       (conversationId, parentId)    => api.get('/api/folders', { params: { conversationId, parentFolderId: parentId } }),
+  /** Flat listing — every folder in the conversation, any depth. */
+  listAll:    (conversationId)              => api.get('/api/folders', { params: { conversationId, flat: true } }),
   breadcrumb: (folderId)                    => api.get(`/api/folders/${folderId}/breadcrumb`),
   rename:     (folderId, name)              => api.patch(`/api/folders/${folderId}`, { name }),
   delete:     (folderId)                    => api.delete(`/api/folders/${folderId}`),

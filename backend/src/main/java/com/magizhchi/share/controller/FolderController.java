@@ -37,14 +37,20 @@ public class FolderController {
 
     /**
      * List folders in a conversation.
-     * If parentFolderId is omitted → returns root folders.
-     * If parentFolderId is provided → returns direct children of that folder.
+     * If flat=true             → returns ALL folders (across all levels) for the conversation.
+     * If parentFolderId is set → returns direct children of that folder.
+     * Otherwise                → returns root-level folders.
      */
     @GetMapping
     public ResponseEntity<List<FolderResponse>> list(
             @RequestParam Long conversationId,
             @RequestParam(required = false) Long parentFolderId,
+            @RequestParam(required = false, defaultValue = "false") boolean flat,
             @AuthenticationPrincipal User user) {
+        if (flat) {
+            return ResponseEntity.ok(
+                    folderService.listAllFolders(conversationId, user.getId()));
+        }
         return ResponseEntity.ok(
                 folderService.listFolders(conversationId, parentFolderId, user.getId()));
     }

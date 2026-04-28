@@ -56,6 +56,34 @@ function ConnectionChip({ status }) {
   );
 }
 
+// ── Conversation dedup ────────────────────────────────────────────────────────
+// Defensive guard against backend hiccups that can return two distinct DIRECT
+// conversations with the same counterparty (a race in getOrCreateDirect can
+// create a second row before the first commits). Collapse them so the UI only
+// shows ONE row per (type + counterparty), keeping the one with the most
+// recent activity (and most files attached).
+function dedupeConvList(list) {
+  const byId = new Map();
+  for (const c of list) {
+    if (!byId.has(c.id)) byId.set(c.id, c);
+  }
+  const groups = new Map(); // type+name → conv
+  for (const c of byId.values()) {
+    if (c.type !== 'DIRECT') {
+      groups.set(`__keep__:${c.id}`, c);
+      continue;
+    }
+    const key = `DIRECT:${c.name}`;
+    const existing = groups.get(key);
+    if (!existing) { groups.set(key, c); continue; }
+    // Pick the row with the more recent lastFile; tie-break with higher id.
+    const ts  = (c.lastFile?.sentAt ? Date.parse(c.lastFile.sentAt) : 0);
+    const eTs = (existing.lastFile?.sentAt ? Date.parse(existing.lastFile.sentAt) : 0);
+    if (ts > eTs || (ts === eTs && c.id > existing.id)) groups.set(key, c);
+  }
+  return [...groups.values()];
+}
+
 // ── Missed-notification helpers ───────────────────────────────────────────────
 
 const LS_KEY = 'msh:lastOpened'; // { [convId]: ISO-timestamp }
@@ -104,7 +132,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
   // ── Load conversations + storage on mount ───────────────────────────────
   useEffect(() => {
     conversations.list().then(r => {
-      const list = r.data;
+      const list = dedupeConvList(r.data);
       setConvList(list);
 
       // ── Seed unread badges for files received while offline / page was closed ──
@@ -186,7 +214,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
           });
         }
         // Refresh the conversation list so the lastFile preview updates
-        conversations.list().then(r => setConvList(r.data)).catch(console.error);
+        conversations.list().then(r => setConvList(dedupeConvList(r.data))).catch(console.error);
       }
 
       // ── A file was shared directly with the user or via a group ──
@@ -211,7 +239,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
       // ── Connection request accepted ──
       else if (event.type === 'CONNECTION_ACCEPTED') {
         toast.success(`🎉 ${p.receiverName} accepted your request!`);
-        conversations.list().then(r => setConvList(r.data)).catch(console.error);
+        conversations.list().then(r => setConvList(dedupeConvList(r.data))).catch(console.error);
       }
     });
 
@@ -250,7 +278,10 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
   const openDirect = async (userId) => {
     try {
       const { data } = await conversations.openDirect(userId);
-      setConvList(prev => prev.find(c => c.id === data.id) ? prev : [data, ...prev]);
+      setConvList(prev =>
+        prev.find(c => c.id === data.id)
+          ? prev
+          : dedupeConvList([data, ...prev]));
       onSelect(data);
       markOpened(data.id);
       setUnreadCounts(prev => { const m = new Map(prev); m.delete(data.id); return m; });
@@ -259,7 +290,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
   };
 
   const handleGroupCreated = (conv) => {
-    setConvList(prev => [conv, ...prev]);
+    setConvList(prev => dedupeConvList([conv, ...prev]));
     onSelect(conv);
   };
 
@@ -851,7 +882,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
           onClose={() => { setShowConnections(false); refreshPendingCount(); }}
           onConnectionChanged={() => {
             refreshPendingCount();
-            conversations.list().then(r => setConvList(r.data)).catch(console.error);
+            conversations.list().then(r => setConvList(dedupeConvList(r.data))).catch(console.error);
           }}
         />
       )}

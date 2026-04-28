@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(./mvnw -q -DskipTests compile)",
+      "Bash(mvn -q -DskipTests compile)",
+      "Bash(mvn -DskipTests compile)",
+      "Bash(mvn -DskipTests clean compile)"
+    ]
+  }
+}

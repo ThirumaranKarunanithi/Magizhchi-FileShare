@@ -66,6 +66,13 @@ public class FolderService {
         return folders.stream().map(this::toResponse).toList();
     }
 
+    /** Flat listing of every non-deleted folder in the conversation (any depth). */
+    public List<FolderResponse> listAllFolders(Long conversationId, Long userId) {
+        requireMember(conversationId, userId);
+        return folderRepo.findAllByConversationId(conversationId)
+                .stream().map(this::toResponse).toList();
+    }
+
     public List<FolderResponse> getBreadcrumb(Long folderId, Long userId) {
         Folder folder = folderRepo.findById(folderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Folder not found."));
