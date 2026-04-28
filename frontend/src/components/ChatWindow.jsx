@@ -75,6 +75,8 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [dragOver,       setDragOver]       = useState(false);
   const [filter,         setFilter]         = useState('ALL');
   const [expandedFolders, setExpandedFolders] = useState(new Set());
+  // Folder navigation — null = root view, string = inside that folderPath
+  const [currentFolderPath, setCurrentFolderPath] = useState(null);
 
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
@@ -148,6 +150,7 @@ export default function ChatWindow({ conversation, onLeave }) {
     setPage(0);
     setHasMore(true);
     setSelected(new Set());
+    setCurrentFolderPath(null);
     setMemberCount(conversation.memberCount ?? 0);
     loadFiles(0, false);
     // Build Map<fileMessageId, shares[]> so each row knows WHO the file was shared with
@@ -460,6 +463,13 @@ export default function ChatWindow({ conversation, onLeave }) {
           m.senderName?.toLowerCase().includes(q)
         );
       }
+    })
+    // ── Folder navigation filter ─────────────────────────────────────────────
+    // At root (null) → show everything.
+    // Inside a folder → show only files whose folderPath starts with currentFolderPath.
+    .filter(m => {
+      if (!currentFolderPath) return true;
+      return m.folderPath && m.folderPath.startsWith(currentFolderPath);
     });
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
   const groups     = groupByFolder(displayed);
@@ -983,6 +993,48 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
           )}
 
+          {/* ── Breadcrumb — shown when inside a folder ── */}
+          {currentFolderPath && (
+            <div className="flex items-center gap-1.5 px-5 py-2.5 flex-wrap sticky top-0 z-20"
+                 style={{
+                   background: 'rgba(255,255,255,0.13)',
+                   backdropFilter: 'blur(12px)',
+                   borderBottom: '1px solid rgba(255,255,255,0.18)',
+                 }}>
+              {/* Home / root */}
+              <button
+                onClick={() => setCurrentFolderPath(null)}
+                className="flex items-center gap-1 text-xs font-semibold transition-colors
+                           hover:text-white text-white/70">
+                🏠 All Files
+              </button>
+              {currentFolderPath.split('/').filter(Boolean).map((seg, i, arr) => {
+                const path = arr.slice(0, i + 1).join('/') + '/';
+                const isLast = i === arr.length - 1;
+                return (
+                  <span key={path} className="flex items-center gap-1.5">
+                    <span className="text-white/30 text-xs">›</span>
+                    {isLast ? (
+                      <span className="text-xs font-bold text-white flex items-center gap-1">
+                        📁 {seg}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setCurrentFolderPath(path)}
+                        className="text-xs font-semibold text-white/70 hover:text-white
+                                   transition-colors">
+                        {seg}
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+              <span className="ml-auto text-[10px] text-white/40 italic">
+                double-click a sub-folder to open it
+              </span>
+            </div>
+          )}
+
           {hasMore && (
             <div className="text-center py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <button onClick={() => { const n = page + 1; setPage(n); loadFiles(n, true); }}
@@ -1004,18 +1056,46 @@ export default function ChatWindow({ conversation, onLeave }) {
           )}
 
           {groups.map((group, gi) => {
-            const isFolder   = !!group.folderPath;
-            const isExpanded = isFolder ? expandedFolders.has(group.folderPath) : true;
+            const isFolder = !!group.folderPath;
+
+            // When inside a folder, its direct contents (exact path match) render flat —
+            // no folder header. Only sub-folders get a header.
+            const isDirectContents = isFolder && !!currentFolderPath &&
+                                     group.folderPath === currentFolderPath;
+            const showFolderHeader = isFolder && !isDirectContents;
+
+            const isExpanded = showFolderHeader
+              ? expandedFolders.has(group.folderPath)
+              : true; // direct contents and non-folder groups always expand
+
+            // Display name: relative to currentFolderPath when inside a folder
+            const folderDisplayName = (() => {
+              if (!isFolder) return null;
+              if (!currentFolderPath) {
+                // Root view — show only the deepest segment
+                return group.folderPath.replace(/\/$/, '').split('/').pop();
+              }
+              // Inside a folder — strip prefix, show first relative segment
+              const rel = group.folderPath.slice(currentFolderPath.length).replace(/\/$/, '');
+              return rel.split('/')[0] || null;
+            })();
 
             return (
               <div key={group.folderPath ?? `ungrouped-${gi}`}>
 
-                {/* ── Folder header (clickable, collapsible) ── */}
-                {isFolder && (
+                {/* ── Folder header (single-click collapses, double-click navigates in) ── */}
+                {showFolderHeader && (
                   <button
                     onClick={() => toggleFolder(group.folderPath)}
+                    onDoubleClick={e => {
+                      e.stopPropagation();
+                      setCurrentFolderPath(group.folderPath);
+                      // Ensure it's expanded when we navigate into it
+                      setExpandedFolders(prev => new Set([...prev, group.folderPath]));
+                    }}
+                    title="Click to expand · Double-click to open"
                     className="w-full flex items-center gap-3 px-5 py-3 sticky top-0 z-10
-                               transition-colors cursor-pointer"
+                               transition-colors cursor-pointer select-none"
                     style={{ background: 'rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.15)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}>
@@ -1029,8 +1109,12 @@ export default function ChatWindow({ conversation, onLeave }) {
                     {/* Folder icon + name */}
                     <span className="text-lg">📁</span>
                     <span className="text-sm font-semibold text-white truncate flex-1 text-left">
-                      {/* Show only the deepest folder segment */}
-                      {group.folderPath.replace(/\/$/, '').split('/').pop()}
+                      {folderDisplayName}
+                    </span>
+
+                    {/* Hint */}
+                    <span className="flex-shrink-0 text-[10px] text-white/35 italic hidden group-hover:inline">
+                      double-click to open
                     </span>
 
                     {/* File count badge */}
@@ -1063,7 +1147,7 @@ export default function ChatWindow({ conversation, onLeave }) {
                   return (
                     <div key={msg.id}
                          className={`flex items-center gap-3 py-3 group transition-colors cursor-default
-                                     ${isFolder ? 'pl-12 pr-5' : 'px-5'}`}
+                                     ${showFolderHeader ? 'pl-12 pr-5' : 'px-5'}`}
                          style={{
                            background: baseBg,
                            borderLeft: isShared ? '3px solid rgba(167,139,250,0.8)' : '3px solid transparent',
