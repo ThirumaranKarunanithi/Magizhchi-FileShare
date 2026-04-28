@@ -73,6 +73,21 @@ function groupByFolder(msgs, currentFolderPath = null, extraFolderPaths = []) {
   return groups;
 }
 
+// ── View modes ───────────────────────────────────────────────────────────────
+// Mirror Windows Explorer's eight layout options. `cellSize` is the grid
+// column min-width (px); `layout` decides the rendering family.
+const VIEW_MODES = [
+  { key: 'XL',      icon: '⬛', label: 'Extra large icons', layout: 'grid',    cellSize: 192 },
+  { key: 'L',       icon: '⬛', label: 'Large icons',       layout: 'grid',    cellSize: 144 },
+  { key: 'M',       icon: '▣',  label: 'Medium icons',      layout: 'grid',    cellSize: 96  },
+  { key: 'S',       icon: '▦',  label: 'Small icons',       layout: 'grid',    cellSize: 64  },
+  { key: 'LIST',    icon: '☰',  label: 'List',              layout: 'list'                    },
+  { key: 'DETAILS', icon: '≡',  label: 'Details',           layout: 'details'                 },
+  { key: 'TILES',   icon: '▤',  label: 'Tiles',             layout: 'tiles',  cellSize: 220 },
+  { key: 'CONTENT', icon: '▥',  label: 'Content',           layout: 'content'                 },
+];
+const VIEW_MODE_BY_KEY = Object.fromEntries(VIEW_MODES.map(m => [m.key, m]));
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatBytes(b) {
@@ -125,6 +140,30 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [newFolderName,          setNewFolderName]          = useState('');
   // Default download permission for files uploaded into this folder
   const [newFolderPermission,    setNewFolderPermission]    = useState('CAN_DOWNLOAD');
+
+  // View mode (one of VIEW_MODES). Persisted in localStorage.
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      const v = localStorage.getItem('msh:viewMode');
+      return VIEW_MODE_BY_KEY[v] ? v : 'DETAILS';
+    } catch { return 'DETAILS'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('msh:viewMode', viewMode); } catch {}
+  }, [viewMode]);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const viewMenuRef = useRef(null);
+  useEffect(() => {
+    if (!showViewMenu) return;
+    const onClick = e => {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target)) {
+        setShowViewMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [showViewMenu]);
+  const currentView = VIEW_MODE_BY_KEY[viewMode] || VIEW_MODE_BY_KEY.DETAILS;
 
   // Empty/pending folders the user created locally but hasn't uploaded into yet.
   // Stored as a Set of "path/" strings, persisted per-conversation in localStorage
@@ -969,6 +1008,48 @@ export default function ChatWindow({ conversation, onLeave }) {
             <span>➕</span> New Folder
           </button>
 
+          {/* View-mode picker — Windows-Explorer-style 8-mode menu */}
+          <div className="relative" ref={viewMenuRef}>
+            <button
+              onClick={() => setShowViewMenu(v => !v)}
+              title={`View · ${currentView.label}`}
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border font-semibold
+                          text-sm transition-all
+                          ${showViewMenu
+                            ? 'bg-white text-slate-800 border-white shadow-lg'
+                            : 'bg-white/15 text-white border-white/30 hover:bg-white/25'}`}>
+              <span className="text-base leading-none">{currentView.icon}</span>
+              <span className="hidden md:inline text-xs">{currentView.label}</span>
+              <span className="text-[10px] opacity-70">▾</span>
+            </button>
+            {showViewMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl overflow-hidden
+                              shadow-2xl z-50 border border-slate-200/60"
+                   style={{ background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)' }}>
+                <div className="px-4 py-2.5 border-b border-slate-100">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    View
+                  </p>
+                </div>
+                {VIEW_MODES.map(m => (
+                  <button
+                    key={m.key}
+                    onClick={() => { setViewMode(m.key); setShowViewMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left
+                               hover:bg-sky-50 transition-colors">
+                    <span className="w-6 text-center text-base text-slate-500">
+                      {viewMode === m.key ? '●' : ''}
+                    </span>
+                    <span className="text-base text-slate-500 w-5 text-center">{m.icon}</span>
+                    <span className={`flex-1 text-sm ${viewMode === m.key ? 'font-semibold text-sky-700' : 'text-slate-700'}`}>
+                      {m.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* ⚙ Settings gear — hidden for PERSONAL storage */}
           {conversation.type !== 'PERSONAL' && (
             <div className="relative" ref={settingsRef}>
@@ -1610,8 +1691,218 @@ export default function ChatWindow({ conversation, onLeave }) {
                   );
                 })()}
 
-                {/* ── File rows (hidden when folder is collapsed) ── */}
-                {isExpanded && group.items.map((msg, idx) => {
+                {/* ── File items (hidden when folder is collapsed) ──
+                    Layout switches on currentView.layout: 'details' = existing
+                    full row; 'list' = compact row; 'grid'/'tiles' = CSS grid
+                    of cells; 'content' = wider row with prominent caption.   */}
+                {isExpanded && currentView.layout !== 'details' && group.items.length > 0 && (() => {
+                  const isGrid  = currentView.layout === 'grid' || currentView.layout === 'tiles';
+                  const cellMin = currentView.cellSize ?? 144;
+                  const containerStyle = isGrid
+                    ? {
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(auto-fill, minmax(${cellMin}px, 1fr))`,
+                        gap: currentView.layout === 'tiles' ? 12 : 10,
+                        padding: '12px ' + (showFolderHeader ? '20px 16px 48px' : '20px'),
+                      }
+                    : { padding: 0 };
+                  return (
+                    <div style={containerStyle}>
+                      {group.items.map(msg => {
+                        const { emoji, bg } = fileIcon(msg.category);
+                        const isMine   = msg.senderId === currentUser?.id;
+                        const isSel    = selected.has(msg.id);
+                        const isShared = (sharedFilesMap.get(msg.id) ?? []).length > 0;
+
+                        // Common cell-click → preview
+                        const previewBtn = (children, extraClass = '') => (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(msg)}
+                            className={`min-w-0 text-left ${extraClass}`}>
+                            {children}
+                          </button>
+                        );
+
+                        // ── Grid / Tiles / Small icons cell ──
+                        if (isGrid) {
+                          const isTile = currentView.layout === 'tiles';
+                          const isSmall = currentView.key === 'S';
+                          return (
+                            <div key={msg.id}
+                                 className="group/cell relative rounded-xl border transition-all"
+                                 style={{
+                                   background: isSel
+                                     ? 'rgba(255,255,255,0.18)'
+                                     : isShared ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.06)',
+                                   borderColor: isSel
+                                     ? 'rgba(255,255,255,0.45)'
+                                     : isShared ? 'rgba(167,139,250,0.45)' : 'rgba(255,255,255,0.10)',
+                                 }}>
+                              {/* Top-left checkbox (always visible when selected, else on hover) */}
+                              <input
+                                type="checkbox"
+                                className="absolute top-1.5 left-1.5 w-3.5 h-3.5 accent-sky-500 z-10
+                                           opacity-0 group-hover/cell:opacity-100 transition-opacity"
+                                style={{ opacity: isSel ? 1 : undefined }}
+                                checked={isSel}
+                                onChange={() => toggleSelect(msg.id)}
+                                onClick={e => e.stopPropagation()}
+                              />
+                              {/* Top-right pin indicator */}
+                              {msg.isPinned && (
+                                <span className="absolute top-1.5 right-1.5 text-amber-300 text-xs">📌</span>
+                              )}
+
+                              {previewBtn(
+                                <div className={isTile
+                                  ? 'flex items-center gap-3 p-3'
+                                  : 'flex flex-col items-center gap-2 p-3'}
+                                  style={{ minHeight: isSmall ? 56 : undefined }}>
+                                  <div
+                                    className="rounded-xl flex items-center justify-center flex-shrink-0"
+                                    style={{
+                                      width:  isTile ? 44 : (isSmall ? 28 : Math.min(72, cellMin * 0.45)),
+                                      height: isTile ? 44 : (isSmall ? 28 : Math.min(72, cellMin * 0.45)),
+                                      fontSize: isTile ? 22 : (isSmall ? 16 : Math.min(36, cellMin * 0.22)),
+                                      background: isShared ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.10)',
+                                      boxShadow: isShared ? '0 0 0 2px rgba(167,139,250,0.6)' : undefined,
+                                    }}>
+                                    {isShared ? '🔗' : emoji}
+                                  </div>
+                                  <div className={isTile ? 'flex-1 min-w-0' : 'w-full text-center min-w-0'}>
+                                    <p className="text-xs font-semibold text-white truncate"
+                                       title={msg.originalFileName}>
+                                      {msg.originalFileName}
+                                    </p>
+                                    {isTile && (
+                                      <p className="text-[10px] text-white/55 truncate">
+                                        {formatBytes(msg.fileSizeBytes)}
+                                        {!isMine && msg.senderName && ` · ${msg.senderName}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>,
+                                'w-full'
+                              )}
+
+                              {/* Hover micro-actions bottom-right */}
+                              <div className="absolute bottom-1 right-1 flex gap-1 opacity-0
+                                              group-hover/cell:opacity-100 transition-opacity">
+                                {msg.downloadPermission !== 'VIEW_ONLY' && (
+                                  <button onClick={() => handleDownload(msg)} title="Download"
+                                          className="px-1.5 py-0.5 rounded text-[10px]
+                                                     bg-white/20 text-white border border-white/30">⬇</button>
+                                )}
+                                <button onClick={() => handlePin(msg)} title={msg.isPinned ? 'Unpin' : 'Pin'}
+                                        disabled={pinLoading.has(msg.id)}
+                                        className="px-1.5 py-0.5 rounded text-[10px] border"
+                                        style={{
+                                          background: msg.isPinned ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.18)',
+                                          color: msg.isPinned ? '#fde68a' : 'white',
+                                          borderColor: msg.isPinned ? 'rgba(251,191,36,0.6)' : 'rgba(255,255,255,0.3)',
+                                        }}>📌</button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // ── List layout: compact single-line row ──
+                        if (currentView.layout === 'list') {
+                          return (
+                            <div key={msg.id}
+                                 className="flex items-center gap-3 px-5 py-1.5 group/list"
+                                 style={{
+                                   background: isSel ? 'rgba(255,255,255,0.18)'
+                                             : isShared ? 'rgba(139,92,246,0.18)' : 'transparent',
+                                   borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                 }}>
+                              <input type="checkbox"
+                                     className="w-3.5 h-3.5 accent-sky-500 cursor-pointer"
+                                     checked={isSel}
+                                     onChange={() => toggleSelect(msg.id)}/>
+                              <span className="text-base flex-shrink-0">{isShared ? '🔗' : emoji}</span>
+                              <span className="text-xs text-white truncate flex-1 cursor-pointer"
+                                    onClick={() => setPreviewFile(msg)}
+                                    title={msg.originalFileName}>
+                                {msg.originalFileName}
+                                {msg.isPinned && <span className="ml-1 text-amber-300">📌</span>}
+                              </span>
+                              <span className="text-[10px] text-white/45 flex-shrink-0">
+                                {formatBytes(msg.fileSizeBytes)}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        // ── Content layout: fat row, icon + name + sender + caption ──
+                        return (
+                          <div key={msg.id}
+                               className="flex items-start gap-4 px-5 py-3 group/content"
+                               style={{
+                                 background: isSel ? 'rgba(255,255,255,0.18)'
+                                           : isShared ? 'rgba(139,92,246,0.18)' : 'transparent',
+                                 borderBottom: '1px solid rgba(255,255,255,0.08)',
+                               }}>
+                            <input type="checkbox"
+                                   className="w-4 h-4 accent-sky-500 cursor-pointer mt-1.5"
+                                   checked={isSel}
+                                   onChange={() => toggleSelect(msg.id)}/>
+                            <div
+                              role="button" tabIndex={0}
+                              onClick={() => setPreviewFile(msg)}
+                              className={`w-14 h-14 rounded-2xl flex items-center justify-center
+                                          text-3xl flex-shrink-0 cursor-pointer ${isShared ? '' : bg}`}
+                              style={isShared ? {
+                                background: 'rgba(139,92,246,0.25)',
+                                boxShadow: '0 0 0 2px rgba(167,139,250,0.6)',
+                              } : {}}>
+                              {isShared ? '🔗' : emoji}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-white truncate cursor-pointer"
+                                 onClick={() => setPreviewFile(msg)}>
+                                {msg.originalFileName}
+                                {msg.isPinned && <span className="ml-2 text-amber-300 text-xs">📌</span>}
+                              </p>
+                              <p className="text-xs text-white/55 truncate">
+                                {formatBytes(msg.fileSizeBytes)} · {format(new Date(msg.sentAt), 'd MMM yyyy')}
+                                {!isMine && msg.senderName && (
+                                  <> · <span className="text-sky-200 font-medium">{msg.senderName}</span></>
+                                )}
+                              </p>
+                              {msg.caption && (
+                                <p className="text-xs text-white/70 mt-1 italic line-clamp-2">
+                                  "{msg.caption}"
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0
+                                            group-hover/content:opacity-100 transition-opacity flex-shrink-0">
+                              {msg.downloadPermission !== 'VIEW_ONLY' && (
+                                <button onClick={() => handleDownload(msg)} title="Download"
+                                        className="p-2 rounded-lg bg-sky-50 text-sky-600 text-sm">⬇</button>
+                              )}
+                              <button onClick={() => handlePin(msg)} title={msg.isPinned ? 'Unpin' : 'Pin'}
+                                      className="p-2 rounded-lg text-sm"
+                                      style={{
+                                        background: msg.isPinned ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.15)',
+                                        color: msg.isPinned ? '#fde68a' : 'white',
+                                      }}>📌</button>
+                              {isMine && (
+                                <button onClick={() => handleDelete(msg.id)} title="Delete"
+                                        className="p-2 rounded-lg bg-red-50 text-red-500 text-sm">🗑</button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* ── File rows (Details mode) ── */}
+                {isExpanded && currentView.layout === 'details' && group.items.map((msg, idx) => {
                   const { emoji, bg } = fileIcon(msg.category);
                   const isMine    = msg.senderId === currentUser?.id;
                   const myShares  = sharedFilesMap.get(msg.id) ?? [];
