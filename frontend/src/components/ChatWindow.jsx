@@ -79,14 +79,6 @@ export default function ChatWindow({ conversation, onLeave }) {
   const fileInputRef   = useRef(null);
   const folderInputRef = useRef(null);
 
-  // Close the permission menu on outside click
-  useEffect(() => {
-    if (!permMenuId) return;
-    const handler = () => setPermMenuId(null);
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [permMenuId]);
-
   // ── Description dialog ─────────────────────────────────────────────────────
   // pendingUpload: null | { type:'files', files:File[] } | { type:'folder', picked:File[], folderName:string }
   const [pendingUpload,   setPendingUpload]   = useState(null);
@@ -114,6 +106,16 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [previewFile,    setPreviewFile]    = useState(null);   // file to preview
   const [pinLoading,     setPinLoading]     = useState(new Set()); // msgIds being pinned
   const [permMenuId,     setPermMenuId]     = useState(null);   // msgId with open perm menu
+
+  // Close the permission menu on outside click.
+  // MUST be declared AFTER permMenuId to avoid a Rollup TDZ crash in production.
+  useEffect(() => {
+    if (!permMenuId) return;
+    const handler = () => setPermMenuId(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [permMenuId]);
+
   const settingsRef = useRef(null);
   // memberCount kept in sync after add/remove so the header subtitle stays accurate
   const [memberCount,    setMemberCount]    = useState(conversation.memberCount ?? 0);
