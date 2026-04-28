@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple share/folder icon as vector drawable for the launcher foreground -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Folder body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,42 L20,78 Q20,82 24,82 L84,82 Q88,82 88,78 L88,48 Q88,44 84,44 L52,44 L46,38 Q44,36 40,36 L24,36 Q20,36 20,40 Z" />
+
+    <!-- Share arrows (simplified) -->
+    <path
+        android:fillColor="#0284c7"
+        android:pathData="M54,52 L54,62 L48,56 L54,50 Z" />
+    <path
+        android:fillColor="#0284c7"
+        android:pathData="M60,52 L66,56 L60,60 L60,52 Z" />
+    <path
+        android:fillColor="#0284c7"
+        android:pathData="M54,62 L60,62 L60,56 L54,56 Z" />
+
+</vector>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Gradient background blues -->
+    <color name="primaryDark">#0369a1</color>
+    <color name="primaryMid">#0284c7</color>
+    <color name="primaryLight">#0ea5e9</color>
+
+    <!-- Conversation card backgrounds -->
+    <!-- DIRECT: #1565C0 at 55% alpha = #8C1565C0 -->
+    <color name="colorDirect">#8C1565C0</color>
+    <!-- GROUP: #880E4F at 50% alpha = #80880E4F -->
+    <color name="colorGroup">#80880E4F</color>
+
+    <!-- Storage / Shared cards -->
+    <!-- My Storage: #0E82D2 at 90% alpha = #E60E82D2 -->
+    <color name="colorStorage">#E60E82D2</color>
+    <!-- Shared Files: #6A1B9A at 85% alpha = #D96A1B9A -->
+    <color name="colorShared">#D96A1B9A</color>
+
+    <!-- Glass overlay: white at 13% = #21ffffff -->
+    <color name="colorGlassWhite">#21ffffff</color>
+
+    <!-- Text -->
+    <color name="textPrimary">#FFFFFF</color>
+    <color name="textSecondary">#B3FFFFFF</color>
+
+    <!-- Surface / On-surface -->
+    <color name="colorSurface">#21ffffff</color>
+    <color name="colorOnSurface">#FFFFFF</color>
+
+    <!-- Strokes -->
+    <color name="strokeDirect">#4D42A5F5</color>
+    <color name="strokeGroup">#4DF48FB1</color>
+    <color name="strokeGlass">#47FFFFFF</color>
+</resources>

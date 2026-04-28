@@ -34,29 +34,43 @@ public class AuthService {
      */
     @Transactional
     public void sendRegistrationOtp(RegisterRequest req) {
-        String identifier = primaryIdentifier(req);
+        String mobile = req.getMobileNumber().trim();
+        String email  = req.getEmail().trim();
 
-        // Allow re-send if user already exists but is unverified
-        if (userRepo.existsByMobileNumber(identifier)) {
-            User existing = userRepo.findByMobileNumber(identifier).orElseThrow();
-            if (existing.getIsVerified()) {
-                throw new AppException(HttpStatus.CONFLICT,
-                        "An account with this mobile number already exists.");
-            }
-        } else if (req.getEmail() != null && userRepo.existsByEmail(req.getEmail())) {
-            throw new AppException(HttpStatus.CONFLICT,
-                    "An account with this email already exists.");
-        } else {
-            // Create placeholder user
-            User user = User.builder()
-                    .mobileNumber(req.getMobileNumber())
-                    .email(req.getEmail())
-                    .displayName(req.getDisplayName())
-                    .isVerified(false)
-                    .build();
-            userRepo.save(user);
+        // Block if either field is already taken by a VERIFIED account
+        userRepo.findByMobileNumber(mobile)
+                .filter(User::getIsVerified)
+                .ifPresent(u -> { throw new AppException(HttpStatus.CONFLICT,
+                        "An account with this mobile number already exists."); });
+        userRepo.findByEmail(email)
+                .filter(User::getIsVerified)
+                .ifPresent(u -> { throw new AppException(HttpStatus.CONFLICT,
+                        "An account with this email already exists."); });
+
+        // Upsert placeholder — look up any existing unverified record by mobile first, then email
+        java.util.Optional<User> maybeExisting = userRepo.findByMobileNumber(mobile);
+        if (maybeExisting.isEmpty()) {
+            maybeExisting = userRepo.findByEmail(email);
         }
 
+        if (maybeExisting.isPresent() && !maybeExisting.get().getIsVerified()) {
+            // Update stale placeholder with latest submitted details
+            User u = maybeExisting.get();
+            u.setMobileNumber(mobile);
+            u.setEmail(email);
+            u.setDisplayName(req.getDisplayName());
+            userRepo.save(u);
+        } else if (maybeExisting.isEmpty()) {
+            userRepo.save(User.builder()
+                    .mobileNumber(mobile)
+                    .email(email)
+                    .displayName(req.getDisplayName())
+                    .isVerified(false)
+                    .build());
+        }
+
+        // Send OTP to the user's preferred channel (email by default)
+        String identifier = "SMS".equalsIgnoreCase(req.getOtpChannel()) ? mobile : email;
         otpService.sendOtp(identifier, OtpCode.OtpPurpose.REGISTRATION);
     }
 
@@ -139,7 +153,5 @@ public class AuthService {
                 .build();
     }
 
-    private String primaryIdentifier(RegisterRequest req) {
-        return req.getMobileNumber() != null ? req.getMobileNumber() : req.getEmail();
-    }
+    // primaryIdentifier() removed — channel-aware selection is now inline in sendRegistrationOtp()
 }

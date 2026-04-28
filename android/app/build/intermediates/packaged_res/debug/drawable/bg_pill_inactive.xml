@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inactive filter pill: white at 20% fill (#33FFFFFF), full-round corners -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="#33FFFFFF" />
+
+    <corners android:radius="999dp" />
+
+</shape>

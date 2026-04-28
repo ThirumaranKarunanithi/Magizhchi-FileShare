@@ -10,6 +10,7 @@ export default function Register() {
 
   const [step,        setStep]        = useState(1);
   const [form,        setForm]        = useState({ displayName: '', mobileNumber: '', email: '' });
+  const [otpChannel,  setOtpChannel]  = useState('EMAIL'); // 'EMAIL' | 'SMS' — default email
   const [otp,         setOtp]         = useState('');
   const [loading,     setLoading]     = useState(false);
   const [resending,   setResending]   = useState(false);
@@ -20,16 +21,16 @@ export default function Register() {
 
   const handleStep1 = async e => {
     e.preventDefault();
-    if (!form.displayName.trim()) { setError('Name is required.'); return; }
-    if (!form.mobileNumber.trim() && !form.email.trim()) {
-      setError('Please provide a mobile number or email.'); return;
-    }
+    if (!form.displayName.trim())   { setError('Full name is required.'); return; }
+    if (!form.mobileNumber.trim())  { setError('Mobile number is required.'); return; }
+    if (!form.email.trim())         { setError('Email address is required.'); return; }
     setError(''); setLoading(true);
     try {
       await auth.registerSendOtp({
         displayName:  form.displayName.trim(),
-        mobileNumber: form.mobileNumber.trim() || undefined,
-        email:        form.email.trim()        || undefined,
+        mobileNumber: form.mobileNumber.trim(),
+        email:        form.email.trim(),
+        otpChannel,
       });
       setStep(2); startCountdown(60);
       toast.success('Verification code sent!');
@@ -57,7 +58,8 @@ export default function Register() {
     if (!otp.trim()) { setError('Please enter the verification code.'); return; }
     setError(''); setLoading(true);
     try {
-      const identifier = form.mobileNumber.trim() || form.email.trim();
+      // Use the identifier that matched the chosen OTP channel
+      const identifier = otpChannel === 'SMS' ? form.mobileNumber.trim() : form.email.trim();
       const { data } = await auth.registerVerify({ identifier, code: otp.trim() });
       login(data); navigate('/');
     } catch (msg) { setError(msg); }
@@ -70,8 +72,9 @@ export default function Register() {
     try {
       await auth.registerSendOtp({
         displayName:  form.displayName,
-        mobileNumber: form.mobileNumber || undefined,
-        email:        form.email        || undefined,
+        mobileNumber: form.mobileNumber,
+        email:        form.email,
+        otpChannel,
       });
       startCountdown(60);
       toast.success('Code resent!');
@@ -190,19 +193,20 @@ export default function Register() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mobile number <span className="text-gray-400 font-normal text-xs">(required)</span>
+                    Mobile number <span className="text-red-400 font-normal text-xs">*</span>
                   </label>
                   <input
                     type="tel"
                     className="input-field"
                     value={form.mobileNumber}
                     onChange={e => set('mobileNumber', e.target.value)}
-                    placeholder="+91 9876543210"/>
+                    placeholder="+91 9876543210"
+                    required/>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email address <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                    Email address <span className="text-red-400 font-normal text-xs">*</span>
                   </label>
                   <input
                     type="email"
@@ -210,7 +214,39 @@ export default function Register() {
                     value={form.email}
                     onChange={e => set('email', e.target.value)}
                     placeholder="you@example.com"
-                    autoComplete="email"/>
+                    autoComplete="email"
+                    required/>
+                </div>
+
+                {/* ── OTP channel preference ── */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Send verification code via
+                    <span className="ml-1 text-xs text-gray-400 font-normal">(default: email)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'EMAIL', label: '📧 Email',        desc: 'to your email address' },
+                      { value: 'SMS',   label: '📱 SMS',          desc: 'to your mobile number' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setOtpChannel(opt.value)}
+                        className="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl
+                                   border-2 text-sm font-semibold transition-all"
+                        style={{
+                          borderColor: otpChannel === opt.value ? '#0284c7' : '#e2e8f0',
+                          background:  otpChannel === opt.value ? '#eff6ff' : '#f8fafc',
+                          color:       otpChannel === opt.value ? '#0369a1' : '#64748b',
+                        }}>
+                        <span>{opt.label}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 400, color: otpChannel === opt.value ? '#0284c7' : '#94a3b8' }}>
+                          {opt.desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <button
@@ -263,11 +299,19 @@ export default function Register() {
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Verify your identity</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  We sent a 6-digit code to<br/>
+                  {otpChannel === 'SMS'
+                    ? <>A code was sent via SMS to<br/></>
+                    : <>A code was sent to your email<br/></>}
                   <span className="font-semibold text-gray-700">
-                    {form.mobileNumber || form.email}
+                    {otpChannel === 'SMS' ? form.mobileNumber : form.email}
                   </span>
                 </p>
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); setOtp(''); setError(''); }}
+                  className="mt-2 text-xs text-blue-500 hover:text-blue-700 underline">
+                  Change channel
+                </button>
               </div>
 
               {error && (

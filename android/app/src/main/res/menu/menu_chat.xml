@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_manage_group"
+        android:title="@string/action_manage_group"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_exit_group"
+        android:title="@string/action_exit_group"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_unfriend"
+        android:title="@string/action_unfriend"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_block"
+        android:title="@string/action_block"
+        android:visible="false"
+        app:showAsAction="never" />
+
+</menu>

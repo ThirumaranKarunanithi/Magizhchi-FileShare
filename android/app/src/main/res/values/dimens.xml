@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Card -->
+    <dimen name="card_corner_radius">16dp</dimen>
+    <dimen name="card_padding">12dp</dimen>
+    <dimen name="card_margin">10dp</dimen>
+
+    <!-- Avatar -->
+    <dimen name="avatar_size">44dp</dimen>
+    <dimen name="avatar_size_small">36dp</dimen>
+    <dimen name="avatar_text_size">16sp</dimen>
+
+    <!-- Spacing -->
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">12dp</dimen>
+    <dimen name="spacing_lg">16dp</dimen>
+    <dimen name="spacing_xl">24dp</dimen>
+
+    <!-- Text sizes -->
+    <dimen name="text_title">28sp</dimen>
+    <dimen name="text_heading">20sp</dimen>
+    <dimen name="text_subheading">16sp</dimen>
+    <dimen name="text_body">14sp</dimen>
+    <dimen name="text_caption">12sp</dimen>
+    <dimen name="text_small">11sp</dimen>
+
+    <!-- Input -->
+    <dimen name="input_height">44dp</dimen>
+    <dimen name="input_corner_radius">12dp</dimen>
+
+    <!-- Filter pill -->
+    <dimen name="pill_corner_radius">999dp</dimen>
+
+    <!-- FAB margin -->
+    <dimen name="fab_margin">16dp</dimen>
+</resources>

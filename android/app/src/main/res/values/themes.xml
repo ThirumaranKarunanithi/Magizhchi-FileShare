@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.MagizhchiShare" parent="Theme.MaterialComponents.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/primaryMid</item>
+        <item name="colorPrimaryVariant">@color/primaryDark</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/primaryLight</item>
+        <item name="colorSecondaryVariant">@color/primaryMid</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+
+        <!-- Background -->
+        <item name="android:colorBackground">@color/primaryDark</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorOnSurface</item>
+
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Navigation bar -->
+        <item name="android:navigationBarColor">@color/primaryDark</item>
+
+        <!-- Typography -->
+        <item name="android:textColorPrimary">@color/textPrimary</item>
+        <item name="android:textColorSecondary">@color/textSecondary</item>
+
+        <!-- Chip colors -->
+        <item name="chipBackgroundColor">@color/colorGlassWhite</item>
+        <item name="chipStrokeColor">@color/strokeGlass</item>
+        <item name="chipTextColor">@android:color/white</item>
+    </style>
+
+</resources>
