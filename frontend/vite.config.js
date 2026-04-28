@@ -31,10 +31,14 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
+          // Do NOT put React in its own manualChunk — Rollup can initialise the app
+          // chunk before the React chunk is ready, causing a TDZ ReferenceError
+          // ("Cannot access 'X' before initialization") at runtime in production.
+          // Let Vite/Rollup handle React splitting automatically via its built-in
+          // vendor-detection heuristics.
           manualChunks: {
-            react:   ['react', 'react-dom', 'react-router-dom'],
-            stomp:   ['@stomp/stompjs', 'sockjs-client'],
-            ui:      ['react-hot-toast', 'date-fns'],
+            stomp: ['@stomp/stompjs'],
+            ui:    ['react-hot-toast', 'date-fns'],
           },
         },
       },

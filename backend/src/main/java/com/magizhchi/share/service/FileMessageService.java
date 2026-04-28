@@ -152,7 +152,7 @@ public class FileMessageService {
         }
 
         activityService.record("FILE_UPLOADED", senderId, conversationId, msg.getId(), null,
-                sender.getDisplayName() + " uploaded "" + msg.getOriginalFileName() + """);
+                sender.getDisplayName() + " uploaded \"" + msg.getOriginalFileName() + "\"");
 
         log.info("File sent: msgId={}, conv={}, sender={}, size={}", msg.getId(), conversationId, senderId, fileSize);
         return response;
@@ -256,7 +256,7 @@ public class FileMessageService {
                                     "fileName",       "📁 " + folderName + " (" + fileCount + " files)"
                             ))));
             activityService.record("FOLDER_UPLOADED", senderId, conversationId, null, null,
-                    folderSenderName + " uploaded folder "" + folderName + "" (" + fileCount + " files)");
+                    folderSenderName + " uploaded folder \"" + folderName + "\" (" + fileCount + " files)");
         }
 
         return results;
@@ -308,7 +308,7 @@ public class FileMessageService {
                     .build());
             activityService.record("FILE_PINNED", requesterId, msg.getConversation().getId(),
                     messageId, null,
-                    user.getDisplayName() + " pinned "" + msg.getOriginalFileName() + """);
+                    user.getDisplayName() + " pinned \"" + msg.getOriginalFileName() + "\"");
         }
         return convService.toMessageResponse(msg, null, requesterId);
     }

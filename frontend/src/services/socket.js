@@ -1,10 +1,17 @@
 import { Client } from '@stomp/stompjs';
 
 // In dev the Vite proxy forwards /ws → ws://localhost:8080/ws (see vite.config.js).
-// Using window.location.host (includes port) keeps us on the same origin so the
-// Vite proxy handles the upgrade.  In prod, set VITE_WS_URL explicitly.
-const WS_URL = import.meta.env.VITE_WS_URL
-  || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
+// In prod:
+//   • If VITE_WS_URL is set explicitly → use it directly.
+//   • Otherwise, derive from VITE_API_URL: swap https→wss / http→ws and append /ws.
+//     This means setting VITE_API_URL=https://box.magizhchi.software is sufficient;
+//     the WS URL becomes wss://box.magizhchi.software/ws automatically.
+//   • Final fallback: same host as the page (works when backend and frontend share an origin).
+const _apiBase = import.meta.env.VITE_API_URL || '';
+const WS_URL   = import.meta.env.VITE_WS_URL
+  || (_apiBase
+        ? _apiBase.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:').replace(/\/$/, '') + '/ws'
+        : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`);
 
 let stompClient = null;
 

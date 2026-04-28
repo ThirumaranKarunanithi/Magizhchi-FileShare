@@ -52,7 +52,7 @@ public class FolderService {
 
         activityService.record("FOLDER_CREATED", userId, req.getConversationId(),
                 null, folder.getId(),
-                creator.getDisplayName() + " created folder "" + req.getName() + """);
+                creator.getDisplayName() + " created folder \"" + req.getName() + "\"");
 
         log.info("Folder created: id={}, name={}, conv={}", folder.getId(), folder.getName(), req.getConversationId());
         return toResponse(folder);
@@ -95,7 +95,7 @@ public class FolderService {
         activityService.record("FOLDER_DELETED", userId, folder.getConversation().getId(),
                 null, folderId,
                 userRepo.findById(userId).map(u -> u.getDisplayName()).orElse("Someone")
-                        + " deleted folder "" + folder.getName() + """);
+                        + " deleted folder \"" + folder.getName() + "\"");
     }
 
     private void softDeleteRecursive(Folder folder) {
