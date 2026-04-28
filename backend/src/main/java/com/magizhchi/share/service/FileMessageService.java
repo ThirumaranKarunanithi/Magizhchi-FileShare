@@ -51,19 +51,27 @@ public class FileMessageService {
     @Transactional
     public FileMessageResponse sendFile(Long conversationId, Long senderId,
                                         MultipartFile file, String caption) {
-        return sendFile(conversationId, senderId, file, caption, null, null);
+        return sendFile(conversationId, senderId, file, caption, null, null, null);
     }
 
     @Transactional
     public FileMessageResponse sendFile(Long conversationId, Long senderId,
                                         MultipartFile file, String caption, String folderPath) {
-        return sendFile(conversationId, senderId, file, caption, folderPath, null);
+        return sendFile(conversationId, senderId, file, caption, folderPath, null, null);
     }
 
     @Transactional
     public FileMessageResponse sendFile(Long conversationId, Long senderId,
                                         MultipartFile file, String caption,
                                         String folderPath, String mentionedUserIds) {
+        return sendFile(conversationId, senderId, file, caption, folderPath, mentionedUserIds, null);
+    }
+
+    @Transactional
+    public FileMessageResponse sendFile(Long conversationId, Long senderId,
+                                        MultipartFile file, String caption,
+                                        String folderPath, String mentionedUserIds,
+                                        FileMessage.DownloadPermission downloadPermission) {
         // Check membership
         if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(conversationId, senderId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "You are not a member of this conversation.");
@@ -93,6 +101,9 @@ public class FileMessageService {
         // Upload to S3
         String s3Key = storage.uploadFile(file, conversationId);
 
+        FileMessage.DownloadPermission effectivePerm =
+                downloadPermission != null ? downloadPermission : FileMessage.DownloadPermission.CAN_DOWNLOAD;
+
         FileMessage msg = FileMessage.builder()
                 .conversation(conv)
                 .sender(sender)
@@ -103,6 +114,7 @@ public class FileMessageService {
                 .caption(caption)
                 .folderPath(folderPath)
                 .category(FileMessage.categoryFrom(file.getContentType()))
+                .downloadPermission(effectivePerm)
                 .build();
 
         msgRepo.save(msg);
@@ -165,13 +177,21 @@ public class FileMessageService {
     @Transactional
     public List<FileMessageResponse> sendFolder(Long conversationId, Long senderId,
                                                 MultipartFile[] files, String[] relativePaths) {
-        return sendFolder(conversationId, senderId, files, relativePaths, null);
+        return sendFolder(conversationId, senderId, files, relativePaths, null, null);
     }
 
     @Transactional
     public List<FileMessageResponse> sendFolder(Long conversationId, Long senderId,
                                                 MultipartFile[] files, String[] relativePaths,
                                                 String caption) {
+        return sendFolder(conversationId, senderId, files, relativePaths, caption, null);
+    }
+
+    @Transactional
+    public List<FileMessageResponse> sendFolder(Long conversationId, Long senderId,
+                                                MultipartFile[] files, String[] relativePaths,
+                                                String caption,
+                                                FileMessage.DownloadPermission downloadPermission) {
         if (!memberRepo.existsByConversationIdAndUserIdAndIsActiveTrue(conversationId, senderId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "You are not a member of this conversation.");
         }
@@ -216,6 +236,9 @@ public class FileMessageService {
 
             String s3Key = storage.uploadFile(file, conversationId);
 
+            FileMessage.DownloadPermission effectiveFolderPerm =
+                    downloadPermission != null ? downloadPermission : FileMessage.DownloadPermission.CAN_DOWNLOAD;
+
             FileMessage msg = FileMessage.builder()
                     .conversation(conv)
                     .sender(sender)
@@ -226,6 +249,7 @@ public class FileMessageService {
                     .caption(caption)
                     .folderPath(folderPath)
                     .category(FileMessage.categoryFrom(file.getContentType()))
+                    .downloadPermission(effectiveFolderPerm)
                     .build();
 
             msgRepo.save(msg);

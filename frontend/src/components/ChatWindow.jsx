@@ -82,6 +82,7 @@ export default function ChatWindow({ conversation, onLeave }) {
   // ── Description dialog ─────────────────────────────────────────────────────
   // pendingUpload: null | { type:'files', files:File[] } | { type:'folder', picked:File[], folderName:string }
   const [pendingUpload,   setPendingUpload]   = useState(null);
+  const [uploadPermission, setUploadPermission] = useState('CAN_DOWNLOAD');
   const [description,     setDescription]     = useState('');
   const [multiProgress,   setMultiProgress]   = useState(null); // { done, total } for multi-file upload
 
@@ -195,7 +196,13 @@ export default function ChatWindow({ conversation, onLeave }) {
   useEffect(() => {
     const unsub = subscribeToConversation(conversation.id, event => {
       if (event.type === 'NEW_FILE') {
-        setMessages(prev => [event.payload, ...prev]);
+        // Deduplicate: the uploader already added the file optimistically from the
+        // API response; the WS push would add it again without this guard.
+        setMessages(prev =>
+          prev.some(m => m.id === event.payload.id)
+            ? prev
+            : [event.payload, ...prev]
+        );
       } else if (event.type === 'FILE_DELETED') {
         setMessages(prev => prev.filter(m => m.id !== event.payload.id));
       }
@@ -224,6 +231,7 @@ export default function ChatWindow({ conversation, onLeave }) {
     if (!picked.length) return;
     e.target.value = '';
     setDescription('');
+    setUploadPermission('CAN_DOWNLOAD');
     setMentionedIds(new Set());
     setPendingUpload({ type: 'files', files: picked });
   };
@@ -236,6 +244,7 @@ export default function ChatWindow({ conversation, onLeave }) {
     e.target.value = '';
     const folderName = picked[0].webkitRelativePath?.split('/')[0] || 'folder';
     setDescription('');
+    setUploadPermission('CAN_DOWNLOAD');
     setPendingUpload({ type: 'folder', picked, folderName });
   };
 
@@ -285,10 +294,12 @@ export default function ChatWindow({ conversation, onLeave }) {
   // Called when the user confirms the description dialog
   const confirmUpload = async () => {
     if (!pendingUpload) return;
-    const caption   = description.trim() || undefined;
-    const mentions  = mentionedIds.size > 0 ? [...mentionedIds].join(',') : undefined;
+    const caption     = description.trim() || undefined;
+    const mentions    = mentionedIds.size > 0 ? [...mentionedIds].join(',') : undefined;
+    const permission  = uploadPermission;
     setPendingUpload(null);
     setDescription('');
+    setUploadPermission('CAN_DOWNLOAD');
     setMentionedIds(new Set());
     setShowMentions(false);
 
@@ -300,8 +311,9 @@ export default function ChatWindow({ conversation, onLeave }) {
         try {
           const fd = new FormData();
           fd.append('file', picked[0]);
-          if (caption)  fd.append('caption', caption);
-          if (mentions) fd.append('mentionedUserIds', mentions);
+          if (caption)    fd.append('caption', caption);
+          if (mentions)   fd.append('mentionedUserIds', mentions);
+          if (permission) fd.append('permission', permission);
           const { data } = await files.send(conversation.id, fd);
           setMessages(prev => [data, ...prev]);
           toast.success(`"${picked[0].name}" uploaded!`);
@@ -315,8 +327,9 @@ export default function ChatWindow({ conversation, onLeave }) {
           try {
             const fd = new FormData();
             fd.append('file', file);
-            if (caption)  fd.append('caption', caption);
-            if (mentions) fd.append('mentionedUserIds', mentions);
+            if (caption)    fd.append('caption', caption);
+            if (mentions)   fd.append('mentionedUserIds', mentions);
+            if (permission) fd.append('permission', permission);
             const { data } = await files.send(conversation.id, fd);
             setMessages(prev => [data, ...prev]);
             succeeded++;
@@ -340,7 +353,8 @@ export default function ChatWindow({ conversation, onLeave }) {
         fd.append('files', f);
         fd.append('relativePaths', f.webkitRelativePath || f.name);
       });
-      if (caption) fd.append('caption', caption);
+      if (caption)    fd.append('caption', caption);
+      if (permission) fd.append('permission', permission);
       try {
         const { data } = await files.sendFolder(conversation.id, fd, (evt) => {
           if (evt.lengthComputable) {
@@ -1417,10 +1431,46 @@ export default function ChatWindow({ conversation, onLeave }) {
               </div>
             </div>
 
+            {/* ── Permission picker ── */}
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                Download Permission
+              </label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'CAN_DOWNLOAD',        icon: '⬇', label: 'Anyone',     desc: 'Anyone can download'      },
+                  { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
+                  { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setUploadPermission(opt.value)}
+                    className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
+                               border transition-all text-center"
+                    style={{
+                      background: uploadPermission === opt.value
+                        ? 'rgba(14,165,233,0.10)' : '#f8fafc',
+                      borderColor: uploadPermission === opt.value
+                        ? '#0ea5e9' : '#e2e8f0',
+                      boxShadow: uploadPermission === opt.value
+                        ? '0 0 0 2px rgba(14,165,233,0.20)' : 'none',
+                    }}>
+                    <span className="text-base leading-none">{opt.icon}</span>
+                    <span style={{
+                      fontSize: '11px', fontWeight: 700,
+                      color: uploadPermission === opt.value ? '#0284c7' : '#475569',
+                    }}>{opt.label}</span>
+                    <span style={{ fontSize: '9px', color: '#94a3b8', lineHeight: 1.3 }}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Actions */}
             <div className="flex gap-2.5">
               <button
-                onClick={() => { setPendingUpload(null); setDescription(''); }}
+                onClick={() => { setPendingUpload(null); setDescription(''); setUploadPermission('CAN_DOWNLOAD'); }}
                 style={{
                   flex: 1, padding: '10px', borderRadius: '12px',
                   fontSize: '0.875rem', fontWeight: 600, color: '#475569',
@@ -1428,6 +1478,7 @@ export default function ChatWindow({ conversation, onLeave }) {
                 }}>
                 Cancel
               </button>
+              {/* duplicate cancel button removed — handled by the onClick above */}
               <button
                 onClick={confirmUpload}
                 disabled={uploading || !!folderProgress || !!multiProgress}

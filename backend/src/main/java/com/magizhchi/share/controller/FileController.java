@@ -39,7 +39,7 @@ public class FileController {
 
     // ── Upload ────────────────────────────────────────────────────────────────
 
-    /** Upload a single file (optionally with a caption and @mention list). */
+    /** Upload a single file (optionally with a caption, @mention list, and download permission). */
     @PostMapping("/send/{conversationId}")
     public ResponseEntity<FileMessageResponse> sendFile(
             @PathVariable Long conversationId,
@@ -47,9 +47,11 @@ public class FileController {
             @RequestParam(value = "caption",           required = false) String caption,
             @RequestParam(value = "folderPath",         required = false) String folderPath,
             @RequestParam(value = "mentionedUserIds",   required = false) String mentionedUserIds,
+            @RequestParam(value = "permission",         required = false) String permission,
             @AuthenticationPrincipal User user) {
+        FileMessage.DownloadPermission perm = parsePermission(permission);
         return ResponseEntity.ok(
-                fileService.sendFile(conversationId, user.getId(), file, caption, folderPath, mentionedUserIds));
+                fileService.sendFile(conversationId, user.getId(), file, caption, folderPath, mentionedUserIds, perm));
     }
 
     /**
@@ -64,9 +66,19 @@ public class FileController {
             @RequestParam("files") MultipartFile[] files,
             @RequestParam(value = "relativePaths", required = false) String[] relativePaths,
             @RequestParam(value = "caption",       required = false) String caption,
+            @RequestParam(value = "permission",    required = false) String permission,
             @AuthenticationPrincipal User user) {
+        FileMessage.DownloadPermission perm = parsePermission(permission);
         return ResponseEntity.ok(
-                fileService.sendFolder(conversationId, user.getId(), files, relativePaths, caption));
+                fileService.sendFolder(conversationId, user.getId(), files, relativePaths, caption, perm));
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private static FileMessage.DownloadPermission parsePermission(String raw) {
+        if (raw == null || raw.isBlank()) return FileMessage.DownloadPermission.CAN_DOWNLOAD;
+        try { return FileMessage.DownloadPermission.valueOf(raw.toUpperCase()); }
+        catch (IllegalArgumentException e) { return FileMessage.DownloadPermission.CAN_DOWNLOAD; }
     }
 
     // ── URL generation ────────────────────────────────────────────────────────
