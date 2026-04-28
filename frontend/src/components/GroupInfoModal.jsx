@@ -75,6 +75,28 @@ export default function GroupInfoModal({ conversation, onClose, onUpdated }) {
     } finally { setActionLoading(null); }
   };
 
+  // ── Promote / Demote ─────────────────────────────────────────────────────────
+  const handleRoleChange = async (userId, displayName, currentRole) => {
+    const newRole   = currentRole === 'ADMIN' ? 'MEMBER' : 'ADMIN';
+    const actionMsg = newRole === 'ADMIN'
+      ? `Make ${displayName} an admin of this group?`
+      : `Remove admin rights from ${displayName}?`;
+    if (!window.confirm(actionMsg)) return;
+
+    setActionLoading(userId);
+    try {
+      await conversations.setMemberRole(conversation.id, userId, newRole);
+      toast.success(
+        newRole === 'ADMIN'
+          ? `${displayName} is now an admin.`
+          : `${displayName} is now a regular member.`
+      );
+      await loadMembers();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not update role.');
+    } finally { setActionLoading(null); }
+  };
+
   // ── Remove member ────────────────────────────────────────────────────────────
   const handleRemove = async (userId, displayName) => {
     const isSelf = userId === currentUser?.id;
@@ -219,10 +241,13 @@ export default function GroupInfoModal({ conversation, onClose, onUpdated }) {
             ) : (
               <div className="flex flex-col gap-1">
                 {members.map(m => {
-                  const isSelf  = m.userId === currentUser?.id;
+                  const isSelf        = m.userId === currentUser?.id;
                   const isAdminMember = m.role === 'ADMIN';
-                  // Can remove: admin can remove non-self members; anyone can leave (remove self)
-                  const canRemove = isAdmin ? true : isSelf;
+                  // Admins can remove anyone; anyone can leave themselves
+                  const canRemove     = isAdmin ? true : isSelf;
+                  // Only admins can change roles; cannot change your own role
+                  const canChangeRole = isAdmin && !isSelf;
+                  const isActing      = actionLoading === m.userId;
 
                   return (
                     <div key={m.userId}
@@ -234,14 +259,13 @@ export default function GroupInfoModal({ conversation, onClose, onUpdated }) {
                       <Avatar name={m.displayName} photoUrl={m.profilePhotoUrl} size="sm"/>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-white truncate">
                             {m.displayName}
                             {isSelf && <span className="text-white/40 font-normal"> (you)</span>}
                           </span>
                           {/* Role badge */}
-                          <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5
-                                           rounded-full"
+                          <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                                 style={isAdminMember ? {
                                   background: 'rgba(250,204,21,0.2)',
                                   border: '1px solid rgba(250,204,21,0.35)',
@@ -256,22 +280,47 @@ export default function GroupInfoModal({ conversation, onClose, onUpdated }) {
                         </div>
                       </div>
 
-                      {/* Remove / Leave button */}
-                      {canRemove && (
-                        <button
-                          onClick={() => handleRemove(m.userId, m.displayName)}
-                          disabled={actionLoading === m.userId}
-                          title={isSelf ? 'Leave group' : 'Remove member'}
-                          className="opacity-0 group-hover:opacity-100 text-xs font-semibold
-                                     px-2.5 py-1 rounded-lg transition-all disabled:opacity-40"
-                          style={{
-                            background: isSelf ? 'rgba(251,191,36,0.15)' : 'rgba(239,68,68,0.15)',
-                            border: isSelf ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(239,68,68,0.3)',
-                            color: isSelf ? '#fcd34d' : '#fca5a5',
-                          }}>
-                          {actionLoading === m.userId ? '…' : isSelf ? 'Leave' : 'Remove'}
-                        </button>
-                      )}
+                      {/* Action buttons — visible on row hover */}
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+
+                        {/* Promote / Demote role button */}
+                        {canChangeRole && (
+                          <button
+                            onClick={() => handleRoleChange(m.userId, m.displayName, m.role)}
+                            disabled={isActing}
+                            title={isAdminMember ? 'Remove admin' : 'Make admin'}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-lg
+                                       transition-all disabled:opacity-40"
+                            style={isAdminMember ? {
+                              background: 'rgba(250,204,21,0.12)',
+                              border: '1px solid rgba(250,204,21,0.30)',
+                              color: '#fcd34d',
+                            } : {
+                              background: 'rgba(56,189,248,0.15)',
+                              border: '1px solid rgba(56,189,248,0.30)',
+                              color: '#7dd3fc',
+                            }}>
+                            {isActing ? '…' : isAdminMember ? '★ Remove Admin' : '☆ Make Admin'}
+                          </button>
+                        )}
+
+                        {/* Remove / Leave button */}
+                        {canRemove && (
+                          <button
+                            onClick={() => handleRemove(m.userId, m.displayName)}
+                            disabled={isActing}
+                            title={isSelf ? 'Leave group' : 'Remove member'}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-lg
+                                       transition-all disabled:opacity-40"
+                            style={{
+                              background: isSelf ? 'rgba(251,191,36,0.15)' : 'rgba(239,68,68,0.15)',
+                              border: isSelf ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(239,68,68,0.3)',
+                              color: isSelf ? '#fcd34d' : '#fca5a5',
+                            }}>
+                            {isActing ? '…' : isSelf ? 'Leave' : 'Remove'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

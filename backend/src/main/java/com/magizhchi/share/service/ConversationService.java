@@ -154,7 +154,7 @@ public class ConversationService {
     public void removeMemberFromGroup(Long conversationId, Long requesterId, Long targetUserId) {
         Conversation conv = getConversation(conversationId);
 
-        // Admin can remove anyone; members can only remove themselves
+        // Admin can remove anyone; members can only remove themselves (self-exit)
         if (!requesterId.equals(targetUserId)) {
             requireAdmin(conv, requesterId);
         }
@@ -163,8 +163,76 @@ public class ConversationService {
                 .findByConversationIdAndUserId(conversationId, targetUserId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Member not found."));
 
+        boolean leavingUserIsAdmin = member.getRole() == ConversationMember.MemberRole.ADMIN;
+
+        // Deactivate the member
         member.setIsActive(false);
         member.setLeftAt(Instant.now());
+        memberRepo.save(member);
+
+        // ── Admin-transfer logic ──────────────────────────────────────────────
+        // Only needed when the leaving user was an admin.
+        if (leavingUserIsAdmin) {
+            List<ConversationMember> remaining = memberRepo.findActiveMembers(conversationId);
+
+            if (remaining.isEmpty()) {
+                // Last person left — group is now empty.
+                // It won't appear in anyone's sidebar (no active members).
+                // Files remain in S3 with storage credited to their respective uploaders.
+                return;
+            }
+
+            boolean stillHasAdmin = remaining.stream()
+                    .anyMatch(m -> m.getRole() == ConversationMember.MemberRole.ADMIN);
+
+            if (!stillHasAdmin) {
+                // Auto-promote the longest-standing active member to ADMIN
+                // (the one who joined earliest, i.e. minimum joinedAt).
+                ConversationMember promoted = remaining.stream()
+                        .min(Comparator.comparing(ConversationMember::getJoinedAt))
+                        .orElseThrow();
+                promoted.setRole(ConversationMember.MemberRole.ADMIN);
+                memberRepo.save(promoted);
+            }
+        }
+    }
+
+    // ── Role management ───────────────────────────────────────────────────────
+
+    /**
+     * Promote a member to ADMIN or demote an admin back to MEMBER.
+     * Only an existing admin can perform this.
+     * Demoting the last admin is blocked — the group must always have at least one admin.
+     */
+    @Transactional
+    public void setMemberRole(Long conversationId, Long requesterId,
+                              Long targetUserId, ConversationMember.MemberRole newRole) {
+        Conversation conv = getConversation(conversationId);
+        requireAdmin(conv, requesterId);
+
+        if (requesterId.equals(targetUserId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Use 'Exit Group' to leave. You cannot change your own role here.");
+        }
+
+        ConversationMember member = memberRepo
+                .findByConversationIdAndUserId(conversationId, targetUserId)
+                .filter(ConversationMember::getIsActive)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Member not found."));
+
+        // Guard: don't allow demoting the last remaining admin
+        if (newRole == ConversationMember.MemberRole.MEMBER
+                && member.getRole() == ConversationMember.MemberRole.ADMIN) {
+            long adminCount = memberRepo.findActiveMembers(conversationId).stream()
+                    .filter(m -> m.getRole() == ConversationMember.MemberRole.ADMIN)
+                    .count();
+            if (adminCount <= 1) {
+                throw new AppException(HttpStatus.BAD_REQUEST,
+                        "Cannot demote the only admin. Promote another member first.");
+            }
+        }
+
+        member.setRole(newRole);
         memberRepo.save(member);
     }
 

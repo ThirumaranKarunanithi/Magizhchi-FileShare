@@ -62,7 +62,7 @@ const CAT_LABEL  = { ALL: 'All Files', IMAGE: '🖼 Images', VIDEO: '🎬 Videos
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function ChatWindow({ conversation }) {
+export default function ChatWindow({ conversation, onLeave }) {
   const { currentUser } = useAuth();
 
   const [messages,  setMessages]  = useState([]);
@@ -553,7 +553,7 @@ export default function ChatWindow({ conversation }) {
                   </div>
 
                   {/* GROUP options */}
-                  {conversation.type === 'GROUP' && (
+                  {conversation.type === 'GROUP' && (<>
                     <button
                       onClick={() => { setShowGroupInfo(true); setShowSettings(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3
@@ -564,7 +564,41 @@ export default function ChatWindow({ conversation }) {
                         <p className="text-[11px] text-slate-400">Members, roles &amp; info</p>
                       </div>
                     </button>
-                  )}
+
+                    <div className="mx-3 border-t border-slate-100"/>
+
+                    <button
+                      onClick={async () => {
+                        setShowSettings(false);
+                        // Build a meaningful confirmation message
+                        const isAdmin = (() => {
+                          // We check by fetching members list already loaded (groupMembers only has non-self)
+                          // so we rely on the conversation's member context — simplest: always mention it
+                          return true; // backend handles promotion transparently
+                        })();
+                        const msg = [
+                          `Leave "${conversation.name}"?`,
+                          '',
+                          '• Your uploaded files will stay in the group — other members can still access them.',
+                          '• If you are the only admin, the longest-standing member will be promoted to admin automatically.',
+                          '• You can rejoin only if an admin adds you back.',
+                        ].join('\n');
+                        if (!window.confirm(msg)) return;
+                        try {
+                          await conversations.removeMember(conversation.id, currentUser.id);
+                          toast.success(`You left "${conversation.name}".`);
+                          onLeave?.();
+                        } catch (e) { toast.error(e?.toString() || 'Could not leave group.'); }
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3
+                                 hover:bg-red-50 transition-colors text-left">
+                      <span className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center text-sm">🚪</span>
+                      <div>
+                        <p className="text-sm font-semibold text-red-600">Exit Group</p>
+                        <p className="text-[11px] text-slate-400">Leave this group</p>
+                      </div>
+                    </button>
+                  </>)}
 
                   {/* DIRECT options */}
                   {conversation.type === 'DIRECT' && (<>

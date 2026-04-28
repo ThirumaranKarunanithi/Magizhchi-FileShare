@@ -86,6 +86,26 @@ public class ConversationController {
         return ResponseEntity.ok(Map.of("message", "Member removed."));
     }
 
+    /**
+     * PATCH /api/conversations/{id}/members/{userId}/role?role=ADMIN|MEMBER
+     * Promote or demote a member. Caller must be an admin.
+     */
+    @PatchMapping("/{id}/members/{userId}/role")
+    public ResponseEntity<Map<String, String>> setMemberRole(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @RequestParam String role,
+            @AuthenticationPrincipal User user) {
+        com.magizhchi.share.model.ConversationMember.MemberRole newRole;
+        try {
+            newRole = com.magizhchi.share.model.ConversationMember.MemberRole.valueOf(role.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid role: " + role));
+        }
+        convService.setMemberRole(id, user.getId(), userId, newRole);
+        return ResponseEntity.ok(Map.of("message", "Role updated."));
+    }
+
     // ── Members list ──────────────────────────────────────────────────────────
 
     @GetMapping("/{id}/members")

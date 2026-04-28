@@ -74,7 +74,7 @@ function markOpened(convId) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function Sidebar({ selected, onSelect }) {
+export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
   const { currentUser, logout } = useAuth();
 
   const [convList,         setConvList]         = useState([]);
@@ -145,7 +145,7 @@ export default function Sidebar({ selected, onSelect }) {
         // Show placeholder so the bar is always visible
         setStorageData({ usedBytes: 0, limitBytes: 5368709120, usedPercent: 0 });
       });
-  }, [currentUser?.id]); // re-run if user changes
+  }, [currentUser?.id, refreshSignal]); // re-run if user changes or forced refresh
 
   // ── Refresh pending count ────────────────────────────────────────────────
   const refreshPendingCount = useCallback(() => {

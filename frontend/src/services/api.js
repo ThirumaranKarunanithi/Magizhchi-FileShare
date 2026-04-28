@@ -62,6 +62,7 @@ export const conversations = {
   createGroup:    formData         => api.post('/api/conversations/group', formData),
   addMember:      (cid, uid)       => api.post(`/api/conversations/${cid}/members/${uid}`),
   removeMember:   (cid, uid)       => api.delete(`/api/conversations/${cid}/members/${uid}`),
+  setMemberRole:  (cid, uid, role) => api.patch(`/api/conversations/${cid}/members/${uid}/role`, null, { params: { role } }),
   members:        (cid)            => api.get(`/api/conversations/${cid}/members`),
   fileHistory:    (cid, p = 0)     => api.get(`/api/conversations/${cid}/files`, { params: { page: p } }),
 };

@@ -7,7 +7,8 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
   const { currentUser } = useAuth();
-  const [selectedConv, setSelectedConv] = useState(null);
+  const [selectedConv,       setSelectedConv]       = useState(null);
+  const [convRefreshSignal,  setConvRefreshSignal]  = useState(0);
 
   // Connect the WebSocket only AFTER the user is authenticated.
   // React runs children effects before parent effects, so by the time this
@@ -24,11 +25,12 @@ export default function Home() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">
-      <Sidebar selected={selectedConv} onSelect={setSelectedConv}/>
+      <Sidebar selected={selectedConv} onSelect={setSelectedConv} refreshSignal={convRefreshSignal}/>
       {selectedConv?.type === 'SHARED_WITH_ME' ? (
         <SharedWithMeView key="shared-with-me"/>
       ) : selectedConv ? (
-        <ChatWindow key={selectedConv.id} conversation={selectedConv}/>
+        <ChatWindow key={selectedConv.id} conversation={selectedConv}
+                    onLeave={() => { setSelectedConv(null); setConvRefreshSignal(v => v + 1); }}/>
       ) : (
         <EmptyState/>
       )}
