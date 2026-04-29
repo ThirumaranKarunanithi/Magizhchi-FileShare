@@ -202,7 +202,12 @@ export default function Register() {
                     Mobile number <span className="text-red-400 font-normal text-xs">*</span>
                   </label>
                   <div className="flex rounded-xl overflow-visible"
-                       style={{ border: '1.5px solid #cbd5e1', background: 'rgba(15,23,42,0.92)' }}>
+                       style={{
+                         border: '1px solid rgba(255,255,255,0.6)',
+                         background: 'rgba(255,255,255,0.8)',
+                         backdropFilter: 'blur(4px)',
+                         boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+                       }}>
                     <CountryCodePicker value={countryCode} onChange={setCountryCode}/>
                     <input
                       type="tel"
@@ -212,9 +217,9 @@ export default function Register() {
                       required
                       style={{
                         flex: 1, padding: '10px 12px', background: 'transparent',
-                        border: 'none', outline: 'none', color: 'white',
+                        border: 'none', outline: 'none', color: '#1e293b',
                         fontSize: '0.9rem', borderRadius: '0 10px 10px 0',
-                        caretColor: 'white',
+                        caretColor: '#0EA5E9',
                       }}/>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">

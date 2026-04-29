@@ -55,6 +55,14 @@ public interface ApiService {
     @GET("api/conversations")
     Call<List<ConversationResponse>> getConversations();
 
+    /** The caller's personal-storage conversation (auto-created on first call). */
+    @GET("api/conversations/personal")
+    Call<ConversationResponse> getPersonalConversation();
+
+    /** Files shared WITH the current user — used for the Shared Files card stats. */
+    @GET("api/share/shared-with-me")
+    Call<List<FileMessageResponse>> getSharedWithMe();
+
     /**
      * Returns a Page<FileMessageResponse>. Use ResponseBody + manual Gson parsing
      * to extract the "content" list, supporting pagination.

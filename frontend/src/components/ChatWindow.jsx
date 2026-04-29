@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { conversations, files, connections, sharing, folders as foldersApi } from '../services/api';
+import { conversations, users, files, connections, sharing, folders as foldersApi } from '../services/api';
 import { subscribeToConversation } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
@@ -133,6 +133,10 @@ export default function ChatWindow({ conversation, onLeave }) {
   const [filter,         setFilter]         = useState('ALL');
   // Folder navigation — null = root view, string = inside that folderPath
   const [currentFolderPath, setCurrentFolderPath] = useState(null);
+  // When true, the file list collapses to ALL pinned items (files + folders)
+  // across the conversation, ignoring folder navigation. Toggled by clicking
+  // the "📌 Pinned" header band.
+  const [pinnedView, setPinnedView] = useState(false);
 
   // New-folder dialog state
   const [showNewFolderDialog,    setShowNewFolderDialog]    = useState(false);
@@ -239,6 +243,9 @@ export default function ChatWindow({ conversation, onLeave }) {
   const settingsRef = useRef(null);
   // memberCount kept in sync after add/remove so the header subtitle stays accurate
   const [memberCount,    setMemberCount]    = useState(conversation.memberCount ?? 0);
+  // For DIRECT chats: the OTHER party's profile (status message, last-seen).
+  // Used to show their status under their name in the chat header.
+  const [directUser, setDirectUser] = useState(null);
   // Map<fileMessageId, SharedResourceResponse[]> — files the current user shared, with targets
   const [sharedFilesMap, setSharedFilesMap] = useState(new Map());
   // Shares visible inside this specific conversation (bidirectional for DIRECT, group-wide for GROUP)
@@ -342,6 +349,7 @@ export default function ChatWindow({ conversation, onLeave }) {
     setHasMore(true);
     setSelected(new Set());
     setCurrentFolderPath(null);
+    setPinnedView(false);
     setMemberCount(conversation.memberCount ?? 0);
     // Reload pending folders for the new conversation
     try {
@@ -384,12 +392,33 @@ export default function ChatWindow({ conversation, onLeave }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Load group members for @mention ────────────────────────────────────────
+  // ── Load group members (for @mention) AND direct counterparty (for status) ──
   useEffect(() => {
-    if (conversation.type !== 'GROUP') { setGroupMembers([]); return; }
-    conversations.members(conversation.id)
-      .then(r => setGroupMembers(r.data.filter(m => m.userId !== currentUser?.id)))
-      .catch(() => {});
+    setDirectUser(null);
+    if (conversation.type === 'GROUP') {
+      conversations.members(conversation.id)
+        .then(r => setGroupMembers(r.data.filter(m => m.userId !== currentUser?.id)))
+        .catch(() => {});
+      return;
+    }
+    setGroupMembers([]);
+    if (conversation.type === 'DIRECT') {
+      // Pick the other party from the conversation's member list, then hydrate
+      // their full profile (statusMessage, lastSeenAt) via /api/users/{id}.
+      conversations.members(conversation.id)
+        .then(r => {
+          const other = r.data.find(m => m.userId !== currentUser?.id);
+          if (!other) return;
+          users.getById(other.userId)
+            .then(u => setDirectUser(u.data))
+            .catch(() => setDirectUser({
+              id:              other.userId,
+              displayName:     other.displayName,
+              profilePhotoUrl: other.profilePhotoUrl,
+            }));
+        })
+        .catch(() => {});
+    }
   }, [conversation.id]); // eslint-disable-line
 
   // ── Persist pending (empty) folders per-conversation ────────────────────────
@@ -993,9 +1022,12 @@ export default function ChatWindow({ conversation, onLeave }) {
       }
     })
     // ── Folder navigation filter ─────────────────────────────────────────────
-    // At root (null) → show everything.
-    // Inside a folder → show only files whose folderPath starts with currentFolderPath.
+    // Pinned view: show ONLY pinned items, regardless of which folder they
+    // live in (so files pinned inside a sub-folder become directly reachable).
+    // Otherwise: at root → show everything; inside a folder → only files
+    // whose folderPath starts with currentFolderPath.
     .filter(m => {
+      if (pinnedView) return !!m.isPinned;
       if (!currentFolderPath) return true;
       return m.folderPath && m.folderPath.startsWith(currentFolderPath);
     })
@@ -1011,13 +1043,20 @@ export default function ChatWindow({ conversation, onLeave }) {
     });
   const allChecked = displayed.length > 0 && displayed.every(m => selected.has(m.id));
 
-  // Combine all registered/empty folder paths so they show up in the grouped
-  // view even before any files exist inside them.
-  const extraFolderPaths = new Set([
-    ...pendingFolders,
-    ...folderPathToId.keys(),
-  ]);
-  const rawGroups = groupByFolder(displayed, currentFolderPath, extraFolderPaths);
+  // In Pinned view: only inject the pinned folders (so they appear as cells
+  // in the flat list). In normal view: inject every registered/empty folder.
+  const extraFolderPaths = pinnedView
+    ? new Set([...folderPathToPinned.entries()].filter(([, v]) => v).map(([k]) => k))
+    : new Set([...pendingFolders, ...folderPathToId.keys()]);
+
+  // In pinned view we drop each pinned file's folderPath BEFORE grouping so
+  // that a file pinned inside `js/sub/foo.js` shows up as a flat file cell —
+  // not nested inside a `js/` folder cell (groupByFolder would otherwise
+  // bucket it by its first path segment when currentFolderPath is null).
+  const displayedForGrouping = pinnedView
+    ? displayed.map(m => ({ ...m, folderPath: null }))
+    : displayed;
+  const rawGroups = groupByFolder(displayedForGrouping, pinnedView ? null : currentFolderPath, extraFolderPaths);
 
   // ── Pin sort ───────────────────────────────────────────────────────────────
   // Pinned folders bubble to the top of the group list; pinned files bubble
@@ -1095,6 +1134,15 @@ export default function ChatWindow({ conversation, onLeave }) {
           )}
           <div>
             <h2 className="text-white font-bold text-lg leading-tight">{conversation.name}</h2>
+            {/* For DIRECT chats, surface the other user's status message
+                under their name (mail-/WhatsApp-style). Falls back to the
+                generic "Direct file share" label when no status is set. */}
+            {conversation.type === 'DIRECT' && directUser?.statusMessage?.trim() ? (
+              <p className="text-white/85 text-xs italic truncate max-w-[260px]"
+                 title={directUser.statusMessage}>
+                💬 {directUser.statusMessage}
+              </p>
+            ) : null}
             <p className="text-white/70 text-xs">
               {conversation.type === 'GROUP'
                 ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
@@ -1518,7 +1566,7 @@ export default function ChatWindow({ conversation, onLeave }) {
                styled with a distinct violet icon to mark them as shared.) */}
 
           {/* ── Breadcrumb — shown when inside a folder ── */}
-          {currentFolderPath && (
+          {currentFolderPath && !pinnedView && (
             <div className="flex items-center gap-1.5 px-5 py-2.5 flex-wrap sticky top-0 z-20"
                  style={{
                    background: 'rgba(255,255,255,0.13)',
@@ -1574,20 +1622,28 @@ export default function ChatWindow({ conversation, onLeave }) {
             </div>
           )}
 
-          {/* ── Pinned divider — shown only when at least one pinned folder/file is in view ── */}
-          {hasPinnedHere && (
-            <div className="flex items-center gap-2 px-5 py-1.5"
-                 style={{
-                   background: 'rgba(251,191,36,0.18)',
-                   borderBottom: '1px solid rgba(251,191,36,0.35)',
-                 }}>
+          {/* ── Pinned band — clickable. Toggles "Pinned only" mode that
+              flattens every pinned item across the conversation (including
+              files pinned inside folders) into one view. */}
+          {(hasPinnedHere || pinnedView) && (
+            <button
+              type="button"
+              onClick={() => setPinnedView(v => !v)}
+              title={pinnedView ? 'Click to show all files' : 'Click to show only pinned files'}
+              className="w-full flex items-center gap-2 px-5 py-1.5 transition-colors"
+              style={{
+                background: pinnedView ? 'rgba(251,191,36,0.45)' : 'rgba(251,191,36,0.18)',
+                borderBottom: '1px solid rgba(251,191,36,0.35)',
+              }}>
               <span className="text-amber-200 text-xs">📌</span>
               <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wider">
-                Pinned
+                {pinnedView ? 'Pinned · only pinned items' : 'Pinned'}
               </span>
-              <div className="flex-1 h-px"
-                   style={{ background: 'rgba(251,191,36,0.20)' }}/>
-            </div>
+              <div className="flex-1 h-px" style={{ background: 'rgba(251,191,36,0.20)' }}/>
+              <span className="text-[10px] font-semibold text-amber-100/80">
+                {pinnedView ? 'tap to show all ✕' : 'tap to filter ▸'}
+              </span>
+            </button>
           )}
 
           {/* In grid/tiles modes, wrap all groups in ONE outer CSS grid so that
@@ -1683,7 +1739,7 @@ export default function ChatWindow({ conversation, onLeave }) {
                     {/* Body — click to navigate into the folder */}
                     <button
                       type="button"
-                      onClick={() => setCurrentFolderPath(group.folderPath)}
+                      onClick={() => { setPinnedView(false); setCurrentFolderPath(group.folderPath); }}
                       title="Open folder"
                       className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
                       <span className="text-lg">📁</span>
@@ -1806,7 +1862,7 @@ export default function ChatWindow({ conversation, onLeave }) {
                       <div
                         key={'folder-cell-' + fp}
                         className="group/cell relative rounded-xl transition-all cursor-pointer"
-                        onClick={() => setCurrentFolderPath(fp)}
+                        onClick={() => { setPinnedView(false); setCurrentFolderPath(fp); }}
                         title={`Open "${folderDisplayName}"`}
                         style={{
                           background: folderFullySelected
@@ -2545,6 +2601,9 @@ export default function ChatWindow({ conversation, onLeave }) {
             {/* ── Permission picker ── */}
             {(() => {
               const lockedToViewOnly = isViewOnlyChainPath(currentFolderPath);
+              // "Admins" makes sense only when uploading to a GROUP — there are
+              // no admins in personal storage or a 1-on-1 chat.
+              const adminAllowed = conversation.type === 'GROUP';
               const effectiveValue   = lockedToViewOnly ? 'VIEW_ONLY' : uploadPermission;
               return (
                 <div className="mb-5">
@@ -2557,14 +2616,21 @@ export default function ChatWindow({ conversation, onLeave }) {
                       { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
                       { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
                     ].map(opt => {
-                      const disabled = lockedToViewOnly && opt.value !== 'VIEW_ONLY';
-                      const selected = effectiveValue === opt.value;
+                      const isAdmin   = opt.value === 'ADMIN_ONLY_DOWNLOAD';
+                      const disabled  = (lockedToViewOnly && opt.value !== 'VIEW_ONLY')
+                                     || (isAdmin && !adminAllowed);
+                      const selected = !disabled && effectiveValue === opt.value;
                       return (
                         <button
                           key={opt.value}
                           type="button"
                           disabled={disabled}
                           onClick={() => !disabled && setUploadPermission(opt.value)}
+                          title={
+                            isAdmin && !adminAllowed
+                              ? 'Available only when uploading to a group'
+                              : undefined
+                          }
                           className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
                                      border transition-all text-center"
                           style={{
@@ -2726,6 +2792,9 @@ export default function ChatWindow({ conversation, onLeave }) {
             {/* Default download permission */}
             {(() => {
               const lockedToViewOnly = isViewOnlyChainPath(currentFolderPath);
+              // "Admins" only makes sense when the folder belongs to a GROUP
+              // conversation — there are no admins in personal storage or 1-on-1 chats.
+              const adminAllowed = conversation.type === 'GROUP';
               return (
                 <div className="mt-3">
                   <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
@@ -2737,15 +2806,24 @@ export default function ChatWindow({ conversation, onLeave }) {
                       { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
                       { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
                     ].map(opt => {
+                      const isAdmin   = opt.value === 'ADMIN_ONLY_DOWNLOAD';
                       // When locked to view-only, every option except VIEW_ONLY is disabled.
-                      const disabled = lockedToViewOnly && opt.value !== 'VIEW_ONLY';
-                      const selected = (lockedToViewOnly ? 'VIEW_ONLY' : newFolderPermission) === opt.value;
+                      // Admins is also disabled outside group conversations.
+                      const disabled = (lockedToViewOnly && opt.value !== 'VIEW_ONLY')
+                                    || (isAdmin && !adminAllowed);
+                      const selected = !disabled
+                        && (lockedToViewOnly ? 'VIEW_ONLY' : newFolderPermission) === opt.value;
                       return (
                         <button
                           key={opt.value}
                           type="button"
                           disabled={disabled}
                           onClick={() => !disabled && setNewFolderPermission(opt.value)}
+                          title={
+                            isAdmin && !adminAllowed
+                              ? 'Available only inside group conversations'
+                              : undefined
+                          }
                           className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
                                      border transition-all text-center"
                           style={{

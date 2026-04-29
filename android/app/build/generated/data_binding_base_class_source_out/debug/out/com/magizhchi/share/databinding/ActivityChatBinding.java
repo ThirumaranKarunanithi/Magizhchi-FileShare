@@ -6,6 +6,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -15,7 +17,6 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
-import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.magizhchi.share.R;
 import java.lang.NullPointerException;
@@ -27,10 +28,19 @@ public final class ActivityChatBinding implements ViewBinding {
   private final CoordinatorLayout rootView;
 
   @NonNull
+  public final ImageButton btnDeleteSelected;
+
+  @NonNull
+  public final ImageButton btnExitSelection;
+
+  @NonNull
+  public final Button btnFilter;
+
+  @NonNull
   public final Button btnLoadMore;
 
   @NonNull
-  public final ChipGroup chipGroupFilter;
+  public final ImageButton btnSelectAll;
 
   @NonNull
   public final EditText etSearch;
@@ -45,23 +55,37 @@ public final class ActivityChatBinding implements ViewBinding {
   public final RecyclerView recyclerFiles;
 
   @NonNull
+  public final LinearLayout selectionToolbar;
+
+  @NonNull
   public final Toolbar toolbar;
+
+  @NonNull
+  public final TextView tvSelectionCount;
 
   @NonNull
   public final TextView tvSubtitle;
 
-  private ActivityChatBinding(@NonNull CoordinatorLayout rootView, @NonNull Button btnLoadMore,
-      @NonNull ChipGroup chipGroupFilter, @NonNull EditText etSearch,
-      @NonNull FloatingActionButton fabUpload, @NonNull ProgressBar progressBar,
-      @NonNull RecyclerView recyclerFiles, @NonNull Toolbar toolbar, @NonNull TextView tvSubtitle) {
+  private ActivityChatBinding(@NonNull CoordinatorLayout rootView,
+      @NonNull ImageButton btnDeleteSelected, @NonNull ImageButton btnExitSelection,
+      @NonNull Button btnFilter, @NonNull Button btnLoadMore, @NonNull ImageButton btnSelectAll,
+      @NonNull EditText etSearch, @NonNull FloatingActionButton fabUpload,
+      @NonNull ProgressBar progressBar, @NonNull RecyclerView recyclerFiles,
+      @NonNull LinearLayout selectionToolbar, @NonNull Toolbar toolbar,
+      @NonNull TextView tvSelectionCount, @NonNull TextView tvSubtitle) {
     this.rootView = rootView;
+    this.btnDeleteSelected = btnDeleteSelected;
+    this.btnExitSelection = btnExitSelection;
+    this.btnFilter = btnFilter;
     this.btnLoadMore = btnLoadMore;
-    this.chipGroupFilter = chipGroupFilter;
+    this.btnSelectAll = btnSelectAll;
     this.etSearch = etSearch;
     this.fabUpload = fabUpload;
     this.progressBar = progressBar;
     this.recyclerFiles = recyclerFiles;
+    this.selectionToolbar = selectionToolbar;
     this.toolbar = toolbar;
+    this.tvSelectionCount = tvSelectionCount;
     this.tvSubtitle = tvSubtitle;
   }
 
@@ -92,15 +116,33 @@ public final class ActivityChatBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.btnDeleteSelected;
+      ImageButton btnDeleteSelected = ViewBindings.findChildViewById(rootView, id);
+      if (btnDeleteSelected == null) {
+        break missingId;
+      }
+
+      id = R.id.btnExitSelection;
+      ImageButton btnExitSelection = ViewBindings.findChildViewById(rootView, id);
+      if (btnExitSelection == null) {
+        break missingId;
+      }
+
+      id = R.id.btnFilter;
+      Button btnFilter = ViewBindings.findChildViewById(rootView, id);
+      if (btnFilter == null) {
+        break missingId;
+      }
+
       id = R.id.btnLoadMore;
       Button btnLoadMore = ViewBindings.findChildViewById(rootView, id);
       if (btnLoadMore == null) {
         break missingId;
       }
 
-      id = R.id.chipGroupFilter;
-      ChipGroup chipGroupFilter = ViewBindings.findChildViewById(rootView, id);
-      if (chipGroupFilter == null) {
+      id = R.id.btnSelectAll;
+      ImageButton btnSelectAll = ViewBindings.findChildViewById(rootView, id);
+      if (btnSelectAll == null) {
         break missingId;
       }
 
@@ -128,9 +170,21 @@ public final class ActivityChatBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.selectionToolbar;
+      LinearLayout selectionToolbar = ViewBindings.findChildViewById(rootView, id);
+      if (selectionToolbar == null) {
+        break missingId;
+      }
+
       id = R.id.toolbar;
       Toolbar toolbar = ViewBindings.findChildViewById(rootView, id);
       if (toolbar == null) {
+        break missingId;
+      }
+
+      id = R.id.tvSelectionCount;
+      TextView tvSelectionCount = ViewBindings.findChildViewById(rootView, id);
+      if (tvSelectionCount == null) {
         break missingId;
       }
 
@@ -140,8 +194,9 @@ public final class ActivityChatBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityChatBinding((CoordinatorLayout) rootView, btnLoadMore, chipGroupFilter,
-          etSearch, fabUpload, progressBar, recyclerFiles, toolbar, tvSubtitle);
+      return new ActivityChatBinding((CoordinatorLayout) rootView, btnDeleteSelected,
+          btnExitSelection, btnFilter, btnLoadMore, btnSelectAll, etSearch, fabUpload, progressBar,
+          recyclerFiles, selectionToolbar, toolbar, tvSelectionCount, tvSubtitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

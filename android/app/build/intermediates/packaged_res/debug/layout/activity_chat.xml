@@ -32,36 +32,20 @@
 
         </androidx.appcompat.widget.Toolbar>
 
-        <!-- Filter chips -->
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="4dp">
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupFilter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:selectionRequired="true" />
-
-        </HorizontalScrollView>
-
-        <!-- Search bar -->
+        <!-- Search + single Filter button (replaces the multi-chip strip) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:paddingBottom="8dp">
+            android:paddingBottom="8dp"
+            android:gravity="center_vertical">
 
             <EditText
                 android:id="@+id/etSearch"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="40dp"
                 android:background="@drawable/bg_input"
                 android:hint="@string/hint_search_files"
@@ -71,6 +55,65 @@
                 android:textColor="@color/textPrimary"
                 android:textColorHint="@color/textSecondary" />
 
+            <Button
+                android:id="@+id/btnFilter"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/colorGlassWhite"
+                android:text="🎯 All"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Selection toolbar — visible only when adapter is in selection mode -->
+        <LinearLayout
+            android:id="@+id/selectionToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:visibility="gone"
+            android:background="#1AFFFFFF">
+
+            <TextView
+                android:id="@+id/tvSelectionCount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:text="0 selected" />
+
+            <ImageButton
+                android:id="@+id/btnSelectAll"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/checkbox_on_background"
+                android:tint="@android:color/white"
+                android:contentDescription="Select all" />
+
+            <ImageButton
+                android:id="@+id/btnDeleteSelected"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_delete"
+                android:tint="#EF4444"
+                android:contentDescription="Delete selected" />
+
+            <ImageButton
+                android:id="@+id/btnExitSelection"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:tint="@android:color/white"
+                android:contentDescription="Exit selection" />
         </LinearLayout>
 
         <!-- Load More (at top of list, pages older messages) -->

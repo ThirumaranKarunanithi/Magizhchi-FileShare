@@ -1,117 +1,167 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Single chat-screen row. Shared between FILE rows (icon driven by
+  category, full action set) and FOLDER rows (folder emoji, only the
+  folder-relevant actions). Visibility/coloring is decided in the adapter.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_glass_card"
-    android:gravity="center_vertical"
     android:layout_marginBottom="8dp"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:padding="12dp">
 
-    <!-- Checkbox for multi-select -->
-    <CheckBox
-        android:id="@+id/checkBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:buttonTint="@android:color/white"
-        android:visibility="gone" />
-
-    <!-- File icon emoji in rounded square -->
-    <TextView
-        android:id="@+id/tvIcon"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:background="@drawable/bg_pill_inactive"
-        android:gravity="center"
-        android:textSize="22sp"
-        android:layout_marginEnd="12dp" />
-
-    <!-- File details column -->
+    <!-- Top row: select check + icon + name/meta column -->
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvFileName"
+        <CheckBox
+            android:id="@+id/checkBox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvSizeDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="@color/textSecondary"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tvCaption"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp"
-            android:textStyle="italic"
+            android:layout_marginEnd="6dp"
+            android:buttonTint="@android:color/white"
             android:visibility="gone" />
 
+        <!-- Big rounded square icon. Folder rows use a yellow folder bg, files
+             keep the glass pill. Background swapped programmatically. -->
         <TextView
-            android:id="@+id/tvSender"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="@color/textSecondary"
-            android:textSize="11sp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tvCategory"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:id="@+id/tvIcon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="@drawable/bg_pill_inactive"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:textColor="@android:color/white"
-            android:textSize="10sp" />
+            android:gravity="center"
+            android:textSize="22sp"
+            android:layout_marginEnd="12dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvFileName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Date AND time live here, formatted "d MMM yyyy, h:mm a" -->
+            <TextView
+                android:id="@+id/tvSizeDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/textSecondary"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tvCaption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp"
+                android:textStyle="italic"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvSender"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/textSecondary"
+                android:textSize="11sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_pill_inactive"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@android:color/white"
+                android:textSize="10sp" />
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- Actions -->
+    <!-- Bottom row: action buttons. Hidden when in selection mode. -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:id="@+id/actionRow"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_marginTop="8dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/btnPreview"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_view"
+            android:tint="@android:color/white"
+            android:contentDescription="Preview" />
 
         <ImageButton
             android:id="@+id/btnDownload"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/stat_sys_download"
             android:tint="@android:color/white"
             android:contentDescription="Download" />
 
         <ImageButton
+            android:id="@+id/btnPin"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_save"
+            android:tint="@android:color/white"
+            android:contentDescription="Pin" />
+
+        <ImageButton
+            android:id="@+id/btnShare"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_share"
+            android:tint="@android:color/white"
+            android:contentDescription="Share" />
+
+        <ImageButton
             android:id="@+id/btnDelete"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginTop="4dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_delete"
-            android:tint="#EF9A9A"
+            android:tint="#EF4444"
             android:contentDescription="Delete"
             android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btnProperties"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_info_details"
+            android:tint="@android:color/white"
+            android:contentDescription="Properties" />
     </LinearLayout>
 
 </LinearLayout>

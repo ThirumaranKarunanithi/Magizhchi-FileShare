@@ -62,6 +62,29 @@ public class FormatUtils {
     }
 
     /**
+     * Format an ISO-8601 timestamp into a fixed "d MMM yyyy, h:mm a" line —
+     * used by the chat list rows where the user wants both date AND time.
+     */
+    public static String formatDateTime(String isoDate) {
+        if (isoDate == null || isoDate.isEmpty()) return "";
+        SimpleDateFormat[] parsers = {
+            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()),
+            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",     Locale.getDefault()),
+        };
+        for (SimpleDateFormat p : parsers) {
+            p.setTimeZone(TimeZone.getTimeZone("UTC"));
+            try {
+                Date d = p.parse(isoDate);
+                if (d != null) {
+                    SimpleDateFormat out = new SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault());
+                    return out.format(d);
+                }
+            } catch (ParseException ignored) {}
+        }
+        return isoDate;
+    }
+
+    /**
      * Return an emoji representing the file category/mime type.
      */
     public static String fileIcon(String category, String contentType) {

@@ -44,12 +44,18 @@
                     android:textColor="@color/textSecondary"
                     android:textSize="14sp" />
 
-                <!-- Identifier input -->
+                <!-- Identifier input — defaults to email (textEmailAddress also
+                     gives the user the @-key keyboard). The field still accepts
+                     phone numbers; the hint leads with email per spec. -->
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="28dp"
                     android:hint="@string/hint_identifier"
+                    app:helperText="@string/hint_identifier_helper"
+                    app:helperTextTextColor="@color/textSecondary"
+                    app:hintTextColor="@color/inputHint"
+                    xmlns:app="http://schemas.android.com/apk/res-auto"
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -60,7 +66,8 @@
                         android:inputType="textEmailAddress"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
-                        android:textColor="@color/textPrimary" />
+                        android:textColor="@color/inputText"
+                        android:textColorHint="@color/inputHint" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 

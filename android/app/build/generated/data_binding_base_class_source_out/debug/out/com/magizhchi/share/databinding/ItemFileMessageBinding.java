@@ -22,10 +22,25 @@ public final class ItemFileMessageBinding implements ViewBinding {
   private final LinearLayout rootView;
 
   @NonNull
+  public final LinearLayout actionRow;
+
+  @NonNull
   public final ImageButton btnDelete;
 
   @NonNull
   public final ImageButton btnDownload;
+
+  @NonNull
+  public final ImageButton btnPin;
+
+  @NonNull
+  public final ImageButton btnPreview;
+
+  @NonNull
+  public final ImageButton btnProperties;
+
+  @NonNull
+  public final ImageButton btnShare;
 
   @NonNull
   public final CheckBox checkBox;
@@ -48,13 +63,20 @@ public final class ItemFileMessageBinding implements ViewBinding {
   @NonNull
   public final TextView tvSizeDate;
 
-  private ItemFileMessageBinding(@NonNull LinearLayout rootView, @NonNull ImageButton btnDelete,
-      @NonNull ImageButton btnDownload, @NonNull CheckBox checkBox, @NonNull TextView tvCaption,
+  private ItemFileMessageBinding(@NonNull LinearLayout rootView, @NonNull LinearLayout actionRow,
+      @NonNull ImageButton btnDelete, @NonNull ImageButton btnDownload, @NonNull ImageButton btnPin,
+      @NonNull ImageButton btnPreview, @NonNull ImageButton btnProperties,
+      @NonNull ImageButton btnShare, @NonNull CheckBox checkBox, @NonNull TextView tvCaption,
       @NonNull TextView tvCategory, @NonNull TextView tvFileName, @NonNull TextView tvIcon,
       @NonNull TextView tvSender, @NonNull TextView tvSizeDate) {
     this.rootView = rootView;
+    this.actionRow = actionRow;
     this.btnDelete = btnDelete;
     this.btnDownload = btnDownload;
+    this.btnPin = btnPin;
+    this.btnPreview = btnPreview;
+    this.btnProperties = btnProperties;
+    this.btnShare = btnShare;
     this.checkBox = checkBox;
     this.tvCaption = tvCaption;
     this.tvCategory = tvCategory;
@@ -91,6 +113,12 @@ public final class ItemFileMessageBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.actionRow;
+      LinearLayout actionRow = ViewBindings.findChildViewById(rootView, id);
+      if (actionRow == null) {
+        break missingId;
+      }
+
       id = R.id.btnDelete;
       ImageButton btnDelete = ViewBindings.findChildViewById(rootView, id);
       if (btnDelete == null) {
@@ -100,6 +128,30 @@ public final class ItemFileMessageBinding implements ViewBinding {
       id = R.id.btnDownload;
       ImageButton btnDownload = ViewBindings.findChildViewById(rootView, id);
       if (btnDownload == null) {
+        break missingId;
+      }
+
+      id = R.id.btnPin;
+      ImageButton btnPin = ViewBindings.findChildViewById(rootView, id);
+      if (btnPin == null) {
+        break missingId;
+      }
+
+      id = R.id.btnPreview;
+      ImageButton btnPreview = ViewBindings.findChildViewById(rootView, id);
+      if (btnPreview == null) {
+        break missingId;
+      }
+
+      id = R.id.btnProperties;
+      ImageButton btnProperties = ViewBindings.findChildViewById(rootView, id);
+      if (btnProperties == null) {
+        break missingId;
+      }
+
+      id = R.id.btnShare;
+      ImageButton btnShare = ViewBindings.findChildViewById(rootView, id);
+      if (btnShare == null) {
         break missingId;
       }
 
@@ -145,8 +197,9 @@ public final class ItemFileMessageBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemFileMessageBinding((LinearLayout) rootView, btnDelete, btnDownload, checkBox,
-          tvCaption, tvCategory, tvFileName, tvIcon, tvSender, tvSizeDate);
+      return new ItemFileMessageBinding((LinearLayout) rootView, actionRow, btnDelete, btnDownload,
+          btnPin, btnPreview, btnProperties, btnShare, checkBox, tvCaption, tvCategory, tvFileName,
+          tvIcon, tvSender, tvSizeDate);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

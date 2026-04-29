@@ -71,7 +71,8 @@
                         android:inputType="textPersonName|textCapWords"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
-                        android:textColor="@color/textPrimary" />
+                        android:textColor="@color/inputText"
+                        android:textColorHint="@color/inputHint" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -91,7 +92,8 @@
                         android:inputType="textEmailAddress"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
-                        android:textColor="@color/textPrimary" />
+                        android:textColor="@color/inputText"
+                        android:textColorHint="@color/inputHint" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -111,7 +113,8 @@
                         android:inputType="phone"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
-                        android:textColor="@color/textPrimary" />
+                        android:textColor="@color/inputText"
+                        android:textColorHint="@color/inputHint" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 

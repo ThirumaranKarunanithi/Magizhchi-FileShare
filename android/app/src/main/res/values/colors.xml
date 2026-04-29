@@ -24,6 +24,15 @@
     <color name="textPrimary">#FFFFFF</color>
     <color name="textSecondary">#B3FFFFFF</color>
 
+    <!-- Auth-page input fields are intentionally light (white-glass) so the
+         text rendered inside them must be dark for contrast. -->
+    <color name="inputText">#1E293B</color>   <!-- slate-900 -->
+    <color name="inputHint">#94A3B8</color>   <!-- slate-400 -->
+    <color name="inputCaret">#0EA5E9</color>  <!-- sky-500 -->
+    <color name="inputStroke">#CBD5E1</color> <!-- slate-300 -->
+    <color name="inputFill">#CCFFFFFF</color> <!-- white 80% -->
+    <color name="inputFillFocused">#FFFFFF</color>
+
     <!-- Surface / On-surface -->
     <color name="colorSurface">#21ffffff</color>
     <color name="colorOnSurface">#FFFFFF</color>

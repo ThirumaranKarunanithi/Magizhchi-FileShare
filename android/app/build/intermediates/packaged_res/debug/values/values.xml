@@ -7,6 +7,12 @@
     <color name="colorShared">#D96A1B9A</color>
     <color name="colorStorage">#E60E82D2</color>
     <color name="colorSurface">#21ffffff</color>
+    <color name="inputCaret">#0EA5E9</color>
+    <color name="inputFill">#CCFFFFFF</color>
+    <color name="inputFillFocused">#FFFFFF</color>
+    <color name="inputHint">#94A3B8</color>
+    <color name="inputStroke">#CBD5E1</color>
+    <color name="inputText">#1E293B</color>
     <color name="primaryDark">#0369a1</color>
     <color name="primaryLight">#0ea5e9</color>
     <color name="primaryMid">#0284c7</color>
@@ -56,7 +62,8 @@
     <string name="filter_image">IMAGE</string>
     <string name="filter_other">OTHER</string>
     <string name="filter_video">VIDEO</string>
-    <string name="hint_identifier">Phone number or email</string>
+    <string name="hint_identifier">Email address</string>
+    <string name="hint_identifier_helper">You can also enter your mobile number with country code</string>
     <string name="hint_search">Search people or conversations…</string>
     <string name="hint_search_files">Search by filename, description or sender…</string>
     <string name="hint_search_users">Search connected users to add…</string>

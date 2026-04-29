@@ -25,7 +25,9 @@ export default function ShareModal({ selectedIds, onClose }) {
   const [userRes,    setUserRes]    = useState([]);
   const [groups,     setGroups]     = useState([]);
   const [target,     setTarget]     = useState(null);      // { id, name, photoUrl, type }
-  const [permission, setPermission] = useState('VIEWER');
+  // Download-permission picker — same shape as the Upload dialog so the user
+  // sees a consistent control across actions.
+  const [downloadPerm, setDownloadPerm] = useState('CAN_DOWNLOAD'); // 'CAN_DOWNLOAD' | 'VIEW_ONLY' | 'ADMIN_ONLY_DOWNLOAD'
   const [searching,  setSearching]  = useState(false);
   const [sharing_,   setSharing_]   = useState(false);
 
@@ -53,11 +55,20 @@ export default function ShareModal({ selectedIds, onClose }) {
     return () => clearTimeout(t);
   }, [query, tab]);
 
+  // Map the upload-style download-permission picker to the backend share
+  // permission. CAN_DOWNLOAD grants the recipient full access (EDITOR);
+  // VIEW_ONLY and ADMIN_ONLY_DOWNLOAD restrict the share to view-only.
+  // For ADMIN_ONLY_DOWNLOAD, downloads are gated by the FILE's own
+  // permission (admins of the target only) — the share itself stays VIEWER.
+  const sharePermissionFromDownloadPerm = (dp) =>
+    dp === 'CAN_DOWNLOAD' ? 'EDITOR' : 'VIEWER';
+
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleShare = async () => {
     if (!target) return;
     setSharing_(true);
     try {
+      const permission = sharePermissionFromDownloadPerm(downloadPerm);
       await sharing.create({
         resourceIds: ids,
         shareType:   target.type,
@@ -65,7 +76,7 @@ export default function ShareModal({ selectedIds, onClose }) {
         permission,
       });
       toast.success(
-        `${count} file${count !== 1 ? 's' : ''} shared with ${target.name} (${permission})`
+        `${count} file${count !== 1 ? 's' : ''} shared with ${target.name}`
       );
       onClose();
     } catch (e) {
@@ -85,13 +96,6 @@ export default function ShareModal({ selectedIds, onClose }) {
            style={{
              background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 40%, #0ea5e9 100%)',
            }}>
-
-        {/* Dot texture */}
-        <div className="absolute inset-0 pointer-events-none rounded-2xl"
-             style={{
-               backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.14) 1.5px, transparent 1.5px)',
-               backgroundSize: '22px 22px',
-             }}/>
 
         <div className="relative">
 
@@ -206,29 +210,71 @@ export default function ShareModal({ selectedIds, onClose }) {
             )}
           </div>
 
-          {/* ── Permission ── */}
+          {/* ── Download Permission (matches the Upload dialog) ──
+              "Admins" only makes sense for group shares — there are no
+              admins in a 1-on-1 share. Disable that option whenever the
+              user is on the Users tab AND auto-fall-back if they had it
+              selected before switching tabs. */}
+          {(() => {
+            const adminAllowed = tab === 'GROUPS';
+            // Auto-fall-back: if Admins is selected but tab is Users, reset.
+            if (!adminAllowed && downloadPerm === 'ADMIN_ONLY_DOWNLOAD') {
+              setTimeout(() => setDownloadPerm('CAN_DOWNLOAD'), 0);
+            }
+            return (
           <div className="px-6 pb-4">
             <p className="text-xs font-semibold text-white/60 mb-2 uppercase tracking-wide">
-              Permission
+              Download Permission
             </p>
             <div className="flex gap-2">
-              {['VIEWER', 'EDITOR'].map(p => (
-                <button key={p}
-                        onClick={() => setPermission(p)}
-                        className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all
-                                    ${permission === p
-                                      ? 'bg-white text-sky-700 shadow'
-                                      : 'bg-white/15 text-white hover:bg-white/25'}`}>
-                  {p === 'VIEWER' ? '👁 View Only' : '✏️ Can Edit'}
-                </button>
-              ))}
+              {[
+                { value: 'CAN_DOWNLOAD',         icon: '⬇', label: 'Anyone',    desc: 'Anyone can download'      },
+                { value: 'VIEW_ONLY',            icon: '👁', label: 'View only', desc: 'Preview only, no download' },
+                { value: 'ADMIN_ONLY_DOWNLOAD',  icon: '🛡', label: 'Admins',    desc: 'Only admins can download' },
+              ].map(opt => {
+                const disabled = opt.value === 'ADMIN_ONLY_DOWNLOAD' && !adminAllowed;
+                const selected = !disabled && downloadPerm === opt.value;
+                return (
+                  <button key={opt.value}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setDownloadPerm(opt.value)}
+                          title={disabled ? 'Available only when sharing with a group' : undefined}
+                          className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl
+                                     border transition-all text-center"
+                          style={{
+                            background: selected ? 'white' : 'rgba(255,255,255,0.10)',
+                            borderColor: selected ? 'white' : 'rgba(255,255,255,0.20)',
+                            boxShadow: selected ? '0 0 0 2px rgba(255,255,255,0.30)' : 'none',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            opacity: disabled ? 0.4 : 1,
+                          }}>
+                    <span className="text-base leading-none"
+                          style={{ color: selected ? '#0284c7' : 'white' }}>
+                      {opt.icon}
+                    </span>
+                    <span style={{
+                      fontSize: '11px', fontWeight: 700,
+                      color: selected ? '#0284c7' : 'white',
+                    }}>{opt.label}</span>
+                    <span style={{
+                      fontSize: '9px', lineHeight: 1.3,
+                      color: selected ? 'rgba(2,132,199,0.7)' : 'rgba(255,255,255,0.55)',
+                    }}>{opt.desc}</span>
+                  </button>
+                );
+              })}
             </div>
-            <p className="text-xs text-white/40 mt-1.5">
-              {permission === 'VIEWER'
-                ? 'Recipient can view and download files.'
-                : 'Recipient can view, download, and delete files.'}
+            <p className="text-xs text-white/45 mt-1.5">
+              {downloadPerm === 'CAN_DOWNLOAD'
+                ? 'Recipient can preview AND download the files.'
+                : downloadPerm === 'VIEW_ONLY'
+                  ? 'Recipient can preview only — no downloads.'
+                  : 'Only admins of the target can download. Others get view-only access.'}
             </p>
           </div>
+            );
+          })()}
 
           {/* ── Selected target preview ── */}
           {target && (
@@ -248,7 +294,12 @@ export default function ShareModal({ selectedIds, onClose }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{target.name}</p>
                 <p className="text-xs text-white/50">
-                  {count} file{count !== 1 ? 's' : ''} · {permission}
+                  {count} file{count !== 1 ? 's' : ''} ·{' '}
+                  {downloadPerm === 'CAN_DOWNLOAD'
+                    ? '⬇ Anyone'
+                    : downloadPerm === 'VIEW_ONLY'
+                      ? '👁 View only'
+                      : '🛡 Admins'}
                 </p>
               </div>
               <button onClick={() => setTarget(null)}

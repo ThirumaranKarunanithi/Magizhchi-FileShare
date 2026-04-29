@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { conversations, users, connections, storage, files as filesApi } from '../services/api';
+import { conversations, users, connections, storage, files as filesApi, sharing } from '../services/api';
 import { subscribeToUserNotifications } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -9,6 +9,8 @@ import ProfileModal             from './ProfileModal';
 import ConnectionRequestsModal  from './ConnectionRequestsModal';
 import StorageModal             from './StorageModal';
 import Avatar                   from './Avatar';
+import NotificationHelpModal   from './NotificationHelpModal';
+import { useDesktopNotifications } from '../hooks/useDesktopNotifications';
 
 // Sentinel object representing the "Shared with Me" virtual view
 export const SHARED_WITH_ME_VIEW = Object.freeze({ id: '__shared_with_me__', type: 'SHARED_WITH_ME' });
@@ -107,7 +109,6 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
 
   const [convList,         setConvList]         = useState([]);
   const [search,           setSearch]           = useState('');
-  const [searchMode,       setSearchMode]       = useState('people'); // 'people' | 'files'
   const [searchRes,        setSearchRes]        = useState([]);
   const [fileSearchRes,    setFileSearchRes]    = useState([]);
   const [searching,        setSearching]        = useState(false);
@@ -122,12 +123,59 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
   // Unread badges — Map<convId, fileCount> so we can show "5 files received"
   const [unreadCounts,     setUnreadCounts]     = useState(new Map()); // convId → unread file count
   const [unreadShares,     setUnreadShares]     = useState(0);         // new shares received
+  // Aggregate stats for the "Shared with me" card → { count, totalBytes }
+  const [sharedStats,      setSharedStats]      = useState({ count: 0, totalBytes: 0 });
   // Per-user action loading: { [userId]: 'sending'|'accepting'|'cancelling'|'rejecting' }
   const [actionLoading,    setActionLoading]    = useState({});
 
-  // Always-current ref to selected — used inside the WS callback to avoid stale closures
+  // 'PEOPLE' = direct chats only · 'GROUPS' = group conversations only
+  // Persisted in localStorage so the user's preference sticks.
+  const [convTab, setConvTab] = useState(() => {
+    try { return localStorage.getItem('msh:convTab') === 'GROUPS' ? 'GROUPS' : 'PEOPLE'; }
+    catch { return 'PEOPLE'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('msh:convTab', convTab); } catch {}
+  }, [convTab]);
+
+  // Always-current refs — used inside the WS callback / OS-notification
+  // onClick handler to avoid stale closures (the WS effect's deps don't
+  // include these so they're captured at subscription time).
   const selectedRef = useRef(selected);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  const convListRef = useRef([]);
+  useEffect(() => { convListRef.current = convList; }, [convList]);
+
+  // Desktop notifications — fires browser-native pushes to the OS tray when
+  // the tab is in the background (or the conversation isn't currently open).
+  const { permission: notifPermission, request: requestNotif, notify } = useDesktopNotifications();
+  const notifyRef = useRef(notify);
+  useEffect(() => { notifyRef.current = notify; }, [notify]);
+  // Live permission mirror — kept as a state so the toggle button re-renders
+  // immediately after the user accepts/declines the browser prompt. We also
+  // poll once a second while the page is visible so changes made from the
+  // browser's site-settings UI surface back into our icon without a refresh.
+  const [livePerm, setLivePerm] = useState(
+    typeof window !== 'undefined' && 'Notification' in window
+      ? Notification.permission : 'unsupported'
+  );
+  // Help dialog shown when permission is 'denied' — only the user can flip it
+  // back from browser site-settings, so this modal walks them through.
+  const [showNotifHelp, setShowNotifHelp] = useState(false);
+  useEffect(() => {
+    if (!('Notification' in window)) return;
+    const poll = () => {
+      if (document.visibilityState === 'visible') {
+        const p = Notification.permission;
+        setLivePerm(prev => prev === p ? prev : p);
+      }
+    };
+    const id = setInterval(poll, 1000);
+    document.addEventListener('visibilitychange', poll);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', poll); };
+  }, []);
 
   // ── Load conversations + storage on mount ───────────────────────────────
   useEffect(() => {
@@ -173,6 +221,16 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
         // Show placeholder so the bar is always visible
         setStorageData({ usedBytes: 0, limitBytes: 5368709120, usedPercent: 0 });
       });
+
+    // Aggregate everything shared WITH the current user — count + total size.
+    sharing.sharedWithMe()
+      .then(r => {
+        const list  = Array.isArray(r.data) ? r.data : [];
+        const count = list.length;
+        const totalBytes = list.reduce((s, x) => s + (x.sizeBytes ?? x.fileSizeBytes ?? 0), 0);
+        setSharedStats({ count, totalBytes });
+      })
+      .catch(() => setSharedStats({ count: 0, totalBytes: 0 }));
   }, [currentUser?.id, refreshSignal]); // re-run if user changes or forced refresh
 
   // ── Refresh pending count ────────────────────────────────────────────────
@@ -190,6 +248,13 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
 
     const unsub = subscribeToUserNotifications(currentUser.id, event => {
       const p = event.payload ?? {};
+
+      // Should the OS-level notification fire? Skip when this very
+      // conversation is open AND the tab is currently visible — otherwise
+      // the user would get a system pop-up for something they're already
+      // looking at.
+      const shouldNotify = (cid) =>
+        !(selectedRef.current?.id === cid && !document.hidden);
 
       // ── New file uploaded in a conversation ──
       if (event.type === 'NEW_FILE') {
@@ -213,6 +278,18 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
             return next;
           });
         }
+        // Desktop / OS-tray notification
+        if (shouldNotify(cid)) {
+          notifyRef.current?.({
+            title: `📂 ${p.senderName ?? 'Someone'} shared a file`,
+            body:  p.fileName ?? '',
+            tag:   `file-${cid}`,
+            onClick: () => {
+              const conv = convListRef.current.find(c => c.id === cid);
+              if (conv) onSelectRef.current?.(conv);
+            },
+          });
+        }
         // Refresh the conversation list so the lastFile preview updates
         conversations.list().then(r => setConvList(dedupeConvList(r.data))).catch(console.error);
       }
@@ -228,12 +305,38 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                 { duration: 6000, icon: '🔗' });
         }
         setUnreadShares(prev => prev + count);
+        // Refresh aggregate stats so the Shared Files card stays accurate
+        sharing.sharedWithMe()
+          .then(r => {
+            const list  = Array.isArray(r.data) ? r.data : [];
+            setSharedStats({
+              count:      list.length,
+              totalBytes: list.reduce((s, x) => s + (x.sizeBytes ?? x.fileSizeBytes ?? 0), 0),
+            });
+          })
+          .catch(() => {});
+        // Desktop notification
+        notifyRef.current?.({
+          title: p.groupName
+            ? `🔗 ${p.senderName} shared with "${p.groupName}"`
+            : `🔗 ${p.senderName} shared a file with you`,
+          body:  p.groupName
+            ? `${count} file${count !== 1 ? 's' : ''}`
+            : (p.fileName ?? ''),
+          tag:   `share-${p.senderName}-${p.groupName ?? 'direct'}`,
+        });
       }
 
       // ── Connection request received ──
       else if (event.type === 'CONNECTION_REQUEST') {
         setPendingCount(prev => prev + 1);
         toast(`🤝 ${p.senderName} wants to connect!`, { duration: 6000 });
+        notifyRef.current?.({
+          title: `🤝 ${p.senderName ?? 'Someone'} wants to connect`,
+          body:  'Open Magizhchi Box to accept or decline.',
+          tag:   `connreq-${p.senderName}`,
+          requireInteraction: true,
+        });
       }
 
       // ── Connection request accepted ──
@@ -246,33 +349,26 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
     return unsub;
   }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── User search ──────────────────────────────────────────────────────────
+  // ── Unified search ───────────────────────────────────────────────────────
+  // One debounced effect that fires BOTH the user search and the file search
+  // in parallel. The results panel below renders them under section headers,
+  // so a single search box covers people + files at once.
   useEffect(() => {
-    if (searchMode !== 'people') return;
-    if (search.trim().length < 2) { setSearchRes([]); return; }
+    const q = search.trim();
+    if (q.length < 2) {
+      setSearchRes([]);
+      setFileSearchRes([]);
+      return;
+    }
     const t = setTimeout(() => {
       setSearching(true);
-      users.search(search.trim())
-        .then(r => setSearchRes(r.data))
-        .catch(console.error)
-        .finally(() => setSearching(false));
+      Promise.allSettled([
+        users.search(q).then(r => setSearchRes(r.data)).catch(console.error),
+        filesApi.search(q).then(r => setFileSearchRes(r.data)).catch(console.error),
+      ]).finally(() => setSearching(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [search, searchMode]);
-
-  // ── File search ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (searchMode !== 'files') return;
-    if (search.trim().length < 2) { setFileSearchRes([]); return; }
-    const t = setTimeout(() => {
-      setSearching(true);
-      filesApi.search(search.trim())
-        .then(r => setFileSearchRes(r.data))
-        .catch(console.error)
-        .finally(() => setSearching(false));
-    }, 350);
-    return () => clearTimeout(t);
-  }, [search, searchMode]);
+  }, [search]);
 
   // ── Conversation open (clears unread badge + records open time) ─────────
   const openDirect = async (userId) => {
@@ -425,41 +521,221 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
           <button onClick={() => setShowGroup(true)}
                   className="p-2 rounded-xl hover:bg-sky-100 text-slate-500 text-lg transition-colors"
                   title="New Group">👥</button>
+
+          {/* Desktop-notification toggle.
+              Hidden when the browser doesn't support Notification at all.
+              When permission is 'default' the user is asked on click.
+              When 'denied' clicking surfaces a hint toast (the user must
+              re-enable from the browser's site settings).
+              When 'granted' it acts as a status indicator. */}
+          {('Notification' in window) && (
+            <button
+              onClick={() => {
+                // Bypass the hook for the toggle and talk to the browser
+                // Notification API directly — minimum indirection means the
+                // call happens inside the same micro-task as the click event,
+                // which is what browsers require for the prompt to appear.
+                console.log('[notif] click — current permission:', Notification.permission,
+                            '| isSecureContext:', window.isSecureContext);
+
+                // Notifications API is gated on a secure context. If the page
+                // is served over plain http (and isn't on localhost), browsers
+                // silently block requestPermission() and new Notification().
+                if (!window.isSecureContext) {
+                  toast.error('Desktop notifications need a secure connection (HTTPS or localhost). Switch to https:// to enable them.', { duration: 8000 });
+                  return;
+                }
+
+                const perm = Notification.permission;
+
+                // Already on → confirm visually with a test push.
+                if (perm === 'granted') {
+                  try {
+                    new Notification('Magizhchi Box', {
+                      body: 'Notifications are working ✓',
+                      tag:  'notif-test',
+                    });
+                    toast('Sent a test notification — check your OS tray.', { icon: '🔔' });
+                  } catch (e) {
+                    console.warn('[notif] new Notification threw:', e);
+                    toast.error('Permission is granted but the OS blocked the notification. Check system Do-Not-Disturb / Focus-Assist settings.', { duration: 8000 });
+                  }
+                  return;
+                }
+
+                // Permanently denied → JavaScript can't undo this. Open the
+                // visual help modal that walks the user through unblocking
+                // from their specific browser's site settings.
+                if (perm === 'denied') {
+                  setShowNotifHelp(true);
+                  return;
+                }
+
+                // 'default' — show the prompt RIGHT NOW. Calling
+                // Notification.requestPermission() synchronously inside the
+                // click handler keeps the user-gesture context that some
+                // browsers require for the prompt to appear.
+                let result;
+                try {
+                  result = Notification.requestPermission();
+                } catch (e) {
+                  console.error('[notif] requestPermission threw:', e);
+                  toast.error('Could not open the notification prompt: ' + (e?.message || e));
+                  return;
+                }
+
+                // Hint the user the prompt should appear; close it after the
+                // promise settles. Keep this toast short — most browsers will
+                // fire the prompt within a frame.
+                const hint = toast.loading('Opening browser permission prompt…');
+
+                Promise.resolve(result).then(r => {
+                  toast.dismiss(hint);
+                  console.log('[notif] requestPermission resolved:', r);
+                  // Sync our live permission mirror so the icon updates immediately.
+                  setLivePerm(r);
+                  if (r === 'granted') {
+                    toast.success('Desktop notifications enabled');
+                    try {
+                      new Notification('Magizhchi Box', {
+                        body: 'You\'ll see notifications here from now on.',
+                        tag:  'notif-welcome',
+                      });
+                    } catch (e) {
+                      console.warn('[notif] welcome notification threw:', e);
+                    }
+                  } else if (r === 'denied') {
+                    toast.error('You blocked notifications. Re-enable them later from the site-settings menu in your browser.', { duration: 8000 });
+                  } else {
+                    toast('Notification dialog dismissed.', { icon: '🔕' });
+                  }
+                }).catch(err => {
+                  toast.dismiss(hint);
+                  console.error('[notif] permission promise rejected:', err);
+                  toast.error('Permission request failed: ' + (err?.message || err));
+                });
+              }}
+              title={
+                livePerm === 'granted' ? 'Desktop notifications: ON · click to test'
+                : livePerm === 'denied'  ? 'Desktop notifications BLOCKED — click for help'
+                : 'Enable desktop notifications'}
+              className="relative p-2 rounded-xl hover:bg-sky-100 text-lg transition-colors"
+              style={{
+                // Color-code the three states for instant visual feedback,
+                // and use a megaphone glyph so this button is plainly NOT
+                // the connection-requests 🔔 sitting next to it.
+                color: livePerm === 'granted' ? '#0ea5e9'   // sky blue · active
+                     : livePerm === 'denied'  ? '#ef4444'   // red · blocked
+                                              : '#94a3b8',  // slate · default
+                opacity: livePerm === 'granted' ? 1 : 0.85,
+              }}>
+              <span className="relative inline-block">
+                {/* Megaphone — distinct from the connection-requests bell */}
+                📢
+                {/* Status badge in the corner: dot for ON, slash for BLOCKED */}
+                {livePerm === 'granted' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full
+                                   bg-emerald-500 border-2 border-white"/>
+                )}
+                {livePerm === 'denied' && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full
+                                   bg-red-500 border-2 border-white text-white text-[8px]
+                                   font-bold flex items-center justify-center leading-none">
+                    ✕
+                  </span>
+                )}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* ── My Storage + Shared Files (side by side) ── */}
       <div className="px-3 pt-3 pb-2 flex gap-2 overflow-visible">
 
-        {/* My Storage */}
-        <button onClick={openMyStorage} disabled={loadingStorage}
-                className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border transition-all group"
-                style={selected?.type === 'PERSONAL' ? {
-                  background: 'rgba(14,130,210,0.90)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  borderColor: 'rgba(255,255,255,0.40)',
-                  boxShadow: '0 4px 16px rgba(14,130,210,0.50)',
-                } : {
-                  background: 'rgba(14,130,210,0.42)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  borderColor: 'rgba(255,255,255,0.18)',
-                  boxShadow: '0 2px 8px rgba(14,130,210,0.22)',
-                }}>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-               style={{ background: selected?.type === 'PERSONAL' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
-            {loadingStorage ? <span className="animate-spin text-sm">⏳</span> : '🗄️'}
-          </div>
-          <div className="min-w-0 text-left">
-            <p className="text-xs font-bold leading-tight truncate text-slate-900">My Storage</p>
-            <p className="text-[10px] leading-tight mt-0.5 truncate text-slate-600">
-              {currentUser?.displayName
-                ? `${currentUser.displayName.split(' ')[0]}'s space`
-                : 'Personal space'}
-            </p>
-          </div>
-        </button>
+        {/* My Storage — top row opens the personal space, the embedded
+            progress bar at the bottom opens the storage-breakdown modal. */}
+        {(() => {
+          const pct       = storageData?.usedPercent ?? 0;
+          const barColor  = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-green-500';
+          const textColor = pct >= 90 ? 'text-red-700' : pct >= 70 ? 'text-amber-700' : 'text-emerald-700';
+          return (
+            <div className="flex-1 flex flex-col gap-2 px-3 py-2.5 rounded-2xl border transition-all group"
+                 style={selected?.type === 'PERSONAL' ? {
+                   background: 'rgba(14,130,210,0.90)',
+                   backdropFilter: 'blur(12px)',
+                   WebkitBackdropFilter: 'blur(12px)',
+                   borderColor: 'rgba(255,255,255,0.40)',
+                   boxShadow: '0 4px 16px rgba(14,130,210,0.50)',
+                 } : {
+                   background: 'rgba(14,130,210,0.42)',
+                   backdropFilter: 'blur(12px)',
+                   WebkitBackdropFilter: 'blur(12px)',
+                   borderColor: 'rgba(255,255,255,0.18)',
+                   boxShadow: '0 2px 8px rgba(14,130,210,0.22)',
+                 }}>
+
+              {/* Top row — clickable, opens personal space */}
+              <button
+                onClick={openMyStorage}
+                disabled={loadingStorage}
+                className="flex items-center gap-2.5 text-left disabled:opacity-60">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                     style={{
+                       background: selected?.type === 'PERSONAL' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)',
+                       border:     '1px solid rgba(255,255,255,0.15)',
+                     }}>
+                  {loadingStorage ? <span className="animate-spin text-sm">⏳</span> : '🗄️'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold leading-tight truncate text-slate-900">My Storage</p>
+                  <p className="text-[10px] leading-tight mt-0.5 truncate text-slate-600">
+                    {currentUser?.displayName
+                      ? `${currentUser.displayName.split(' ')[0]}'s space`
+                      : 'Personal space'}
+                  </p>
+                </div>
+              </button>
+
+              {/* Embedded storage progress bar — wrapped in a glass-morphism
+                  pill so it visually matches the rest of the UI. Clicking it
+                  shows the storage-breakdown modal (independent of the row above). */}
+              {storageData && (
+                <button
+                  onClick={() => setShowStorage(true)}
+                  title="See storage breakdown"
+                  className="text-left w-full px-2.5 py-2 rounded-xl transition-colors"
+                  style={{
+                    background:           'rgba(255,255,255,0.18)',
+                    backdropFilter:       'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    border:               '1px solid rgba(255,255,255,0.30)',
+                    boxShadow:            '0 1px 4px rgba(255,255,255,0.10) inset, 0 2px 6px rgba(15,23,42,0.10)',
+                  }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold text-slate-800/80">
+                      💾 {Math.round(pct)}% used
+                    </span>
+                    <span className={`text-[10px] font-bold ${textColor}`}>
+                      {fmtStorage(storageData.usedBytes)} / {fmtStorage(storageData.limitBytes)}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full overflow-hidden"
+                       style={{ background: 'rgba(255,255,255,0.30)',
+                                boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.10)' }}>
+                    <div className={`h-full rounded-full transition-all ${barColor}`}
+                         style={{ width: `${Math.min(100, pct)}%` }}/>
+                  </div>
+                  {pct >= 90 && (
+                    <p className="text-[10px] text-red-700 font-semibold mt-1">
+                      🚨 Almost full — upgrade your plan
+                    </p>
+                  )}
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Shared Files */}
         <button onClick={() => { onSelect(SHARED_WITH_ME_VIEW); setUnreadShares(0); }}
@@ -494,37 +770,19 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
             <p className="text-[10px] leading-tight mt-0.5 truncate text-slate-600">
               {unreadShares > 0 && selected?.type !== 'SHARED_WITH_ME'
                 ? `${unreadShares} new file${unreadShares !== 1 ? 's' : ''}`
-                : 'Shared files'}
+                : sharedStats.count > 0
+                  ? `${sharedStats.count} file${sharedStats.count !== 1 ? 's' : ''} · ${fmtStorage(sharedStats.totalBytes)}`
+                  : 'No shared files yet'}
             </p>
           </div>
         </button>
 
       </div>
 
-      {/* ── Search ── */}
-      <div className="px-3 pb-2 border-b border-sky-100 space-y-2">
-        {/* Mode toggle */}
-        <div className="flex gap-1 p-0.5 rounded-xl" style={{ background: 'rgba(14,130,210,0.35)', border: '1px solid rgba(255,255,255,0.14)' }}>
-          {[
-            { key: 'people', icon: '👤', label: 'People' },
-            { key: 'files',  icon: '🔍', label: 'Files'  },
-          ].map(m => (
-            <button key={m.key}
-                    onClick={() => { setSearchMode(m.key); setSearch(''); setSearchRes([]); setFileSearchRes([]); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl
-                                text-xs font-semibold transition-all
-                                ${searchMode === m.key
-                                  ? 'text-slate-900 shadow-sm'
-                                  : 'text-white/50 hover:text-white/80'}`}
-                    style={searchMode === m.key ? { background: 'rgba(255,255,255,0.92)' } : {}}>
-              <span>{m.icon}</span>{m.label}
-            </button>
-          ))}
-        </div>
+      {/* ── Search (unified — searches people AND files in one go) ── */}
+      <div className="px-3 pb-2 border-b border-sky-100">
         <input className="input !py-2 !text-sm"
-               placeholder={searchMode === 'files'
-                 ? 'Search by file name or description…'
-                 : 'Search users by name, phone or email…'}
+               placeholder="🔍 Search people or files…"
                value={search}
                onChange={e => setSearch(e.target.value)}/>
       </div>
@@ -532,12 +790,23 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
       {/* ── Results ── */}
       <div className="flex-1 overflow-y-auto">
 
-        {search.trim().length >= 2 && searchMode === 'files' ? (
-          /* ── File search results ── */
+        {search.trim().length >= 2 ? (
+          /* ── Combined search results: People first, Files second ── */
           <div className="px-2 pt-2 space-y-1.5 pb-2">
-            {searching && <p className="text-xs text-slate-600 px-2 py-2">Searching…</p>}
-            {!searching && fileSearchRes.length === 0 && (
-              <p className="text-sm text-slate-600 px-2 py-4 text-center">No files found</p>
+            {searching && searchRes.length === 0 && fileSearchRes.length === 0 && (
+              <p className="text-xs text-slate-600 px-2 py-2">Searching…</p>
+            )}
+            {!searching && searchRes.length === 0 && fileSearchRes.length === 0 && (
+              <p className="text-sm text-slate-600 px-2 py-6 text-center">
+                No people or files match "{search.trim()}"
+              </p>
+            )}
+
+            {/* ── Files section ── */}
+            {fileSearchRes.length > 0 && (
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-0.5">
+                📄 Files · {fileSearchRes.length}
+              </p>
             )}
             {fileSearchRes.map(f => (
               <button key={f.id}
@@ -582,13 +851,12 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                 </div>
               </button>
             ))}
-          </div>
-        ) : search.trim().length >= 2 ? (
-          /* ── User search results ── */
-          <div className="px-2 pt-2 space-y-1.5 pb-2">
-            {searching && <p className="text-xs text-slate-600 px-2 py-2">Searching…</p>}
-            {!searching && searchRes.length === 0 && (
-              <p className="text-sm text-slate-600 px-2 py-4 text-center">No users found</p>
+
+            {/* ── People section ── */}
+            {searchRes.length > 0 && (
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-3 pb-0.5">
+                👤 People · {searchRes.length}
+              </p>
             )}
             {searchRes.map(u => {
               const busy = actionLoading[u.id];
@@ -695,18 +963,58 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
             })}
           </div>
         ) : (
-          /* ── Conversation list ── */
-          <div className="px-2 pt-2 space-y-1.5 pb-2">
-            {convList.length === 0 && (
-              <div className="text-center py-12 px-4">
-                <div className="text-4xl mb-2">💬</div>
-                <p className="text-sm text-slate-400">No conversations yet.</p>
-                <p className="text-xs text-slate-300 mt-1">
-                  Search for a user to send a connection request.
-                </p>
+          /* ── Conversation list (split into People / Groups tabs) ── */
+          (() => {
+            // Filter once and reuse for both the empty state and the list
+            const peopleConvs = convList.filter(c => c.type === 'DIRECT');
+            const groupConvs  = convList.filter(c => c.type === 'GROUP');
+            const visibleConvs = convTab === 'GROUPS' ? groupConvs : peopleConvs;
+            return (
+          <div>
+            {/* Tab strip — no top-padding here; the search section's pb-2 +
+                border-b above already gives the same gap as the rest of the
+                sidebar sections (storage→search), keeping the rhythm even. */}
+            <div className="px-3 pb-2">
+              <div className="flex gap-1 p-0.5 rounded-xl"
+                   style={{ background: 'rgba(14,130,210,0.18)',
+                            border: '1px solid rgba(255,255,255,0.14)' }}>
+                {[
+                  { key: 'PEOPLE', icon: '👤', label: 'People', count: peopleConvs.length },
+                  { key: 'GROUPS', icon: '👥', label: 'Groups', count: groupConvs.length  },
+                ].map(t => {
+                  const active = convTab === t.key;
+                  return (
+                    <button key={t.key}
+                            onClick={() => setConvTab(t.key)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl
+                                        text-xs font-semibold transition-all
+                                        ${active ? 'text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+                            style={active ? { background: 'rgba(255,255,255,0.92)' } : {}}>
+                      <span>{t.icon}</span>{t.label}
+                      <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        active ? 'bg-sky-100 text-sky-700' : 'bg-slate-200/60 text-slate-500'
+                      }`}>{t.count}</span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            {convList.map(conv => {
+            </div>
+
+            <div className="px-2 space-y-1.5 pb-2">
+              {visibleConvs.length === 0 && (
+                <div className="text-center py-12 px-4">
+                  <div className="text-4xl mb-2">{convTab === 'GROUPS' ? '👥' : '👤'}</div>
+                  <p className="text-sm text-slate-400">
+                    {convTab === 'GROUPS' ? 'No groups yet.' : 'No direct chats yet.'}
+                  </p>
+                  <p className="text-xs text-slate-300 mt-1">
+                    {convTab === 'GROUPS'
+                      ? 'Tap 👥 above to create a new group.'
+                      : 'Search for someone above to start chatting.'}
+                  </p>
+                </div>
+              )}
+              {visibleConvs.map(conv => {
               const last         = conv.lastFile;
               const unreadCount  = unreadCounts.get(conv.id) ?? 0;
               const hasNew       = unreadCount > 0;
@@ -820,41 +1128,15 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                 </button>
               );
             })}
+            </div>
           </div>
+            );
+          })()
         )}
       </div>
 
-      {/* ── Storage bar ── */}
-      {storageData && (() => {
-        const pct = storageData.usedPercent;
-        const barColor = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-green-500';
-        const textColor = pct >= 90 ? 'text-red-500' : pct >= 70 ? 'text-amber-500' : 'text-green-600';
-        return (
-          <button onClick={() => setShowStorage(true)}
-                  className="mx-3 mb-2 px-3 py-2.5 rounded-xl border border-sky-100
-                             bg-white/60 hover:bg-white/80 hover:border-sky-200
-                             transition-all text-left group w-[calc(100%-24px)]"
-                  title="Click to see storage breakdown">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-slate-600">
-                💾 Storage
-              </span>
-              <span className={`text-xs font-bold ${textColor}`}>
-                {fmtStorage(storageData.usedBytes)} / {fmtStorage(storageData.limitBytes)}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${barColor}`}
-                   style={{ width: `${Math.min(100, pct)}%` }}/>
-            </div>
-            {pct >= 90 && (
-              <p className="text-xs text-red-500 font-semibold mt-1">
-                🚨 Almost full — upgrade your plan
-              </p>
-            )}
-          </button>
-        );
-      })()}
+      {/* (Old bottom storage bar removed — the progress bar now lives inside
+          the My Storage card at the top of the sidebar.) */}
 
       {/* ── Bottom profile bar ── */}
       <div className="px-4 py-3 border-t border-sky-100 bg-white/60 backdrop-blur-sm flex items-center gap-3">
@@ -877,6 +1159,42 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                                         onCreated={handleGroupCreated}/>}
       {showProfile    && <ProfileModal  onClose={() => setShowProfile(false)}/>}
       {showStorage    && <StorageModal  onClose={() => setShowStorage(false)}/>}
+
+      {/* Notification-blocked help — opens when the user clicks the 🚫 toggle
+          and their browser has 'denied' the permission. Only they can fix it
+          from the browser's site-settings UI, so we walk them through. */}
+      {showNotifHelp && (
+        <NotificationHelpModal
+          onClose={() => {
+            setShowNotifHelp(false);
+            // Re-read the live permission in case they unblocked & we're being
+            // dismissed without a reload (some browsers reflect the change
+            // in this tab immediately).
+            try { setLivePerm(Notification.permission); } catch {}
+          }}
+          onTryAgain={() => {
+            // Re-attempt the prompt. In Chrome this resolves to 'denied'
+            // immediately and silently; in Firefox/Safari (after the user
+            // clears the block) it actually re-shows the dialog.
+            try {
+              const result = Notification.requestPermission();
+              Promise.resolve(result).then(r => {
+                setLivePerm(r);
+                if (r === 'granted') {
+                  setShowNotifHelp(false);
+                  toast.success('Notifications enabled — try a test by clicking the bell.');
+                  try { new Notification('Magizhchi Box', { body: 'You\'ll see notifications here from now on.' }); } catch {}
+                } else if (r === 'denied') {
+                  toast('Still blocked — change the setting in your browser, then click Reload.', { icon: '🚫', duration: 5000 });
+                }
+              });
+            } catch (e) {
+              console.warn('[notif] retry failed', e);
+              toast.error('Could not request again: ' + (e?.message || e));
+            }
+          }}
+        />
+      )}
       {showConnections && (
         <ConnectionRequestsModal
           onClose={() => { setShowConnections(false); refreshPendingCount(); }}

@@ -59,7 +59,7 @@ public class LoginActivity extends AppCompatActivity {
     private void sendOtp() {
         String identifier = etIdentifier.getText().toString().trim();
         if (identifier.isEmpty()) {
-            etIdentifier.setError("Enter your phone number or email");
+            etIdentifier.setError("Enter your email address (or mobile number)");
             etIdentifier.requestFocus();
             return;
         }

@@ -173,16 +173,15 @@ export default function CountryCodePicker({ value = '+91', onChange, style }) {
 
   return (
     <div ref={ref} className="relative flex-shrink-0" style={style}>
-      {/* Trigger button */}
+      {/* Trigger button — sits on a light input background, so use dark text. */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 h-full px-3 rounded-l-xl transition-all"
+        className="flex items-center gap-1.5 h-full px-3 rounded-l-xl transition-all hover:bg-slate-100"
         style={{
-          background: 'rgba(255,255,255,0.10)',
-          border: '1px solid rgba(255,255,255,0.22)',
-          borderRight: 'none',
-          color: 'white',
+          background: 'transparent',
+          borderRight: '1px solid #e2e8f0',
+          color: '#1e293b',
           fontSize: '0.875rem',
           fontWeight: 600,
           whiteSpace: 'nowrap',
@@ -190,7 +189,7 @@ export default function CountryCodePicker({ value = '+91', onChange, style }) {
         }}>
         <span className="text-lg leading-none">{selected.flag}</span>
         <span>{selected.code}</span>
-        <span className="text-white/40 text-xs" style={{ marginLeft: 2 }}>▾</span>
+        <span className="text-slate-400 text-xs" style={{ marginLeft: 2 }}>▾</span>
       </button>
 
       {/* Dropdown */}

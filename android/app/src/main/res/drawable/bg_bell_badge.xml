@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Red unread-count badge floated over the home-screen bell button.
+  Visible only when MainActivity has at least one pending notification.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <solid android:color="#EF4444" />        <!-- red-500 -->
+    <stroke
+        android:width="2dp"
+        android:color="@android:color/white" />
+</shape>

@@ -43,6 +43,9 @@ public class FileMessageResponse {
     @SerializedName("conversationName")
     private String conversationName;
 
+    @SerializedName("downloadPermission")
+    private String downloadPermission;
+
     public FileMessageResponse() {}
 
     public String getId() { return id; }
@@ -83,4 +86,7 @@ public class FileMessageResponse {
 
     public String getConversationName() { return conversationName; }
     public void setConversationName(String conversationName) { this.conversationName = conversationName; }
+
+    public String getDownloadPermission() { return downloadPermission; }
+    public void setDownloadPermission(String downloadPermission) { this.downloadPermission = downloadPermission; }
 }

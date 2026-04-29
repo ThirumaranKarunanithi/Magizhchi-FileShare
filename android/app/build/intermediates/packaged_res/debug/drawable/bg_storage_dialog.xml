@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the Storage Usage popup body. Sky-blue gradient + 24dp
+     rounded corners, mirrors the web StorageModal panel. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <gradient
+        android:angle="135"
+        android:startColor="#0369a1"
+        android:centerColor="#0284c7"
+        android:endColor="#0ea5e9"
+        android:type="linear"/>
+
+    <corners android:radius="24dp"/>
+
+</shape>

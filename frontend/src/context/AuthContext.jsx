@@ -22,6 +22,12 @@ export function AuthProvider({ children }) {
   const login = (authData) => {
     localStorage.setItem('accessToken',  authData.accessToken);
     localStorage.setItem('refreshToken', authData.refreshToken);
+    // Seed currentUser with whatever the auth response gave us so the UI can
+    // render immediately. The auth payload doesn't include every field
+    // (notably statusMessage + lastSeenAt) — fire users.getMe() in the
+    // background to fill those in. This is what makes the profile pic AND
+    // status remain visible after a session-lost → re-login cycle, instead of
+    // disappearing until the next hard refresh.
     setCurrentUser({
       id:              authData.userId,
       displayName:     authData.displayName,
@@ -29,6 +35,9 @@ export function AuthProvider({ children }) {
       email:           authData.email,
       profilePhotoUrl: authData.profilePhotoUrl,
     });
+    users.getMe()
+      .then(res => setCurrentUser(prev => ({ ...prev, ...res.data })))
+      .catch(() => {/* keep the partial seed; getMe will retry on next mount */});
   };
 
   const logout = () => {

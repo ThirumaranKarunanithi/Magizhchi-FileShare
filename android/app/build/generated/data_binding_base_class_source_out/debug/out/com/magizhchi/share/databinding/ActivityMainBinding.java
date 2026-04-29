@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -36,7 +37,7 @@ public final class ActivityMainBinding implements ViewBinding {
   public final LinearLayout cardStorage;
 
   @NonNull
-  public final TextView chipFiles;
+  public final TextView chipGroups;
 
   @NonNull
   public final TextView chipPeople;
@@ -57,10 +58,25 @@ public final class ActivityMainBinding implements ViewBinding {
   public final RecyclerView recyclerConversations;
 
   @NonNull
+  public final CoordinatorLayout rootHome;
+
+  @NonNull
   public final ProgressBar storageProgressBar;
 
   @NonNull
+  public final FrameLayout storageProgressContainer;
+
+  @NonNull
+  public final LinearLayout tabsRow;
+
+  @NonNull
   public final TextView tvAvatarInitials;
+
+  @NonNull
+  public final TextView tvBellBadge;
+
+  @NonNull
+  public final TextView tvSharedSubtitle;
 
   @NonNull
   public final TextView tvStorageUsed;
@@ -70,24 +86,32 @@ public final class ActivityMainBinding implements ViewBinding {
 
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView, @NonNull ImageButton btnBell,
       @NonNull LinearLayout cardShared, @NonNull LinearLayout cardStorage,
-      @NonNull TextView chipFiles, @NonNull TextView chipPeople, @NonNull EditText etSearch,
+      @NonNull TextView chipGroups, @NonNull TextView chipPeople, @NonNull EditText etSearch,
       @NonNull FloatingActionButton fabNewGroup, @NonNull ImageView ivAvatar,
       @NonNull ProgressBar progressBar, @NonNull RecyclerView recyclerConversations,
-      @NonNull ProgressBar storageProgressBar, @NonNull TextView tvAvatarInitials,
-      @NonNull TextView tvStorageUsed, @NonNull TextView tvWelcome) {
+      @NonNull CoordinatorLayout rootHome, @NonNull ProgressBar storageProgressBar,
+      @NonNull FrameLayout storageProgressContainer, @NonNull LinearLayout tabsRow,
+      @NonNull TextView tvAvatarInitials, @NonNull TextView tvBellBadge,
+      @NonNull TextView tvSharedSubtitle, @NonNull TextView tvStorageUsed,
+      @NonNull TextView tvWelcome) {
     this.rootView = rootView;
     this.btnBell = btnBell;
     this.cardShared = cardShared;
     this.cardStorage = cardStorage;
-    this.chipFiles = chipFiles;
+    this.chipGroups = chipGroups;
     this.chipPeople = chipPeople;
     this.etSearch = etSearch;
     this.fabNewGroup = fabNewGroup;
     this.ivAvatar = ivAvatar;
     this.progressBar = progressBar;
     this.recyclerConversations = recyclerConversations;
+    this.rootHome = rootHome;
     this.storageProgressBar = storageProgressBar;
+    this.storageProgressContainer = storageProgressContainer;
+    this.tabsRow = tabsRow;
     this.tvAvatarInitials = tvAvatarInitials;
+    this.tvBellBadge = tvBellBadge;
+    this.tvSharedSubtitle = tvSharedSubtitle;
     this.tvStorageUsed = tvStorageUsed;
     this.tvWelcome = tvWelcome;
   }
@@ -137,9 +161,9 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.chipFiles;
-      TextView chipFiles = ViewBindings.findChildViewById(rootView, id);
-      if (chipFiles == null) {
+      id = R.id.chipGroups;
+      TextView chipGroups = ViewBindings.findChildViewById(rootView, id);
+      if (chipGroups == null) {
         break missingId;
       }
 
@@ -179,15 +203,41 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      CoordinatorLayout rootHome = (CoordinatorLayout) rootView;
+
       id = R.id.storageProgressBar;
       ProgressBar storageProgressBar = ViewBindings.findChildViewById(rootView, id);
       if (storageProgressBar == null) {
         break missingId;
       }
 
+      id = R.id.storageProgressContainer;
+      FrameLayout storageProgressContainer = ViewBindings.findChildViewById(rootView, id);
+      if (storageProgressContainer == null) {
+        break missingId;
+      }
+
+      id = R.id.tabsRow;
+      LinearLayout tabsRow = ViewBindings.findChildViewById(rootView, id);
+      if (tabsRow == null) {
+        break missingId;
+      }
+
       id = R.id.tvAvatarInitials;
       TextView tvAvatarInitials = ViewBindings.findChildViewById(rootView, id);
       if (tvAvatarInitials == null) {
+        break missingId;
+      }
+
+      id = R.id.tvBellBadge;
+      TextView tvBellBadge = ViewBindings.findChildViewById(rootView, id);
+      if (tvBellBadge == null) {
+        break missingId;
+      }
+
+      id = R.id.tvSharedSubtitle;
+      TextView tvSharedSubtitle = ViewBindings.findChildViewById(rootView, id);
+      if (tvSharedSubtitle == null) {
         break missingId;
       }
 
@@ -204,8 +254,9 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, btnBell, cardShared, cardStorage,
-          chipFiles, chipPeople, etSearch, fabNewGroup, ivAvatar, progressBar,
-          recyclerConversations, storageProgressBar, tvAvatarInitials, tvStorageUsed, tvWelcome);
+          chipGroups, chipPeople, etSearch, fabNewGroup, ivAvatar, progressBar,
+          recyclerConversations, rootHome, storageProgressBar, storageProgressContainer, tabsRow,
+          tvAvatarInitials, tvBellBadge, tvSharedSubtitle, tvStorageUsed, tvWelcome);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

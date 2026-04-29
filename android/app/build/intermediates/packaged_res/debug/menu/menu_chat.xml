@@ -3,6 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_select"
+        android:icon="@android:drawable/checkbox_off_background"
+        android:title="Select"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/action_manage_group"
         android:title="@string/action_manage_group"
         android:visible="false"

@@ -4,7 +4,11 @@
 
     <!-- Login -->
     <string name="login_subtitle">Secure file sharing with your network</string>
-    <string name="hint_identifier">Phone number or email</string>
+    <!-- Default to email — most users expect email-first sign-in. Phone is
+         still accepted (the server accepts either), the hint just leads with
+         email so the keyboard / autofill suggestions match. -->
+    <string name="hint_identifier">Email address</string>
+    <string name="hint_identifier_helper">You can also enter your mobile number with country code</string>
     <string name="btn_send_otp">Send OTP</string>
 
     <!-- OTP -->
