@@ -88,17 +88,40 @@ function dedupeConvList(list) {
 
 // ── Missed-notification helpers ───────────────────────────────────────────────
 
-const LS_KEY = 'msh:lastOpened'; // { [convId]: ISO-timestamp }
+const LS_KEY  = 'msh:lastOpened';      // { [convId]: ISO-timestamp } — kept for legacy
+const LSF_KEY = 'msh:lastSeenFileId';  // { [convId]: lastFile.id } — stable, no clock-skew
 
 function getLastOpened() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
   catch { return {}; }
 }
-function markOpened(convId) {
+function getLastSeenFileIds() {
+  try { return JSON.parse(localStorage.getItem(LSF_KEY) || '{}'); }
+  catch { return {}; }
+}
+/**
+ * Mark a conversation as opened.
+ *
+ * Two storage strategies, used together:
+ *   1. lastOpened — ISO timestamp written when the user clicks. Legacy; used
+ *      to be the only check, but suffered clock-skew false positives where a
+ *      server-issued lastFile.sentAt is microseconds AHEAD of the client's
+ *      "now", causing the badge to re-appear after every refresh even though
+ *      the user just opened the chat.
+ *   2. lastSeenFileId — the id of the latest file the user has seen in this
+ *      conversation. Compared to conv.lastFile.id during the seed; if they
+ *      match, no badge is shown. Stable across refreshes and clock skew.
+ */
+function markOpened(convId, lastFileId) {
   try {
     const map = getLastOpened();
     map[convId] = new Date().toISOString();
     localStorage.setItem(LS_KEY, JSON.stringify(map));
+    if (lastFileId != null) {
+      const fmap = getLastSeenFileIds();
+      fmap[convId] = String(lastFileId);
+      localStorage.setItem(LSF_KEY, JSON.stringify(fmap));
+    }
   } catch { /* storage full — ignore */ }
 }
 
@@ -184,22 +207,33 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
       setConvList(list);
 
       // ── Seed unread badges for files received while offline / page was closed ──
-      // Compare each conversation's lastFile.sentAt against the timestamp we stored
-      // the last time the user opened that conversation.  Any file newer than that
-      // timestamp (and not sent by the current user) is counted as unread.
+      // Compare each conversation's lastFile.id against the id of the last
+      // file the user has seen in that conversation. If they match, the user
+      // has already opened this exact file — don't re-flag it as unread on
+      // refresh. Falls back to the legacy lastOpened timestamp comparison
+      // for older sessions where lastSeenFileId hasn't been recorded yet.
       if (currentUser?.id) {
-        const lastOpened = getLastOpened();
-        const initialCounts = new Map();
+        const lastOpened     = getLastOpened();
+        const lastSeenFileId = getLastSeenFileIds();
+        const initialCounts  = new Map();
         for (const conv of list) {
           const lf = conv.lastFile;
           if (!lf?.sentAt) continue;                              // no files at all
           if (lf.senderId === currentUser.id) continue;           // own upload — skip
-          const openedAt = lastOpened[conv.id];
-          if (!openedAt || new Date(lf.sentAt) > new Date(openedAt)) {
-            // Missed at least one file — mark as 1 (we can't know the exact count
-            // without an extra API call, so 1 is the safe minimum)
-            initialCounts.set(conv.id, 1);
+
+          // Primary check — id-based, immune to clock skew
+          const seenId = lastSeenFileId[conv.id];
+          if (seenId != null && lf.id != null && seenId === String(lf.id)) {
+            continue;                                             // already seen this exact file
           }
+
+          // Fallback for sessions before lastSeenFileId existed
+          const openedAt = lastOpened[conv.id];
+          if (openedAt && new Date(lf.sentAt) <= new Date(openedAt)) continue;
+
+          // Missed at least one file — mark as 1 (we can't know the exact count
+          // without an extra API call, so 1 is the safe minimum)
+          initialCounts.set(conv.id, 1);
         }
         if (initialCounts.size > 0) {
           setUnreadCounts(prev => {
@@ -268,9 +302,10 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
         const incoming = folderMatch ? parseInt(folderMatch[1], 10) : 1;
         // Increment the per-conversation count (skip if the conversation is open right now)
         if (selectedRef.current?.id === cid) {
-          // Conversation is open — advance the "last opened" timestamp so that
-          // a subsequent page refresh doesn't re-show the badge for this file.
-          markOpened(cid);
+          // Conversation is open — record the file id we just received as
+          // "seen", so a refresh won't re-show the badge for this file. The
+          // payload's fileMessageId is the new file's id.
+          markOpened(cid, p.fileMessageId);
         } else {
           setUnreadCounts(prev => {
             const next = new Map(prev);
@@ -379,7 +414,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
           ? prev
           : dedupeConvList([data, ...prev]));
       onSelect(data);
-      markOpened(data.id);
+      markOpened(data.id, data.lastFile?.id);
       setUnreadCounts(prev => { const m = new Map(prev); m.delete(data.id); return m; });
       setSearch('');
     } catch (e) { toast.error(e?.toString() || 'Cannot open conversation'); }
@@ -393,7 +428,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
   const openMyStorage = async () => {
     if (myStorage) {
       onSelect(myStorage);
-      markOpened(myStorage.id);
+      markOpened(myStorage.id, myStorage.lastFile?.id);
       setUnreadCounts(prev => { const m = new Map(prev); m.delete(myStorage.id); return m; });
       return;
     }
@@ -402,7 +437,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
       const { data } = await conversations.personal();
       setMyStorage(data);
       onSelect(data);
-      markOpened(data.id);
+      markOpened(data.id, data.lastFile?.id);
       setUnreadCounts(prev => { const m = new Map(prev); m.delete(data.id); return m; });
     } catch (e) {
       console.error('[MyStorage]', e);
@@ -827,7 +862,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                         const existing = convList.find(c => c.id === f.conversationId);
                         if (existing) {
                           onSelect(existing);
-                          markOpened(existing.id);
+                          markOpened(existing.id, existing.lastFile?.id);
                           setUnreadCounts(prev => { const m = new Map(prev); m.delete(existing.id); return m; });
                         }
                       }}
@@ -1037,7 +1072,7 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                 <button key={conv.id}
                         onClick={() => {
                           onSelect(conv);
-                          markOpened(conv.id);
+                          markOpened(conv.id, conv.lastFile?.id);
                           setUnreadCounts(prev => { const m = new Map(prev); m.delete(conv.id); return m; });
                         }}
                         className="w-full text-left flex items-center gap-3 px-3 py-2.5

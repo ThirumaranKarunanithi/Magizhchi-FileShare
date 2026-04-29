@@ -23,6 +23,7 @@ com\magizhchi\share\dto\response\UserSearchResponse.class
 com\magizhchi\share\dto\response\StorageResponse.class
 com\magizhchi\share\exception\GlobalExceptionHandler.class
 com\magizhchi\share\model\ConversationMember$MemberRole.class
+com\magizhchi\share\repository\PendingRegistrationRepository.class
 com\magizhchi\share\dto\response\StorageResponse$TopFileItem.class
 com\magizhchi\share\security\JwtAuthenticationFilter.class
 com\magizhchi\share\model\ActivityEvent$ActivityEventBuilder.class
@@ -33,6 +34,7 @@ com\magizhchi\share\dto\response\ConnectionRequestResponse$ConnectionRequestResp
 com\magizhchi\share\model\Folder$FolderBuilder.class
 com\magizhchi\share\dto\response\ConversationResponse$ConversationResponseBuilder.class
 com\magizhchi\share\model\Conversation.class
+com\magizhchi\share\model\PendingRegistration$PendingRegistrationBuilder.class
 com\magizhchi\share\dto\response\ActivityEventResponse$ActivityEventResponseBuilder.class
 com\magizhchi\share\repository\ConversationRepository.class
 com\magizhchi\share\dto\response\FileMessageResponse.class
@@ -109,3 +111,4 @@ com\magizhchi\share\model\UserFolderPin.class
 com\magizhchi\share\dto\response\AuthResponse.class
 com\magizhchi\share\model\Conversation$ConversationType.class
 com\magizhchi\share\dto\request\VerifyOtpRequest.class
+com\magizhchi\share\model\PendingRegistration.class

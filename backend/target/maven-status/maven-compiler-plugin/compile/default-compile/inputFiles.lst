@@ -8,6 +8,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\exception\AppException.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\LoginRequest.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\ConversationRepository.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\PendingRegistrationRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\Folder.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\security\JwtTokenProvider.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\response\FolderResponse.java
@@ -51,6 +52,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\RegisterRequest.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\ActivityEventRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\Conversation.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\PendingRegistration.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\UserFolderPin.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\AuthController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\VerifyOtpRequest.java
