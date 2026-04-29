@@ -16,6 +16,16 @@ public class UserSearchResponse {
     @SerializedName("connectionStatus")
     private String connectionStatus; // "CONNECTED", "PENDING", "NONE", etc.
 
+    /** WhatsApp-style "About me" status text — surfaced under the user name in the chat header. */
+    @SerializedName("statusMessage")
+    private String statusMessage;
+
+    @SerializedName("mobileNumber")
+    private String mobileNumber;
+
+    @SerializedName("email")
+    private String email;
+
     public UserSearchResponse() {}
 
     public String getId() { return id; }
@@ -29,4 +39,13 @@ public class UserSearchResponse {
 
     public String getConnectionStatus() { return connectionStatus; }
     public void setConnectionStatus(String connectionStatus) { this.connectionStatus = connectionStatus; }
+
+    public String getStatusMessage() { return statusMessage; }
+    public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
+
+    public String getMobileNumber() { return mobileNumber; }
+    public void setMobileNumber(String mobileNumber) { this.mobileNumber = mobileNumber; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }

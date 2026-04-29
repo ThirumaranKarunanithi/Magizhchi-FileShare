@@ -22,6 +22,9 @@ public class AuthResponse {
     @SerializedName("profilePhotoUrl")
     private String profilePhotoUrl;
 
+    @SerializedName("statusMessage")
+    private String statusMessage;
+
     public AuthResponse() {}
 
     public String getAccessToken() { return accessToken; }
@@ -41,4 +44,7 @@ public class AuthResponse {
 
     public String getProfilePhotoUrl() { return profilePhotoUrl; }
     public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
+
+    public String getStatusMessage() { return statusMessage; }
+    public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
 }

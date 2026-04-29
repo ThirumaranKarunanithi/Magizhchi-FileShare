@@ -14,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
 import com.magizhchi.share.network.TokenManager;
+import com.magizhchi.share.utils.DottedGradientDrawable;
+import com.magizhchi.share.utils.LinedGradientDrawable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,6 +43,14 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         setContentView(R.layout.activity_login);
+
+        // Outer screen — light sky-50 grid (same as the home screen).
+        View root = findViewById(R.id.loginRoot);
+        if (root != null) root.setBackground(new LinedGradientDrawable(getResources()));
+        // Form card — vivid sky gradient with dot pattern, 28dp curved
+        // corners. Fields above are glass-styled to read on this surface.
+        View card = findViewById(R.id.loginCard);
+        if (card != null) card.setBackground(new DottedGradientDrawable(getResources(), 28f));
 
         etIdentifier = findViewById(R.id.etIdentifier);
         btnSendOtp   = findViewById(R.id.btnSendOtp);

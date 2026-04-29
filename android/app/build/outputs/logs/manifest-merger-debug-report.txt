@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-63:12
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-63:12
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-63:12
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-63:12
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
 MERGED from [androidx.databinding:viewbinding:8.2.2] C:\Users\tiruk\.gradle\caches\8.9\transforms\5e957ca505542b511ee39d2e249e36fb\transformed\jetified-viewbinding-8.2.2\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bc55ece3a38c21d5b7e8cab4d4caeb8b\transformed\material-1.11.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\tiruk\.gradle\caches\8.9\transforms\3083fbcbf701c73d09cc65af0a0c99d0\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
@@ -12,6 +12,7 @@ MERGED from [androidx.appcompat:appcompat:1.6.1] C:\Users\tiruk\.gradle\caches\8
 MERGED from [androidx.viewpager2:viewpager2:1.1.0-beta02] C:\Users\tiruk\.gradle\caches\8.9\transforms\f14e0988b1a956afd9ce5e23c414cb2c\transformed\jetified-viewpager2-1.1.0-beta02\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.recyclerview:recyclerview:1.3.2] C:\Users\tiruk\.gradle\caches\8.9\transforms\4e620d258d678743ba42f1c14b69bf26\transformed\recyclerview-1.3.2\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.cardview:cardview:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\29c231630eceb89ff431e6b8b18fcb6d\transformed\cardview-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.1.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\ea7aa88a3f6cddcea9e113704e66e440\transformed\swiperefreshlayout-1.1.0\AndroidManifest.xml:17:1-24:12
 MERGED from [com.github.bumptech.glide:glide:4.16.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\ec42cef21be08f9197b121eedec3e557\transformed\jetified-glide-4.16.0\AndroidManifest.xml:2:1-9:12
 MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bdca33a9482ae132dbb5bb3fff566869\transformed\jetified-emoji2-views-helper-1.2.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.emoji2:emoji2:1.2.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\c1da7ab6cb7cc87b6a302e26ee3c9c62\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:17:1-35:12
@@ -38,13 +39,13 @@ MERGED from [androidx.viewpager:viewpager:1.0.0] C:\Users\tiruk\.gradle\caches\8
 MERGED from [androidx.customview:customview:1.1.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\fa2b8805da9e84f20fbac54d61c3c660\transformed\customview-1.1.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.core:core:1.9.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\1ba48e7a46549d6e285c12b18ad10990\transformed\core-1.9.0\AndroidManifest.xml:17:1-30:12
 MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\dd1c8420306d565a71eaaec666b95015\transformed\cursoradapter-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\db12ba4cddd1aadb7bf84b95bca01736\transformed\interpolator-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [com.github.bumptech.glide:gifdecoder:4.16.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\a59f8c2b3e623587132e58b16bbe46cb\transformed\jetified-gifdecoder-4.16.0\AndroidManifest.xml:2:1-9:12
 MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\tiruk\.gradle\caches\8.9\transforms\9ed053a85d9e5a31126c4e7a78558984\transformed\exifinterface-1.3.6\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\9b26d396e10ef68a4f332c6299c0ffec\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:17:1-55:12
 MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\tiruk\.gradle\caches\8.9\transforms\b839c67379c584fbecdc5c0a108b062c\transformed\jetified-startup-runtime-1.1.1\AndroidManifest.xml:17:1-33:12
 MERGED from [androidx.tracing:tracing:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\5256b6a0d7125c17323cfef446fdd847\transformed\jetified-tracing-1.0.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\tiruk\.gradle\caches\8.9\transforms\dc1c3fe09b6bed52179881f9ca95de0f\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:17:1-27:12
-MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\db12ba4cddd1aadb7bf84b95bca01736\transformed\interpolator-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.arch.core:core-runtime:2.2.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\6ff102c752b3eadc6862783ba2ad3984\transformed\core-runtime-2.2.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.documentfile:documentfile:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\92943f3505d1bc5ce5ab1ec7c1caab13\transformed\documentfile-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\e8f90e5c7f4892905b6317648f76d8bd\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:17:1-22:12
@@ -86,15 +87,23 @@ ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\And
 		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:11:9-35
 	android:name
 		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:10:22-78
-uses-feature#android.hardware.camera
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:13:5-15:36
-	android:required
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:15:9-33
+uses-permission#android.permission.POST_NOTIFICATIONS
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:16:5-77
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:14:9-47
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:16:22-74
+uses-permission#android.permission.VIBRATE
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:17:5-66
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:17:22-63
+uses-feature#android.hardware.camera
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:19:5-21:36
+	android:required
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:21:9-33
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:20:9-47
 application
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:17:5-61:19
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:17:5-61:19
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:5-91:19
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:5-91:19
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bc55ece3a38c21d5b7e8cab4d4caeb8b\transformed\material-1.11.0\AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bc55ece3a38c21d5b7e8cab4d4caeb8b\transformed\material-1.11.0\AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\tiruk\.gradle\caches\8.9\transforms\3083fbcbf701c73d09cc65af0a0c99d0\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -116,77 +125,117 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\ti
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.9.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\1ba48e7a46549d6e285c12b18ad10990\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:22:9-35
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:28:9-35
 	android:label
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:20:9-41
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:26:9-41
 	android:roundIcon
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:21:9-54
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:27:9-54
 	android:icon
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:19:9-43
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:25:9-43
 	android:allowBackup
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:18:9-35
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:24:9-35
 	android:theme
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:9-52
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:29:9-52
 	android:usesCleartextTraffic
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:24:9-45
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:30:9-45
 activity#com.magizhchi.share.LoginActivity
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:26:9-34:20
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:32:9-40:20
 	android:windowSoftInputMode
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:29:13-55
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:35:13-55
 	android:exported
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:28:13-36
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:34:13-36
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:27:13-42
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:33:13-42
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:30:13-33:29
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:36:13-39:29
 action#android.intent.action.MAIN
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:31:17-69
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:37:17-69
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:31:25-66
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:37:25-66
 category#android.intent.category.LAUNCHER
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:32:17-77
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:38:17-77
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:32:27-74
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:38:27-74
 activity#com.magizhchi.share.RegisterActivity
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:36:9-39:58
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:42:9-45:58
 	android:windowSoftInputMode
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:39:13-55
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:45:13-55
 	android:exported
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:38:13-37
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:44:13-37
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:37:13-45
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:43:13-45
 activity#com.magizhchi.share.OtpActivity
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:41:9-44:58
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:47:9-50:58
 	android:windowSoftInputMode
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:44:13-55
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:50:13-55
 	android:exported
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:43:13-37
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:49:13-37
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:42:13-40
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:48:13-40
 activity#com.magizhchi.share.MainActivity
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:46:9-49:55
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:52:9-55:55
 	android:windowSoftInputMode
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:49:13-52
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:55:13-52
 	android:exported
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:48:13-37
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:54:13-37
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:47:13-41
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:53:13-41
 activity#com.magizhchi.share.ChatActivity
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:51:9-54:55
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:57:9-60:55
 	android:windowSoftInputMode
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:54:13-52
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:60:13-52
 	android:exported
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:53:13-37
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:59:13-37
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:52:13-41
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:58:13-41
 activity#com.magizhchi.share.GroupInfoActivity
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:56:9-59:55
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:62:9-65:55
 	android:windowSoftInputMode
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:59:13-52
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:65:13-52
 	android:exported
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:58:13-37
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:64:13-37
 	android:name
-		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:57:13-46
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:63:13-46
+activity#com.magizhchi.share.SharedFilesActivity
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:67:9-71:55
+	android:parentActivityName
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:70:13-55
+	android:windowSoftInputMode
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:71:13-52
+	android:exported
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:69:13-37
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:68:13-48
+activity#com.magizhchi.share.UploadActivity
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:73:9-77:58
+	android:parentActivityName
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:76:13-55
+	android:windowSoftInputMode
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:77:13-55
+	android:exported
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:75:13-37
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:74:13-43
+activity#com.magizhchi.share.ProfileActivity
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:79:9-83:55
+	android:parentActivityName
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:82:13-55
+	android:windowSoftInputMode
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:83:13-52
+	android:exported
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:81:13-37
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:80:13-44
+activity#com.magizhchi.share.NotificationsActivity
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:85:9-89:55
+	android:parentActivityName
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:88:13-55
+	android:windowSoftInputMode
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:89:13-52
+	android:exported
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:87:13-37
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:86:13-50
 uses-sdk
 INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml
@@ -207,6 +256,8 @@ MERGED from [androidx.recyclerview:recyclerview:1.3.2] C:\Users\tiruk\.gradle\ca
 MERGED from [androidx.recyclerview:recyclerview:1.3.2] C:\Users\tiruk\.gradle\caches\8.9\transforms\4e620d258d678743ba42f1c14b69bf26\transformed\recyclerview-1.3.2\AndroidManifest.xml:20:5-44
 MERGED from [androidx.cardview:cardview:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\29c231630eceb89ff431e6b8b18fcb6d\transformed\cardview-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.cardview:cardview:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\29c231630eceb89ff431e6b8b18fcb6d\transformed\cardview-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.1.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\ea7aa88a3f6cddcea9e113704e66e440\transformed\swiperefreshlayout-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.1.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\ea7aa88a3f6cddcea9e113704e66e440\transformed\swiperefreshlayout-1.1.0\AndroidManifest.xml:20:5-22:41
 MERGED from [com.github.bumptech.glide:glide:4.16.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\ec42cef21be08f9197b121eedec3e557\transformed\jetified-glide-4.16.0\AndroidManifest.xml:5:5-7:41
 MERGED from [com.github.bumptech.glide:glide:4.16.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\ec42cef21be08f9197b121eedec3e557\transformed\jetified-glide-4.16.0\AndroidManifest.xml:5:5-7:41
 MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bdca33a9482ae132dbb5bb3fff566869\transformed\jetified-emoji2-views-helper-1.2.0\AndroidManifest.xml:5:5-44
@@ -259,6 +310,8 @@ MERGED from [androidx.core:core:1.9.0] C:\Users\tiruk\.gradle\caches\8.9\transfo
 MERGED from [androidx.core:core:1.9.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\1ba48e7a46549d6e285c12b18ad10990\transformed\core-1.9.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\dd1c8420306d565a71eaaec666b95015\transformed\cursoradapter-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\dd1c8420306d565a71eaaec666b95015\transformed\cursoradapter-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\db12ba4cddd1aadb7bf84b95bca01736\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\db12ba4cddd1aadb7bf84b95bca01736\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [com.github.bumptech.glide:gifdecoder:4.16.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\a59f8c2b3e623587132e58b16bbe46cb\transformed\jetified-gifdecoder-4.16.0\AndroidManifest.xml:5:5-7:41
 MERGED from [com.github.bumptech.glide:gifdecoder:4.16.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\a59f8c2b3e623587132e58b16bbe46cb\transformed\jetified-gifdecoder-4.16.0\AndroidManifest.xml:5:5-7:41
 MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\tiruk\.gradle\caches\8.9\transforms\9ed053a85d9e5a31126c4e7a78558984\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
@@ -271,8 +324,6 @@ MERGED from [androidx.tracing:tracing:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\t
 MERGED from [androidx.tracing:tracing:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\5256b6a0d7125c17323cfef446fdd847\transformed\jetified-tracing-1.0.0\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\tiruk\.gradle\caches\8.9\transforms\dc1c3fe09b6bed52179881f9ca95de0f\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\tiruk\.gradle\caches\8.9\transforms\dc1c3fe09b6bed52179881f9ca95de0f\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\db12ba4cddd1aadb7bf84b95bca01736\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\db12ba4cddd1aadb7bf84b95bca01736\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.arch.core:core-runtime:2.2.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\6ff102c752b3eadc6862783ba2ad3984\transformed\core-runtime-2.2.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.arch.core:core-runtime:2.2.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\6ff102c752b3eadc6862783ba2ad3984\transformed\core-runtime-2.2.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.documentfile:documentfile:1.0.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\92943f3505d1bc5ce5ab1ec7c1caab13\transformed\documentfile-1.0.0\AndroidManifest.xml:20:5-44

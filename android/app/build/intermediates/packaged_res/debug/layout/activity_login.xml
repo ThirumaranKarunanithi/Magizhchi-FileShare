@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/loginRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/gradient_bg">
+    android:layout_height="match_parent">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -17,59 +17,87 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <!-- Glass card -->
+            <!-- Auth card — painted programmatically with the dotted blue
+                 gradient (rounded 28dp corners) so the form sits on its own
+                 deeper-blue surface, like the chat screen. Generous padding
+                 so fields breathe. -->
             <LinearLayout
+                android:id="@+id/loginCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_glass_card"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:padding="28dp">
 
-                <!-- App title -->
+                <!-- Glass logo banner — replaces the old "📂 Magizhchi Share"
+                     text title. The logo PNG sits inside a translucent
+                     white-glass container so it stands out on the blue
+                     dotted card. -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="96dp"
+                    android:layout_gravity="center_horizontal"
+                    android:background="@drawable/bg_logo_glass">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/logo"
+                        android:contentDescription="Magizhchi Share" />
+                </FrameLayout>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:text="📂 Magizhchi Share"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:text="@string/login_subtitle"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="14sp" />
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="13sp" />
 
                 <!-- Identifier input — defaults to email (textEmailAddress also
                      gives the user the @-key keyboard). The field still accepts
                      phone numbers; the hint leads with email per spec. -->
-                <com.google.android.material.textfield.TextInputLayout
+                <!-- Plain label + glass EditText (no TextInputLayout). The
+                     OutlinedBox style was drawing its own border AND cutting
+                     the floating-label hint into our custom background, which
+                     created the misaligned border around "Email address". A
+                     simple TextView label sits cleanly above the field. -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="@string/hint_identifier"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.05" />
+
+                <EditText
+                    android:id="@+id/etIdentifier"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="28dp"
-                    android:hint="@string/hint_identifier"
-                    app:helperText="@string/hint_identifier_helper"
-                    app:helperTextTextColor="@color/textSecondary"
-                    app:hintTextColor="@color/inputHint"
-                    xmlns:app="http://schemas.android.com/apk/res-auto"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_glass"
+                    android:inputType="textEmailAddress"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:hint="you@example.com"
+                    android:textColor="@android:color/white"
+                    android:textColorHint="#99FFFFFF"
+                    android:textSize="14sp" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etIdentifier"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input"
-                        android:inputType="textEmailAddress"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="@color/inputText"
-                        android:textColorHint="@color/inputHint" />
-
-                </com.google.android.material.textfield.TextInputLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/hint_identifier_helper"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="11sp" />
 
                 <!-- Send OTP button -->
                 <Button

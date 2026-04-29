@@ -8,8 +8,8 @@
     <!-- Conversation card backgrounds -->
     <!-- DIRECT: #1565C0 at 55% alpha = #8C1565C0 -->
     <color name="colorDirect">#8C1565C0</color>
-    <!-- GROUP: #880E4F at 50% alpha = #80880E4F -->
-    <color name="colorGroup">#80880E4F</color>
+    <!-- GROUP: pink-600 #DB2777 at ~32% alpha — matches web sidebar. -->
+    <color name="colorGroup">#52DB2777</color>
 
     <!-- Storage / Shared cards -->
     <!-- My Storage: #0E82D2 at 90% alpha = #E60E82D2 -->

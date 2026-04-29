@@ -22,9 +22,10 @@ import java.time.Instant;
 @Slf4j
 public class AuthService {
 
-    private final UserRepository   userRepo;
-    private final OtpService       otpService;
-    private final JwtTokenProvider jwtProvider;
+    private final UserRepository    userRepo;
+    private final OtpService        otpService;
+    private final JwtTokenProvider  jwtProvider;
+    private final FileStorageService fileStorage;
 
     // ── OTP-based registration ────────────────────────────────────────────────
 
@@ -142,6 +143,11 @@ public class AuthService {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private AuthResponse buildAuthResponse(User user) {
+        // Re-presign the profile photo URL on every auth response — the
+        // value stored in the DB is itself a presigned link with a TTL,
+        // so just-logged-in clients would otherwise get a URL that may
+        // already have expired since the last upload.
+        String freshPhoto = fileStorage.refreshProfilePhotoUrl(user.getProfilePhotoUrl());
         return AuthResponse.builder()
                 .accessToken(jwtProvider.generateAccessToken(user.getId()))
                 .refreshToken(jwtProvider.generateRefreshToken(user.getId()))
@@ -149,7 +155,7 @@ public class AuthService {
                 .displayName(user.getDisplayName())
                 .mobileNumber(user.getMobileNumber())
                 .email(user.getEmail())
-                .profilePhotoUrl(user.getProfilePhotoUrl())
+                .profilePhotoUrl(freshPhoto != null ? freshPhoto : user.getProfilePhotoUrl())
                 .build();
     }
 

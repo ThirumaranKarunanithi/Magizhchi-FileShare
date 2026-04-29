@@ -31,6 +31,8 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
     private final Context context;
     private List<ConversationResponse> conversations = new ArrayList<>();
     private OnConversationClickListener listener;
+    /** convId → unread file count. Mutated from MainActivity as WS events arrive. */
+    private java.util.Map<String, Integer> unreadCounts = new java.util.HashMap<>();
 
     public ConversationAdapter(Context context) {
         this.context = context;
@@ -43,6 +45,39 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
     public void setConversations(List<ConversationResponse> list) {
         this.conversations = list != null ? list : new ArrayList<>();
         notifyDataSetChanged();
+    }
+
+    /** Replace the entire unread-count map and refresh affected rows. */
+    public void setUnreadCounts(java.util.Map<String, Integer> counts) {
+        this.unreadCounts = counts != null ? counts : new java.util.HashMap<>();
+        notifyDataSetChanged();
+    }
+
+    /** Increment the count for a single conversation in-place. */
+    public void bumpUnread(String conversationId, int delta) {
+        if (conversationId == null) return;
+        int v = unreadCounts.getOrDefault(conversationId, 0) + delta;
+        unreadCounts.put(conversationId, Math.max(0, v));
+        // Find and refresh just that row
+        for (int i = 0; i < conversations.size(); i++) {
+            if (conversationId.equals(conversations.get(i).getId())) {
+                notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+
+    /** Clear the unread count for one conversation (called when user opens it). */
+    public void clearUnread(String conversationId) {
+        if (conversationId == null) return;
+        if (unreadCounts.remove(conversationId) != null) {
+            for (int i = 0; i < conversations.size(); i++) {
+                if (conversationId.equals(conversations.get(i).getId())) {
+                    notifyItemChanged(i);
+                    break;
+                }
+            }
+        }
     }
 
     @NonNull
@@ -62,21 +97,42 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
         holder.cardView.setBackground(context.getDrawable(
                 isDirect ? R.drawable.bg_card_direct : R.drawable.bg_card_group));
 
-        // Avatar
+        // Avatar — initials FIRST so the row is never blank, then attempt to
+        // overlay the photo. Glide's cache is disabled because conv.iconUrl
+        // is a presigned S3 URL that goes stale; a cached failure must not
+        // poison future retries. On success the photo overlays + hides
+        // initials; on failure the initials stay visible.
+        holder.tvInitials.setVisibility(View.VISIBLE);
+        holder.tvInitials.setText(FormatUtils.initials(conv.getName()));
+        holder.tvInitials.setBackgroundResource(
+                isDirect ? R.drawable.bg_avatar_direct : R.drawable.bg_avatar_group);
+        holder.ivAvatar.setVisibility(View.GONE);
+
         if (conv.getIconUrl() != null && !conv.getIconUrl().isEmpty()) {
-            holder.ivAvatar.setVisibility(View.VISIBLE);
-            holder.tvInitials.setVisibility(View.GONE);
             Glide.with(context)
                     .load(conv.getIconUrl())
-                    .apply(RequestOptions.circleCropTransform())
-                    .placeholder(R.drawable.bg_pill_inactive)
+                    .apply(RequestOptions.circleCropTransform()
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                            .skipMemoryCache(true))
+                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e,
+                                                              Object model,
+                                                              com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                              boolean isFirstResource) {
+                            // Keep initials visible; suppress Glide's own placeholder.
+                            return true;
+                        }
+                        @Override public boolean onResourceReady(android.graphics.drawable.Drawable resource,
+                                                                 Object model,
+                                                                 com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                                 com.bumptech.glide.load.DataSource dataSource,
+                                                                 boolean isFirstResource) {
+                            holder.ivAvatar.setVisibility(View.VISIBLE);
+                            holder.tvInitials.setVisibility(View.GONE);
+                            return false;
+                        }
+                    })
                     .into(holder.ivAvatar);
-        } else {
-            holder.ivAvatar.setVisibility(View.GONE);
-            holder.tvInitials.setVisibility(View.VISIBLE);
-            holder.tvInitials.setText(FormatUtils.initials(conv.getName()));
-            holder.tvInitials.setBackgroundResource(
-                    isDirect ? R.drawable.bg_avatar_direct : R.drawable.bg_avatar_group);
         }
 
         // Name
@@ -101,7 +157,14 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
             holder.tvDate.setVisibility(View.GONE);
         }
 
-        // Unread dot — hide for now (no unread count in API response)
+        // Unread file count badge — "📥 N"
+        int unread = unreadCounts.getOrDefault(conv.getId(), 0);
+        if (unread > 0) {
+            holder.tvUnreadBadge.setVisibility(View.VISIBLE);
+            holder.tvUnreadBadge.setText("📥 " + (unread > 99 ? "99+" : String.valueOf(unread)));
+        } else {
+            holder.tvUnreadBadge.setVisibility(View.GONE);
+        }
         holder.unreadDot.setVisibility(View.GONE);
 
         // Clicks
@@ -126,17 +189,19 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
         TextView tvName;
         TextView tvSubtitle;
         TextView tvDate;
+        TextView tvUnreadBadge;
         View unreadDot;
 
         ViewHolder(View itemView) {
             super(itemView);
-            cardView    = itemView.findViewById(R.id.cardConversation);
-            ivAvatar    = itemView.findViewById(R.id.ivAvatar);
-            tvInitials  = itemView.findViewById(R.id.tvInitials);
-            tvName      = itemView.findViewById(R.id.tvName);
-            tvSubtitle  = itemView.findViewById(R.id.tvSubtitle);
-            tvDate      = itemView.findViewById(R.id.tvDate);
-            unreadDot   = itemView.findViewById(R.id.unreadDot);
+            cardView      = itemView.findViewById(R.id.cardConversation);
+            ivAvatar      = itemView.findViewById(R.id.ivAvatar);
+            tvInitials    = itemView.findViewById(R.id.tvInitials);
+            tvName        = itemView.findViewById(R.id.tvName);
+            tvSubtitle    = itemView.findViewById(R.id.tvSubtitle);
+            tvDate        = itemView.findViewById(R.id.tvDate);
+            tvUnreadBadge = itemView.findViewById(R.id.tvUnreadBadge);
+            unreadDot     = itemView.findViewById(R.id.unreadDot);
         }
     }
 }

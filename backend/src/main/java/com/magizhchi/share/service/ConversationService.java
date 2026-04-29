@@ -275,7 +275,8 @@ public class ConversationService {
                 .map(m -> GroupMemberResponse.builder()
                         .userId(m.getUser().getId())
                         .displayName(m.getUser().getDisplayName())
-                        .profilePhotoUrl(m.getUser().getProfilePhotoUrl())
+                        // Re-presign so the avatar URL is always fresh.
+                        .profilePhotoUrl(storage.refreshProfilePhotoUrl(m.getUser().getProfilePhotoUrl()))
                         .role(m.getRole().name())
                         .joinedAt(m.getJoinedAt())
                         .build())
@@ -352,6 +353,12 @@ public class ConversationService {
                 otherUserId = other.get().getUser().getId();
             }
         }
+
+        // Re-presign the photo URL — both group icons and DIRECT-chat avatars
+        // are stored as presigned URLs that expire. Without this, conversation
+        // rows show blank circles after the original presigned link runs out.
+        String freshPhoto = storage.refreshProfilePhotoUrl(photoUrl);
+        if (freshPhoto != null) photoUrl = freshPhoto;
 
         return ConversationResponse.builder()
                 .id(conv.getId())

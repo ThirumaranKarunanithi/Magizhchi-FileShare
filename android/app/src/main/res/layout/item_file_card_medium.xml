@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Medium-icon grid cell — denser variant of the Large layout. Used by
+     ChatActivity in the MEDIUM view mode (3 columns). Same field set as
+     the Large card; smaller dimensions so more cells fit on screen. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="10dp"
+        android:background="@drawable/bg_card_dark">
+
+        <TextView
+            android:id="@+id/tvIcon"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            android:gravity="center"
+            android:textSize="28sp"
+            android:background="@drawable/bg_avatar_glass" />
+
+        <TextView
+            android:id="@+id/tvFileName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="@android:color/white"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvSizeDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#CCFFFFFF"
+            android:textSize="10sp" />
+
+        <TextView android:id="@+id/tvSender"   android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/tvCategory" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/tvCaption"  android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/actionRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <ImageButton android:id="@+id/btnPreview"    android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Preview" />
+            <ImageButton android:id="@+id/btnDownload"   android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Download" />
+            <ImageButton android:id="@+id/btnPin"        android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Pin" />
+            <ImageButton android:id="@+id/btnShare"      android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Share" />
+            <ImageButton android:id="@+id/btnDelete"     android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Delete" />
+            <ImageButton android:id="@+id/btnProperties" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Properties" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <CheckBox
+        android:id="@+id/checkBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="4dp"
+        android:buttonTint="@android:color/white"
+        android:visibility="gone" />
+</FrameLayout>

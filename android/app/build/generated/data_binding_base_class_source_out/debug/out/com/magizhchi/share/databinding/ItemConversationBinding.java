@@ -39,11 +39,15 @@ public final class ItemConversationBinding implements ViewBinding {
   public final TextView tvSubtitle;
 
   @NonNull
+  public final TextView tvUnreadBadge;
+
+  @NonNull
   public final View unreadDot;
 
   private ItemConversationBinding(@NonNull CardView rootView, @NonNull CardView cardConversation,
       @NonNull ImageView ivAvatar, @NonNull TextView tvDate, @NonNull TextView tvInitials,
-      @NonNull TextView tvName, @NonNull TextView tvSubtitle, @NonNull View unreadDot) {
+      @NonNull TextView tvName, @NonNull TextView tvSubtitle, @NonNull TextView tvUnreadBadge,
+      @NonNull View unreadDot) {
     this.rootView = rootView;
     this.cardConversation = cardConversation;
     this.ivAvatar = ivAvatar;
@@ -51,6 +55,7 @@ public final class ItemConversationBinding implements ViewBinding {
     this.tvInitials = tvInitials;
     this.tvName = tvName;
     this.tvSubtitle = tvSubtitle;
+    this.tvUnreadBadge = tvUnreadBadge;
     this.unreadDot = unreadDot;
   }
 
@@ -113,6 +118,12 @@ public final class ItemConversationBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tvUnreadBadge;
+      TextView tvUnreadBadge = ViewBindings.findChildViewById(rootView, id);
+      if (tvUnreadBadge == null) {
+        break missingId;
+      }
+
       id = R.id.unreadDot;
       View unreadDot = ViewBindings.findChildViewById(rootView, id);
       if (unreadDot == null) {
@@ -120,7 +131,7 @@ public final class ItemConversationBinding implements ViewBinding {
       }
 
       return new ItemConversationBinding((CardView) rootView, cardConversation, ivAvatar, tvDate,
-          tvInitials, tvName, tvSubtitle, unreadDot);
+          tvInitials, tvName, tvSubtitle, tvUnreadBadge, unreadDot);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

@@ -17,6 +17,8 @@ import androidx.core.content.ContextCompat;
 
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
+import com.magizhchi.share.utils.DottedGradientDrawable;
+import com.magizhchi.share.utils.LinedGradientDrawable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +47,13 @@ public class RegisterActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
+        // Outer screen — light sky-50 grid (same as the home screen).
+        View root = findViewById(R.id.registerRoot);
+        if (root != null) root.setBackground(new LinedGradientDrawable(getResources()));
+        // Form card — vivid sky gradient with dot pattern, 28dp curved corners.
+        View card = findViewById(R.id.registerCard);
+        if (card != null) card.setBackground(new DottedGradientDrawable(getResources(), 28f));
+
         etDisplayName   = findViewById(R.id.etDisplayName);
         etEmail         = findViewById(R.id.etEmail);
         etMobile        = findViewById(R.id.etMobile);
@@ -56,6 +65,10 @@ public class RegisterActivity extends AppCompatActivity {
 
         // OTP channel selector — Email selected by default
         updateChannelButtons();
+        // Title + subtitle of the card sit on a blue dotted gradient now —
+        // make sure they read in white. (XML still references textPrimary
+        // which IS white, so nothing to change there. Hint texts inside
+        // helpers are handled per-field.)
         btnEmailChannel.setOnClickListener(v -> { otpChannel = "EMAIL"; updateChannelButtons(); });
         btnSmsChannel.setOnClickListener(v   -> { otpChannel = "SMS";   updateChannelButtons(); });
 

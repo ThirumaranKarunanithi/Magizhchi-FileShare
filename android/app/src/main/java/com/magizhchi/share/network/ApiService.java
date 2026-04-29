@@ -1,8 +1,10 @@
 package com.magizhchi.share.network;
 
 import com.magizhchi.share.model.AuthResponse;
+import com.magizhchi.share.model.ConnectionRequestResponse;
 import com.magizhchi.share.model.ConversationResponse;
 import com.magizhchi.share.model.FileMessageResponse;
+import com.magizhchi.share.model.FolderResponse;
 import com.magizhchi.share.model.GroupMemberResponse;
 import com.magizhchi.share.model.StorageUsageResponse;
 import com.magizhchi.share.model.UserSearchResponse;
@@ -90,6 +92,16 @@ public interface ApiService {
             @Query("role") String role
     );
 
+    /**
+     * Backend signature is a multipart with two NAMED parts:
+     *   data — JSON of CreateGroupRequest { name, memberIds[] }
+     *   icon — optional binary MultipartFile
+     *
+     * The previous overload sent a flat "name" part which the @RequestPart
+     * binder couldn't deserialize into CreateGroupRequest, hence the
+     * persistent "failed to create group" error. Use createGroupWithData(...)
+     * going forward.
+     */
     @Multipart
     @POST("api/conversations/group")
     Call<ConversationResponse> createGroup(
@@ -97,10 +109,25 @@ public interface ApiService {
             @Part MultipartBody.Part icon
     );
 
+    @Multipart
+    @POST("api/conversations/group")
+    Call<ConversationResponse> createGroupWithData(
+            @Part("data") RequestBody data,
+            @Part MultipartBody.Part icon
+    );
+
     // ── Files ─────────────────────────────────────────────────────────────────
 
     @GET("api/files/{id}/download-url")
     Call<Map<String, String>> getDownloadUrl(@Path("id") String fileId);
+
+    /**
+     * Inline-disposition presigned URL — for in-browser preview. Always
+     * accessible to any conversation member (VIEW_ONLY files can still be
+     * previewed; only the download endpoint enforces download permission).
+     */
+    @GET("api/files/{id}/preview-url")
+    Call<Map<String, String>> getPreviewUrl(@Path("id") String fileId);
 
     @DELETE("api/files/{id}")
     Call<ResponseBody> deleteFile(@Path("id") String fileId);
@@ -117,6 +144,23 @@ public interface ApiService {
             @Part("mentionedUserIds") RequestBody mentionedUserIds
     );
 
+    /**
+     * Same upload endpoint, but with the optional permission + folderPath
+     * fields the backend supports. Used by UploadActivity so the user can
+     * pick a download permission (Anyone / View only / Admins) and target
+     * a folder explicitly.
+     */
+    @Multipart
+    @POST("api/files/send/{conversationId}")
+    Call<FileMessageResponse> sendFileWithOptions(
+            @Path("conversationId") String conversationId,
+            @Part MultipartBody.Part file,
+            @Part("caption") RequestBody caption,
+            @Part("mentionedUserIds") RequestBody mentionedUserIds,
+            @Part("permission") RequestBody permission,
+            @Part("folderPath") RequestBody folderPath
+    );
+
     // ── Storage ───────────────────────────────────────────────────────────────
 
     @GET("api/storage/usage")
@@ -130,6 +174,39 @@ public interface ApiService {
     @GET("api/users/me")
     Call<AuthResponse> getMe();
 
+    /** Fetch a user's public profile (display name, photo, statusMessage, …). */
+    @GET("api/users/{userId}")
+    Call<UserSearchResponse> getUserById(@retrofit2.http.Path("userId") String userId);
+
+    /**
+     * Update the caller's profile fields. Body keys (all optional):
+     *   displayName    — non-blank to apply
+     *   statusMessage  — empty string clears it
+     *   email          — must not collide with another user
+     */
+    @PATCH("api/users/me")
+    Call<ResponseBody> updateMe(@Body Map<String, String> updates);
+
+    /**
+     * Upload a new profile photo. Returns { photoUrl: <fresh presigned URL> }.
+     */
+    @Multipart
+    @POST("api/users/me/photo")
+    Call<Map<String, String>> uploadProfilePhoto(@Part MultipartBody.Part file);
+
+    // ── Folders ───────────────────────────────────────────────────────────────
+
+    /**
+     * Create a new folder. Body keys:
+     *   name              (required) — folder name
+     *   conversationId    (required) — host conversation id
+     *   parentFolderId    (optional) — null = root level
+     *   defaultPermission (optional) — "CAN_DOWNLOAD" / "VIEW_ONLY" / "ADMIN_ONLY_DOWNLOAD"
+     *   description       (optional)
+     */
+    @POST("api/folders")
+    Call<FolderResponse> createFolder(@Body Map<String, Object> body);
+
     // ── Connections ───────────────────────────────────────────────────────────
 
     @DELETE("api/connections/unfriend/{userId}")
@@ -137,4 +214,18 @@ public interface ApiService {
 
     @POST("api/users/{userId}/block")
     Call<ResponseBody> blockUser(@Path("userId") String userId);
+
+    // ── Notifications (connection requests inbox) ─────────────────────────────
+
+    /** Pending requests other users have sent to me. Drives NotificationsActivity. */
+    @GET("api/connections/requests/received")
+    Call<List<ConnectionRequestResponse>> getReceivedRequests();
+
+    /** Accept a pending connection request. */
+    @POST("api/connections/request/{id}/accept")
+    Call<ConnectionRequestResponse> acceptRequest(@Path("id") String requestId);
+
+    /** Reject a pending connection request. */
+    @POST("api/connections/request/{id}/reject")
+    Call<ConnectionRequestResponse> rejectRequest(@Path("id") String requestId);
 }

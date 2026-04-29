@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Circular avatar for GROUP conversations: #880E4F at 80% alpha -->
+<!-- Circular avatar for GROUP conversations: pink-600 with a soft pink-100 ring. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#CC880E4F" />
-    <stroke android:width="1.5dp" android:color="#66F48FB1" />
+    <solid android:color="#CCDB2777" />
+    <stroke android:width="1.5dp" android:color="#80F9A8D4" />
 </shape>

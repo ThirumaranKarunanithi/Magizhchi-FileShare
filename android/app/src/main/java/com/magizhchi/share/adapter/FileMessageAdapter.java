@@ -42,6 +42,14 @@ public class FileMessageAdapter extends RecyclerView.Adapter<FileMessageAdapter.
 
     public enum Kind { FILE, FOLDER }
 
+    /**
+     * Web's six view modes collapsed to the three the user asked for:
+     *   DETAILS — the original wide row (default; keeps action buttons)
+     *   LARGE   — 2-column grid, big icon + name (long-press for actions)
+     *   MEDIUM  — 3-column grid, smaller icon (long-press for actions)
+     */
+    public enum ViewMode { DETAILS, LARGE, MEDIUM }
+
     /** Polymorphic row — either a file message or a folder summary. */
     public static class Row {
         public final Kind kind;
@@ -102,11 +110,22 @@ public class FileMessageAdapter extends RecyclerView.Adapter<FileMessageAdapter.
     private OnFileActionListener listener;
     private boolean selectionMode = false;
     private final Set<String> selectedKeys = new HashSet<>();
+    private ViewMode viewMode = ViewMode.DETAILS;
 
     public FileMessageAdapter(Context context, String currentUserId) {
         this.context = context;
         this.currentUserId = currentUserId;
     }
+
+    /** Switch render mode. The host activity is responsible for swapping the
+     *  RecyclerView's LayoutManager (Linear vs Grid) before calling this. */
+    public void setViewMode(ViewMode mode) {
+        if (mode == null || mode == this.viewMode) return;
+        this.viewMode = mode;
+        notifyDataSetChanged();
+    }
+
+    public ViewMode getViewMode() { return viewMode; }
 
     public void setListener(OnFileActionListener listener) {
         this.listener = listener;
@@ -159,10 +178,22 @@ public class FileMessageAdapter extends RecyclerView.Adapter<FileMessageAdapter.
         return out;
     }
 
+    /** Use the current view mode as the viewType so layout switches recycle correctly. */
+    @Override
+    public int getItemViewType(int position) { return viewMode.ordinal(); }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_file_message, parent, false);
+        ViewMode mode = ViewMode.values()[viewType];
+        int layoutRes;
+        switch (mode) {
+            case LARGE:  layoutRes = R.layout.item_file_card_large;  break;
+            case MEDIUM: layoutRes = R.layout.item_file_card_medium; break;
+            case DETAILS:
+            default:     layoutRes = R.layout.item_file_message;     break;
+        }
+        View view = LayoutInflater.from(context).inflate(layoutRes, parent, false);
         return new ViewHolder(view);
     }
 
@@ -174,7 +205,10 @@ public class FileMessageAdapter extends RecyclerView.Adapter<FileMessageAdapter.
 
         // Common: selection-mode UI — checkbox + hide action row.
         h.checkBox.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
-        h.actionRow.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
+        // Action buttons only have room in DETAILS view; in the LARGE / MEDIUM
+        // grid cards, taps preview the file and long-press starts selection.
+        boolean showActions = !selectionMode && viewMode == ViewMode.DETAILS;
+        h.actionRow.setVisibility(showActions ? View.VISIBLE : View.GONE);
         h.checkBox.setOnCheckedChangeListener(null);
         h.checkBox.setChecked(selectedKeys.contains(row.stableKey()));
         h.checkBox.setOnCheckedChangeListener((cb, checked) -> {

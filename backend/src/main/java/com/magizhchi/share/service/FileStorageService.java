@@ -96,6 +96,28 @@ public class FileStorageService {
 
     // ── Download ──────────────────────────────────────────────────────────────
 
+    /**
+     * Re-presign a stored profile photo URL so it never expires.
+     * Profile keys always start with "profiles/" — extract that segment from
+     * the stored URL and generate a fresh presigned GET URL on top of it.
+     * Returns null if the input is null/blank or doesn't contain a recognisable
+     * "profiles/" key (e.g. a legacy direct-public URL); callers should
+     * fall back to the original stored value in that case.
+     */
+    public String refreshProfilePhotoUrl(String storedUrl) {
+        if (storedUrl == null || storedUrl.isBlank()) return null;
+        int idx = storedUrl.indexOf("profiles/");
+        if (idx < 0) return storedUrl;          // unknown shape — return as-is
+        int q = storedUrl.indexOf('?', idx);
+        String key = (q < 0) ? storedUrl.substring(idx) : storedUrl.substring(idx, q);
+        try {
+            return generatePresignedUrl(key);
+        } catch (Exception e) {
+            log.warn("Could not re-presign profile photo url={}: {}", storedUrl, e.getMessage());
+            return storedUrl;                    // best-effort fallback
+        }
+    }
+
     /** Generate a short-lived presigned GET URL for a file (forces download). */
     public String generatePresignedUrl(String s3Key) {
         GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()

@@ -102,6 +102,20 @@ public class MainActivity extends AppCompatActivity {
         setupFab();
         loadUserData();
         loadSharedFilesStats();
+
+        // Pre-create the system notification channel + ask the user for
+        // POST_NOTIFICATIONS on Android 13+. We only need to ask once;
+        // refusal is sticky.
+        com.magizhchi.share.utils.NotificationHelper.ensureChannel(this);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.app.ActivityCompat.checkSelfPermission(this,
+                    android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(this,
+                        new String[] { android.Manifest.permission.POST_NOTIFICATIONS },
+                        1001);
+            }
+        }
     }
 
     @Override
@@ -145,8 +159,14 @@ public class MainActivity extends AppCompatActivity {
         }
         recyclerConversations = findViewById(R.id.recyclerConversations);
 
-        // Bell — show the unread-count list and clear the counter on open
-        btnBell.setOnClickListener(v -> showNotificationsDialog());
+        // Bell — open the full Notifications activity (connection requests +
+        // recent shares). The badge clears immediately so the user doesn't
+        // see a stale count after returning.
+        btnBell.setOnClickListener(v -> {
+            pendingNotifications = 0;
+            refreshBellBadge();
+            startActivity(new Intent(this, NotificationsActivity.class));
+        });
 
         // Pill tab toggle
         chipPeople.setOnClickListener(v -> setActiveTab(true));
@@ -193,6 +213,8 @@ public class MainActivity extends AppCompatActivity {
         conversationAdapter.setListener(new ConversationAdapter.OnConversationClickListener() {
             @Override
             public void onConversationClick(ConversationResponse conversation) {
+                // Opening a conversation clears its unread badge.
+                conversationAdapter.clearUnread(conversation.getId());
                 Intent intent = new Intent(MainActivity.this, ChatActivity.class);
                 intent.putExtra(ChatActivity.EXTRA_CONVERSATION, new Gson().toJson(conversation));
                 startActivity(intent);
@@ -285,9 +307,10 @@ public class MainActivity extends AppCompatActivity {
         // screen doesn't pay an extra round-trip on every launch.
         cardStorage.setOnClickListener(v -> openMyStorage());
 
-        // Shared Files → for now, drop the user into the conversations list
-        // pre-filtered by "shared" and show a quick stats summary.
-        cardShared.setOnClickListener(v -> openSharedFiles());
+        // Shared Files → open the dedicated SharedFilesActivity (full screen
+        // with stats banner + scrollable list, mirrors the web view).
+        cardShared.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, SharedFilesActivity.class)));
     }
 
     /** Resolve and open the personal-storage conversation. */
@@ -456,26 +479,59 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void createGroup(String name) {
-        okhttp3.RequestBody namePart = okhttp3.RequestBody.create(
-                name, okhttp3.MediaType.parse("text/plain"));
+        // Build the JSON `data` part the backend expects:
+        //   { "name": "<group name>", "memberIds": [] }
+        // Sending a flat "name" form-field made the @RequestPart binder fail —
+        // that's the source of the persistent "Failed to create group" error.
+        com.google.gson.JsonObject data = new com.google.gson.JsonObject();
+        data.addProperty("name", name);
+        data.add("memberIds", new com.google.gson.JsonArray());
+
+        okhttp3.RequestBody dataPart = okhttp3.RequestBody.create(
+                data.toString(), okhttp3.MediaType.parse("application/json; charset=utf-8"));
 
         ApiService apiService = ApiClient.getInstance(this).getApiService();
-        apiService.createGroup(namePart, null).enqueue(new Callback<ConversationResponse>() {
+        apiService.createGroupWithData(dataPart, null).enqueue(new Callback<ConversationResponse>() {
             @Override
             public void onResponse(Call<ConversationResponse> call, Response<ConversationResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    Toast.makeText(MainActivity.this, "Group created!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Group \"" + name + "\" created!", Toast.LENGTH_SHORT).show();
                     loadConversations();
                 } else {
-                    Toast.makeText(MainActivity.this, "Failed to create group", Toast.LENGTH_SHORT).show();
+                    // Surface the ACTUAL server error so the user knows what
+                    // went wrong (e.g. plan limit, validation error, etc.)
+                    String reason = readErrorBody(response);
+                    Toast.makeText(MainActivity.this,
+                            "Failed to create group: " + reason,
+                            Toast.LENGTH_LONG).show();
                 }
             }
 
             @Override
             public void onFailure(Call<ConversationResponse> call, Throwable t) {
-                Toast.makeText(MainActivity.this, "Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    /** Read the server's error body and return a friendly summary. */
+    private static String readErrorBody(Response<?> response) {
+        if (response == null) return "no response";
+        try {
+            String raw = response.errorBody() != null ? response.errorBody().string() : "";
+            if (raw.isEmpty()) {
+                return "HTTP " + response.code();
+            }
+            // Try parse a "message" field from JSON (Spring's standard shape)
+            try {
+                com.google.gson.JsonObject obj = new com.google.gson.Gson().fromJson(raw, com.google.gson.JsonObject.class);
+                if (obj != null && obj.has("message")) return obj.get("message").getAsString();
+                if (obj != null && obj.has("error"))   return obj.get("error").getAsString();
+            } catch (Exception ignored) {}
+            return raw.length() > 160 ? raw.substring(0, 160) + "…" : raw;
+        } catch (Exception e) {
+            return "HTTP " + response.code();
+        }
     }
 
     private void loadUserData() {
@@ -483,8 +539,14 @@ public class MainActivity extends AppCompatActivity {
         TokenManager tm = TokenManager.getInstance(this);
         renderUser(tm.getDisplayName(), tm.getProfilePhotoUrl());
 
-        ivAvatar.setOnClickListener(v -> showProfileDialog());
-        tvAvatarInitials.setOnClickListener(v -> showProfileDialog());
+        // Avatar click → full ProfileActivity (mirrors web ProfileModal).
+        // The old AlertDialog (showProfileDialog) only showed name + email and
+        // a logout button; the new screen surfaces avatar, status message,
+        // mobile, storage usage and a styled sign-out flow.
+        View.OnClickListener openProfile = v ->
+                startActivity(new Intent(this, ProfileActivity.class));
+        ivAvatar.setOnClickListener(openProfile);
+        tvAvatarInitials.setOnClickListener(openProfile);
 
         // Then hit users/me to pull a FRESH profile (URL may be a presigned
         // S3 link that's expired since last login). Update cached TokenManager
@@ -510,47 +572,56 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    /** Paint the welcome name + profile pic / initials fallback. */
+    /**
+     * Paint the welcome name + profile pic. INITIALS render first (always
+     * something on screen), then Glide attempts the photo; on success it
+     * overlays + hides the initials, on failure the initials stay. This
+     * fixes the "blank circle" bug we hit when presigned photo URLs expired.
+     */
     private void renderUser(String displayName, String photoUrl) {
         if (displayName != null && !displayName.isEmpty()) {
             tvWelcome.setText(displayName.split(" ")[0]);
         }
-        if (photoUrl != null && !photoUrl.isEmpty()) {
-            ivAvatar.setVisibility(View.VISIBLE);
-            tvAvatarInitials.setVisibility(View.GONE);
-            Glide.with(MainActivity.this)
-                    .load(photoUrl)
-                    .apply(RequestOptions.circleCropTransform())
-                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
-                        @Override
-                        public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e,
-                                                    Object model,
-                                                    com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
-                                                    boolean isFirstResource) {
-                            // Glide couldn't fetch the image (URL expired,
-                            // network blocked, etc.) — fall back to initials so
-                            // the header never shows an empty circle.
-                            ivAvatar.setVisibility(View.GONE);
-                            tvAvatarInitials.setVisibility(View.VISIBLE);
-                            tvAvatarInitials.setText(displayName != null
-                                    ? FormatUtils.initials(displayName) : "?");
-                            return true;
-                        }
-                        @Override
-                        public boolean onResourceReady(android.graphics.drawable.Drawable resource,
-                                                       Object model,
-                                                       com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
-                                                       com.bumptech.glide.load.DataSource dataSource,
-                                                       boolean isFirstResource) {
-                            return false;
-                        }
-                    })
-                    .into(ivAvatar);
-        } else if (displayName != null) {
-            ivAvatar.setVisibility(View.GONE);
-            tvAvatarInitials.setVisibility(View.VISIBLE);
-            tvAvatarInitials.setText(FormatUtils.initials(displayName));
-        }
+
+        // Step 1 — always show initials so the header is never blank.
+        tvAvatarInitials.setVisibility(View.VISIBLE);
+        tvAvatarInitials.setText(displayName != null
+                ? FormatUtils.initials(displayName) : "?");
+        ivAvatar.setVisibility(View.GONE);
+
+        if (photoUrl == null || photoUrl.isEmpty()) return;
+
+        // Step 2 — attempt the photo; overlay only on success.
+        // Disable Glide caches: presigned URLs go stale, and a cached failure
+        // would otherwise prevent any future attempt from succeeding.
+        Glide.with(MainActivity.this)
+                .load(photoUrl)
+                .apply(RequestOptions.circleCropTransform()
+                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                        .skipMemoryCache(true))
+                .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e,
+                                                Object model,
+                                                com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                boolean isFirstResource) {
+                        // Keep initials visible — return true so Glide doesn't
+                        // try its own placeholder/error drawable.
+                        return true;
+                    }
+                    @Override
+                    public boolean onResourceReady(android.graphics.drawable.Drawable resource,
+                                                   Object model,
+                                                   com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                   com.bumptech.glide.load.DataSource dataSource,
+                                                   boolean isFirstResource) {
+                        // Photo really loaded — overlay + hide initials.
+                        ivAvatar.setVisibility(View.VISIBLE);
+                        tvAvatarInitials.setVisibility(View.GONE);
+                        return false;
+                    }
+                })
+                .into(ivAvatar);
     }
 
     private void showProfileDialog() {
@@ -605,12 +676,21 @@ public class MainActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     StorageUsageResponse usage = response.body();
                     storageUsageCache = usage;  // breakdown popup uses this
+                    // Show 1 decimal of precision — matches the web. Using
+                    // "%.0f%%" here was rounding 0.18 → "0%", which looked
+                    // broken for users with tiny uploads.
                     String text = FormatUtils.formatBytes(usage.getUsedBytes())
                             + " / " + FormatUtils.formatBytes(usage.getLimitBytes())
-                            + " (" + String.format("%.0f%%", usage.getUsedPercent()) + ")";
+                            + " (" + String.format(java.util.Locale.getDefault(),
+                                    "%.1f%%", usage.getUsedPercent()) + ")";
                     tvStorageUsed.setText(text);
                     if (storageProgressBar != null) {
-                        storageProgressBar.setProgress((int) Math.min(usage.getUsedPercent(), 100));
+                        // For sub-1% usage, still nudge the bar to 1 px so
+                        // the user can SEE there's some content stored.
+                        double pct = usage.getUsedPercent();
+                        int progress = pct > 0 && pct < 1 ? 1
+                                : (int) Math.min(Math.round(pct), 100);
+                        storageProgressBar.setProgress(progress);
                     }
                 }
             }
@@ -676,6 +756,45 @@ public class MainActivity extends AppCompatActivity {
                     refreshBellBadge();
                     // Pull fresh shared-stats too — a new share may have arrived
                     loadSharedFilesStats();
+                    // Parse the event so we can bump the per-conversation
+                    // unread count. The server sends NotificationEvent shaped
+                    //   { type, payload: { conversationId, fileName, ... } }
+                    // The "fileName" can include a "(N files)" summary suffix
+                    // when a folder upload happens — surface that as N.
+                    try {
+                        com.google.gson.JsonObject root = new com.google.gson.Gson()
+                                .fromJson(text, com.google.gson.JsonObject.class);
+                        if (root == null || !root.has("type")) return;
+                        String type = root.get("type").getAsString();
+                        com.google.gson.JsonObject p = root.has("payload")
+                                ? root.getAsJsonObject("payload") : null;
+                        if (p == null) return;
+                        if ("NEW_FILE".equals(type)) {
+                            String convId = p.has("conversationId") ? p.get("conversationId").getAsString() : null;
+                            String fileName = p.has("fileName") ? p.get("fileName").getAsString() : "";
+                            String senderName = p.has("senderName") ? p.get("senderName").getAsString()
+                                    : (p.has("uploaderName") ? p.get("uploaderName").getAsString() : null);
+                            int incoming = 1;
+                            // Folder uploads send "📁 Foo (5 files)" — extract N.
+                            java.util.regex.Matcher m = java.util.regex.Pattern
+                                    .compile("\\((\\d+)\\s+files?\\)", java.util.regex.Pattern.CASE_INSENSITIVE)
+                                    .matcher(fileName);
+                            if (m.find()) {
+                                try { incoming = Integer.parseInt(m.group(1)); } catch (Exception ignored) {}
+                            }
+                            if (convId != null) conversationAdapter.bumpUnread(convId, incoming);
+                            // System notification — drops a heads-up on the
+                            // notification shade so the user is alerted even
+                            // when the app is backgrounded.
+                            com.magizhchi.share.utils.NotificationHelper.showIncomingFile(
+                                    MainActivity.this, senderName, fileName, incoming, convId);
+                            // Also refresh the conversation list so the lastFile
+                            // preview shows the new arrival.
+                            loadConversations();
+                        }
+                    } catch (Exception ignored) {
+                        // Malformed message — best-effort only
+                    }
                 });
             }
 

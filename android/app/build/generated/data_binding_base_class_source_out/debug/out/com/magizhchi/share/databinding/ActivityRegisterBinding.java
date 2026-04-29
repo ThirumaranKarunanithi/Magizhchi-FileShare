@@ -5,15 +5,16 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
-import com.google.android.material.textfield.TextInputEditText;
 import com.magizhchi.share.R;
 import java.lang.NullPointerException;
 import java.lang.Override;
@@ -36,16 +37,22 @@ public final class ActivityRegisterBinding implements ViewBinding {
   public final Button btnSmsChannel;
 
   @NonNull
-  public final TextInputEditText etDisplayName;
+  public final EditText etDisplayName;
 
   @NonNull
-  public final TextInputEditText etEmail;
+  public final EditText etEmail;
 
   @NonNull
-  public final TextInputEditText etMobile;
+  public final EditText etMobile;
 
   @NonNull
   public final ProgressBar progressBar;
+
+  @NonNull
+  public final LinearLayout registerCard;
+
+  @NonNull
+  public final FrameLayout registerRoot;
 
   @NonNull
   public final TextView tvError;
@@ -55,9 +62,9 @@ public final class ActivityRegisterBinding implements ViewBinding {
 
   private ActivityRegisterBinding(@NonNull FrameLayout rootView, @NonNull ImageButton btnBack,
       @NonNull Button btnEmailChannel, @NonNull Button btnSendOtp, @NonNull Button btnSmsChannel,
-      @NonNull TextInputEditText etDisplayName, @NonNull TextInputEditText etEmail,
-      @NonNull TextInputEditText etMobile, @NonNull ProgressBar progressBar,
-      @NonNull TextView tvError, @NonNull TextView tvSignIn) {
+      @NonNull EditText etDisplayName, @NonNull EditText etEmail, @NonNull EditText etMobile,
+      @NonNull ProgressBar progressBar, @NonNull LinearLayout registerCard,
+      @NonNull FrameLayout registerRoot, @NonNull TextView tvError, @NonNull TextView tvSignIn) {
     this.rootView = rootView;
     this.btnBack = btnBack;
     this.btnEmailChannel = btnEmailChannel;
@@ -67,6 +74,8 @@ public final class ActivityRegisterBinding implements ViewBinding {
     this.etEmail = etEmail;
     this.etMobile = etMobile;
     this.progressBar = progressBar;
+    this.registerCard = registerCard;
+    this.registerRoot = registerRoot;
     this.tvError = tvError;
     this.tvSignIn = tvSignIn;
   }
@@ -123,19 +132,19 @@ public final class ActivityRegisterBinding implements ViewBinding {
       }
 
       id = R.id.etDisplayName;
-      TextInputEditText etDisplayName = ViewBindings.findChildViewById(rootView, id);
+      EditText etDisplayName = ViewBindings.findChildViewById(rootView, id);
       if (etDisplayName == null) {
         break missingId;
       }
 
       id = R.id.etEmail;
-      TextInputEditText etEmail = ViewBindings.findChildViewById(rootView, id);
+      EditText etEmail = ViewBindings.findChildViewById(rootView, id);
       if (etEmail == null) {
         break missingId;
       }
 
       id = R.id.etMobile;
-      TextInputEditText etMobile = ViewBindings.findChildViewById(rootView, id);
+      EditText etMobile = ViewBindings.findChildViewById(rootView, id);
       if (etMobile == null) {
         break missingId;
       }
@@ -145,6 +154,14 @@ public final class ActivityRegisterBinding implements ViewBinding {
       if (progressBar == null) {
         break missingId;
       }
+
+      id = R.id.registerCard;
+      LinearLayout registerCard = ViewBindings.findChildViewById(rootView, id);
+      if (registerCard == null) {
+        break missingId;
+      }
+
+      FrameLayout registerRoot = (FrameLayout) rootView;
 
       id = R.id.tvError;
       TextView tvError = ViewBindings.findChildViewById(rootView, id);
@@ -159,8 +176,8 @@ public final class ActivityRegisterBinding implements ViewBinding {
       }
 
       return new ActivityRegisterBinding((FrameLayout) rootView, btnBack, btnEmailChannel,
-          btnSendOtp, btnSmsChannel, etDisplayName, etEmail, etMobile, progressBar, tvError,
-          tvSignIn);
+          btnSendOtp, btnSmsChannel, etDisplayName, etEmail, etMobile, progressBar, registerCard,
+          registerRoot, tvError, tvSignIn);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

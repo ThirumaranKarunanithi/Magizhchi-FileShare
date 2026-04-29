@@ -83,6 +83,29 @@
                 android:textColor="#99ffffff"
                 android:textSize="11sp" />
 
+            <!-- Unread count badge — "📥 N files received" — shown when this
+                 user has received files in the conversation since they last
+                 opened it. Mirrors the web sidebar's per-conversation pill. -->
+            <TextView
+                android:id="@+id/tvUnreadBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_gravity="end"
+                android:background="@drawable/bg_unread_badge"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@android:color/white"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:ignore="SpUsage"
+                xmlns:tools="http://schemas.android.com/tools" />
+
+            <!-- Old single-pixel unreadDot kept for compat (the adapter still
+                 references it). Hidden by default. -->
             <View
                 android:id="@+id/unreadDot"
                 android:layout_width="8dp"

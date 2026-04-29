@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Selected state of a download-permission pill in the upload screen. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFFFF"/>
+    <stroke android:width="2dp" android:color="#0EA5E9"/>
+    <corners android:radius="14dp"/>
+</shape>

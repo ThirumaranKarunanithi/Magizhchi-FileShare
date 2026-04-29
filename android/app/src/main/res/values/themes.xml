@@ -31,4 +31,13 @@
 
     </style>
 
+    <!-- Dark sheet for any PopupMenu / Toolbar overflow. Used by the chat
+         screen's overflow menu so the menu items (Manage Group, Exit, etc.)
+         appear on a dark slate background that matches the chat gradient. -->
+    <style name="Theme.MagizhchiShare.PopupDark" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:colorBackground">#0F172A</item>
+        <item name="android:textColorPrimary">@android:color/white</item>
+        <item name="android:textColorSecondary">#CCFFFFFF</item>
+    </style>
+
 </resources>

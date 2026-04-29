@@ -9,6 +9,12 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_new_folder"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="New Folder"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/action_manage_group"
         android:title="@string/action_manage_group"
         android:visible="false"

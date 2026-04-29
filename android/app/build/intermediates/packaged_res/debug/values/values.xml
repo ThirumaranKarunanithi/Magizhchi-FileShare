@@ -2,7 +2,7 @@
 <resources>
     <color name="colorDirect">#8C1565C0</color>
     <color name="colorGlassWhite">#21ffffff</color>
-    <color name="colorGroup">#80880E4F</color>
+    <color name="colorGroup">#52DB2777</color>
     <color name="colorOnSurface">#FFFFFF</color>
     <color name="colorShared">#D96A1B9A</color>
     <color name="colorStorage">#E60E82D2</color>
@@ -103,5 +103,10 @@
         <item name="android:textColorPrimary">@color/textPrimary</item>
         <item name="android:textColorSecondary">@color/textSecondary</item>
 
+    </style>
+    <style name="Theme.MagizhchiShare.PopupDark" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:colorBackground">#0F172A</item>
+        <item name="android:textColorPrimary">@android:color/white</item>
+        <item name="android:textColorSecondary">#CCFFFFFF</item>
     </style>
 </resources>

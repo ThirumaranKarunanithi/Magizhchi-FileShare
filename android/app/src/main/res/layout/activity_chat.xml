@@ -1,44 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- The CoordinatorLayout root takes the entire window so the dotted gradient
+     can extend behind the status bar. The inner LinearLayout uses
+     fitsSystemWindows="true" to absorb the top inset and push the toolbar
+     below the status bar — that's what fixes the "header hidden behind the
+     notification bar" bug. -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/chatRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_bg">
+    android:fitsSystemWindows="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:fitsSystemWindows="true">
 
-        <!-- Toolbar -->
+        <!-- Toolbar — uses a custom title view (avatar + name + status). The
+             popupTheme keeps the overflow / popup menu DARK so it matches
+             the gradient background instead of flashing a white menu sheet. -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@android:color/transparent"
+            app:contentInsetStartWithNavigation="0dp"
             app:titleTextColor="@android:color/white"
             app:subtitleTextColor="@color/textSecondary"
-            app:navigationIconTint="@android:color/white">
+            app:navigationIconTint="@android:color/white"
+            app:popupTheme="@style/Theme.MagizhchiShare.PopupDark">
 
-            <TextView
-                android:id="@+id/tvSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="8dp"
-                android:textColor="@color/textSecondary"
-                android:textSize="12sp" />
+            <include
+                android:id="@+id/toolbarTitleView"
+                layout="@layout/view_chat_toolbar_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
         </androidx.appcompat.widget.Toolbar>
 
-        <!-- Search + single Filter button (replaces the multi-chip strip) -->
+        <!-- Breadcrumb strip — shown when the user is INSIDE a folder.
+             Tapping "🏠 All Files" pops back to the conversation root; tapping
+             any intermediate segment jumps to that level. -->
+        <HorizontalScrollView
+            android:id="@+id/breadcrumbScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:visibility="gone"
+            android:background="#22FFFFFF"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <LinearLayout
+                android:id="@+id/breadcrumb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- Search + single Filter button (replaces the multi-chip strip).
+             Equal top + bottom padding so the field sits centered between
+             the breadcrumb above and the list below. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
+            android:paddingTop="8dp"
             android:paddingBottom="8dp"
             android:gravity="center_vertical">
 
@@ -64,6 +98,20 @@
                 android:text="🎯 All"
                 android:textColor="@android:color/white"
                 android:textSize="13sp" />
+
+            <!-- View-mode picker — Large / Medium / Details. Mirrors the
+                 web ChatWindow's top-right view-mode toolbar but compresses
+                 the six modes into the three the user requested. -->
+            <Button
+                android:id="@+id/btnViewMode"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:backgroundTint="@color/colorGlassWhite"
+                android:text="≡"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:contentDescription="View mode" />
         </LinearLayout>
 
         <!-- Selection toolbar — visible only when adapter is in selection mode -->

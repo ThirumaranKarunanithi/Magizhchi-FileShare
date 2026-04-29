@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.magizhchi.share.app-mergeDebugResources-31:/values-watch-v21/values-watch-v21.xml",
+            "outputFile": "com.magizhchi.share.app-mergeDebugResources-32:/values-watch-v21/values-watch-v21.xml",
             "map": [
                 {
                     "source": "C:\\Users\\tiruk\\.gradle\\caches\\8.9\\transforms\\47e928f4f4223b1146f41cadcf9f63d0\\transformed\\appcompat-1.6.1\\res\\values-watch-v21\\values-watch-v21.xml",

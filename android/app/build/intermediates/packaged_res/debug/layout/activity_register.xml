@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/registerRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/gradient_bg">
+    android:layout_height="match_parent">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -17,13 +17,14 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <!-- Glass card -->
+            <!-- Auth card — painted programmatically with the dotted blue
+                 gradient (rounded 28dp corners). -->
             <LinearLayout
+                android:id="@+id/registerCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_glass_card"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:padding="28dp">
 
                 <!-- Back arrow -->
                 <ImageButton
@@ -35,88 +36,127 @@
                     android:tint="@android:color/white"
                     android:contentDescription="Back" />
 
-                <!-- Title -->
+                <!-- Glass logo banner — same as the login screen so the brand
+                     identity is consistent across both auth surfaces. -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="88dp"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_logo_glass">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/logo"
+                        android:contentDescription="Magizhchi Share" />
+                </FrameLayout>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:text="Create Account"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="26sp"
+                    android:textColor="@android:color/white"
+                    android:textSize="22sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="4dp"
                     android:text="Join Magizhchi Share for free"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="14sp" />
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="13sp" />
+
+                <!-- Plain label + glass EditText (no TextInputLayout). The
+                     OutlinedBox style was drawing its own border on top of
+                     our custom glass background and the floating-hint cut-out
+                     was misaligning. A separate TextView label is cleaner. -->
 
                 <!-- Display Name -->
-                <com.google.android.material.textfield.TextInputLayout
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="Full name"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.05" />
+                <EditText
+                    android:id="@+id/etDisplayName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:hint="Full name"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etDisplayName"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input"
-                        android:inputType="textPersonName|textCapWords"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="@color/inputText"
-                        android:textColorHint="@color/inputHint" />
-
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_glass"
+                    android:hint="Your full name"
+                    android:inputType="textPersonName|textCapWords"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:textColor="@android:color/white"
+                    android:textColorHint="#99FFFFFF"
+                    android:textSize="14sp" />
 
                 <!-- Email -->
-                <com.google.android.material.textfield.TextInputLayout
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Email address"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.05" />
+                <EditText
+                    android:id="@+id/etEmail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:hint="Email address"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etEmail"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input"
-                        android:inputType="textEmailAddress"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="@color/inputText"
-                        android:textColorHint="@color/inputHint" />
-
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_glass"
+                    android:hint="you@example.com"
+                    android:inputType="textEmailAddress"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:textColor="@android:color/white"
+                    android:textColorHint="#99FFFFFF"
+                    android:textSize="14sp" />
 
                 <!-- Mobile Number -->
-                <com.google.android.material.textfield.TextInputLayout
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Mobile number"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.05" />
+                <EditText
+                    android:id="@+id/etMobile"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:hint="Mobile number (e.g. +91XXXXXXXXXX)"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etMobile"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input"
-                        android:inputType="phone"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="@color/inputText"
-                        android:textColorHint="@color/inputHint" />
-
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_glass"
+                    android:hint="+91XXXXXXXXXX"
+                    android:inputType="phone"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:textColor="@android:color/white"
+                    android:textColorHint="#99FFFFFF"
+                    android:textSize="14sp" />
 
                 <!-- OTP Channel label -->
                 <TextView

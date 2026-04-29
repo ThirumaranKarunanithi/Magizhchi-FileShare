@@ -5,14 +5,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
-import com.google.android.material.textfield.TextInputEditText;
 import com.magizhchi.share.R;
 import java.lang.NullPointerException;
 import java.lang.Override;
@@ -26,7 +27,13 @@ public final class ActivityLoginBinding implements ViewBinding {
   public final Button btnSendOtp;
 
   @NonNull
-  public final TextInputEditText etIdentifier;
+  public final EditText etIdentifier;
+
+  @NonNull
+  public final LinearLayout loginCard;
+
+  @NonNull
+  public final FrameLayout loginRoot;
 
   @NonNull
   public final ProgressBar progressBar;
@@ -35,11 +42,14 @@ public final class ActivityLoginBinding implements ViewBinding {
   public final TextView tvSignUp;
 
   private ActivityLoginBinding(@NonNull FrameLayout rootView, @NonNull Button btnSendOtp,
-      @NonNull TextInputEditText etIdentifier, @NonNull ProgressBar progressBar,
+      @NonNull EditText etIdentifier, @NonNull LinearLayout loginCard,
+      @NonNull FrameLayout loginRoot, @NonNull ProgressBar progressBar,
       @NonNull TextView tvSignUp) {
     this.rootView = rootView;
     this.btnSendOtp = btnSendOtp;
     this.etIdentifier = etIdentifier;
+    this.loginCard = loginCard;
+    this.loginRoot = loginRoot;
     this.progressBar = progressBar;
     this.tvSignUp = tvSignUp;
   }
@@ -78,10 +88,18 @@ public final class ActivityLoginBinding implements ViewBinding {
       }
 
       id = R.id.etIdentifier;
-      TextInputEditText etIdentifier = ViewBindings.findChildViewById(rootView, id);
+      EditText etIdentifier = ViewBindings.findChildViewById(rootView, id);
       if (etIdentifier == null) {
         break missingId;
       }
+
+      id = R.id.loginCard;
+      LinearLayout loginCard = ViewBindings.findChildViewById(rootView, id);
+      if (loginCard == null) {
+        break missingId;
+      }
+
+      FrameLayout loginRoot = (FrameLayout) rootView;
 
       id = R.id.progressBar;
       ProgressBar progressBar = ViewBindings.findChildViewById(rootView, id);
@@ -95,8 +113,8 @@ public final class ActivityLoginBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityLoginBinding((FrameLayout) rootView, btnSendOtp, etIdentifier, progressBar,
-          tvSignUp);
+      return new ActivityLoginBinding((FrameLayout) rootView, btnSendOtp, etIdentifier, loginCard,
+          loginRoot, progressBar, tvSignUp);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

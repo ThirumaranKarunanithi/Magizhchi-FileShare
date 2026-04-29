@@ -19,6 +19,14 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!--
+         Required on Android 13+ to surface system notifications when a file
+         arrives. We request the runtime permission on first launch from
+         MainActivity.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -69,6 +77,26 @@
         <activity
             android:name="com.magizhchi.share.GroupInfoActivity"
             android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name="com.magizhchi.share.SharedFilesActivity"
+            android:exported="false"
+            android:parentActivityName="com.magizhchi.share.MainActivity"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name="com.magizhchi.share.UploadActivity"
+            android:exported="false"
+            android:parentActivityName="com.magizhchi.share.ChatActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name="com.magizhchi.share.ProfileActivity"
+            android:exported="false"
+            android:parentActivityName="com.magizhchi.share.MainActivity"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name="com.magizhchi.share.NotificationsActivity"
+            android:exported="false"
+            android:parentActivityName="com.magizhchi.share.MainActivity"
             android:windowSoftInputMode="adjustPan" />
 
         <provider

@@ -33,6 +33,7 @@ public class ConnectionService {
     private final BlockRepository             blockRepo;
     private final UserRepository              userRepo;
     private final SimpMessagingTemplate       messaging;
+    private final FileStorageService          fileStorage;
 
     @Value("${app.connection.daily-request-limit:15}")
     private int dailyRequestLimit;
@@ -219,7 +220,7 @@ public class ConnectionService {
                 .map(b -> UserSearchResponse.builder()
                         .id(b.getBlocked().getId())
                         .displayName(b.getBlocked().getDisplayName())
-                        .profilePhotoUrl(b.getBlocked().getProfilePhotoUrl())
+                        .profilePhotoUrl(fileStorage.refreshProfilePhotoUrl(b.getBlocked().getProfilePhotoUrl()))
                         .connectionStatus("BLOCKED_BY_ME")
                         .build())
                 .toList();
@@ -282,7 +283,7 @@ public class ConnectionService {
         return UserSearchResponse.builder()
                 .id(u.getId())
                 .displayName(u.getDisplayName())
-                .profilePhotoUrl(u.getProfilePhotoUrl())
+                .profilePhotoUrl(fileStorage.refreshProfilePhotoUrl(u.getProfilePhotoUrl()))
                 .mobileNumber(u.getMobileNumber())
                 .statusMessage(u.getStatusMessage())
                 .connectionStatus(status)
@@ -295,7 +296,7 @@ public class ConnectionService {
         return UserSearchResponse.builder()
                 .id(u.getId())
                 .displayName(u.getDisplayName())
-                .profilePhotoUrl(u.getProfilePhotoUrl())
+                .profilePhotoUrl(fileStorage.refreshProfilePhotoUrl(u.getProfilePhotoUrl()))
                 // mobileNumber and statusMessage intentionally omitted
                 .connectionStatus(status)
                 .connectionRequestId(reqId)

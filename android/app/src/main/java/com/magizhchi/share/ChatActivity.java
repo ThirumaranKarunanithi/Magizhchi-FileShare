@@ -21,6 +21,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -33,7 +34,13 @@ import com.magizhchi.share.model.ConversationResponse;
 import com.magizhchi.share.model.FileMessageResponse;
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
+import android.widget.ImageView;
+import com.magizhchi.share.model.UserSearchResponse;
 import com.magizhchi.share.network.TokenManager;
+import com.magizhchi.share.utils.DottedGradientDrawable;
 import com.magizhchi.share.utils.FormatUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -58,6 +65,7 @@ public class ChatActivity extends AppCompatActivity {
 
     public static final String EXTRA_CONVERSATION = "conversation";
     private static final int REQUEST_PICK_FILES = 1001;
+    private static final int REQUEST_UPLOAD     = 1002;
 
     private ConversationResponse conversation;
     private FileMessageAdapter fileAdapter;
@@ -65,9 +73,14 @@ public class ChatActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private RecyclerView recyclerFiles;
     private Button btnFilter;
+    private Button btnViewMode;
+    private FileMessageAdapter.ViewMode currentViewMode = FileMessageAdapter.ViewMode.DETAILS;
+    private static final String PREF_VIEW_MODE = "chat_view_mode";
     private LinearLayout selectionToolbar;
     private TextView tvSelectionCount;
     private ImageButton btnSelectAll, btnDeleteSelected, btnExitSelection;
+    private View breadcrumbScroll;
+    private LinearLayout breadcrumb;
     private EditText etSearch;
     private Button btnLoadMore;
     private int currentPage = 0;
@@ -82,6 +95,13 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
+        // Programmatic chat-screen background — sky gradient + dot pattern,
+        // matches the web ChatWindow exactly. Painted on the root so it
+        // extends behind the status bar; the inner LinearLayout in the XML
+        // uses fitsSystemWindows="true" so the toolbar lives below the bar.
+        View root = findViewById(R.id.chatRoot);
+        if (root != null) root.setBackground(new DottedGradientDrawable(getResources()));
+
         // Parse conversation from intent
         String json = getIntent().getStringExtra(EXTRA_CONVERSATION);
         if (json == null) { finish(); return; }
@@ -91,20 +111,112 @@ public class ChatActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(conversation.getName() != null ? conversation.getName() : "Chat");
+            // Hide the default title — we render avatar + name + status inside
+            // a custom view embedded in the Toolbar via <include>.
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
-
-        String subtitle = "DIRECT".equalsIgnoreCase(conversation.getType())
-                ? "Direct file share"
-                : conversation.getMemberCount() + " members";
-        TextView tvSubtitle = findViewById(R.id.tvSubtitle);
-        if (tvSubtitle != null) tvSubtitle.setText(subtitle);
+        bindCustomToolbarTitle();
 
         initViews();
         setupFilterChips();
         setupSearch();
         setupUploadFab();
         loadFiles(0, true);
+    }
+
+    /**
+     * Paint the custom toolbar title — avatar circle + display name + status
+     * line. For DIRECT chats we additionally fetch the counterparty's profile
+     * so we can show their statusMessage under their name (mirrors web).
+     */
+    private void bindCustomToolbarTitle() {
+        TextView tvTitle      = findViewById(R.id.toolbarTitle);
+        TextView tvStatus     = findViewById(R.id.toolbarStatus);
+        ImageView avatar      = findViewById(R.id.toolbarAvatar);
+        TextView avatarLetters = findViewById(R.id.toolbarAvatarInitials);
+
+        String name = conversation.getName() != null ? conversation.getName() : "Chat";
+        if (tvTitle != null) tvTitle.setText(name);
+
+        // Default subtitle while we wait for the user fetch — group/personal info.
+        if (tvStatus != null) {
+            String fallback = "GROUP".equalsIgnoreCase(conversation.getType())
+                    ? conversation.getMemberCount() + " member"
+                            + (conversation.getMemberCount() != 1 ? "s" : "")
+                    : "PERSONAL".equalsIgnoreCase(conversation.getType())
+                            ? "My personal storage"
+                            : "Direct file share";
+            tvStatus.setText(fallback);
+            tvStatus.setVisibility(View.VISIBLE);
+        }
+
+        // Initials fallback first — avatar overlays on top once Glide loads.
+        if (avatarLetters != null) {
+            avatarLetters.setVisibility(View.VISIBLE);
+            avatarLetters.setText(FormatUtils.initials(name));
+        }
+        if (avatar != null) avatar.setVisibility(View.GONE);
+
+        // Try the conversation's own iconUrl first (cached on the home screen).
+        loadAvatarInto(conversation.getIconUrl(), avatar, avatarLetters);
+
+        // For DIRECT chats only: fetch the other user's profile so we can
+        // surface their statusMessage and a fresh photo URL.
+        if ("DIRECT".equalsIgnoreCase(conversation.getType())
+                && conversation.getOtherUserId() != null) {
+            ApiClient.getInstance(this).getApiService()
+                    .getUserById(conversation.getOtherUserId())
+                    .enqueue(new Callback<UserSearchResponse>() {
+                @Override public void onResponse(Call<UserSearchResponse> call, Response<UserSearchResponse> response) {
+                    if (!response.isSuccessful() || response.body() == null) return;
+                    UserSearchResponse u = response.body();
+                    if (tvStatus != null) {
+                        String status = u.getStatusMessage();
+                        if (status != null && !status.trim().isEmpty()) {
+                            tvStatus.setText("💬 " + status.trim());
+                        }
+                    }
+                    loadAvatarInto(u.getProfilePhotoUrl(), avatar, avatarLetters);
+                }
+                @Override public void onFailure(Call<UserSearchResponse> call, Throwable t) { /* keep cached values */ }
+            });
+        }
+    }
+
+    /** Load a URL into the toolbar avatar; falls back to initials on any error. */
+    private void loadAvatarInto(String url, ImageView avatarView, TextView lettersView) {
+        if (avatarView == null || lettersView == null) return;
+        if (url == null || url.isEmpty()) {
+            avatarView.setVisibility(View.GONE);
+            lettersView.setVisibility(View.VISIBLE);
+            return;
+        }
+        Glide.with(this)
+                .load(url)
+                // Presigned URLs go stale; skip caches so we always re-fetch.
+                .apply(RequestOptions.circleCropTransform()
+                        .diskCacheStrategy(DiskCacheStrategy.NONE)
+                        .skipMemoryCache(true))
+                .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                    @Override public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e,
+                                                          Object model,
+                                                          com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                          boolean isFirstResource) {
+                        avatarView.setVisibility(View.GONE);
+                        lettersView.setVisibility(View.VISIBLE);
+                        return true;
+                    }
+                    @Override public boolean onResourceReady(android.graphics.drawable.Drawable resource,
+                                                             Object model,
+                                                             com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                             com.bumptech.glide.load.DataSource dataSource,
+                                                             boolean isFirstResource) {
+                        avatarView.setVisibility(View.VISIBLE);
+                        lettersView.setVisibility(View.GONE);
+                        return false;
+                    }
+                })
+                .into(avatarView);
     }
 
     @Override
@@ -127,6 +239,9 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_select) {
             fileAdapter.setSelectionMode(!fileAdapter.isSelectionMode());
+            return true;
+        } else if (id == R.id.action_new_folder) {
+            showCreateFolderDialog();
             return true;
         } else if (id == R.id.action_manage_group) {
             Intent intent = new Intent(this, GroupInfoActivity.class);
@@ -185,6 +300,9 @@ public class ChatActivity extends AppCompatActivity {
         etSearch      = findViewById(R.id.etSearch);
         btnLoadMore   = findViewById(R.id.btnLoadMore);
         btnFilter     = findViewById(R.id.btnFilter);
+        btnViewMode   = findViewById(R.id.btnViewMode);
+        breadcrumbScroll  = findViewById(R.id.breadcrumbScroll);
+        breadcrumb        = findViewById(R.id.breadcrumb);
         selectionToolbar  = findViewById(R.id.selectionToolbar);
         tvSelectionCount  = findViewById(R.id.tvSelectionCount);
         btnSelectAll      = findViewById(R.id.btnSelectAll);
@@ -193,11 +311,18 @@ public class ChatActivity extends AppCompatActivity {
 
         String currentUserId = TokenManager.getInstance(this).getUserId();
         fileAdapter = new FileMessageAdapter(this, currentUserId);
-        recyclerFiles.setLayoutManager(new LinearLayoutManager(this));
+        // Restore the persisted view mode before the first bind so reopening
+        // a chat preserves what the user picked last time.
+        currentViewMode = readPersistedViewMode();
+        applyViewModeToRecycler();
         recyclerFiles.setAdapter(fileAdapter);
 
+        if (btnViewMode != null) {
+            btnViewMode.setOnClickListener(v -> showViewModePicker(v));
+        }
+
         fileAdapter.setListener(new FileMessageAdapter.OnFileActionListener() {
-            @Override public void onPreview(FileMessageResponse f) { downloadFile(f); /* preview = open URL */ }
+            @Override public void onPreview(FileMessageResponse f) { previewFile(f); }
             @Override public void onDownload(FileMessageResponse f) { downloadFile(f); }
             @Override public void onPin(FileMessageResponse f) {
                 Toast.makeText(ChatActivity.this, "Pinned " + f.getOriginalFileName(), Toast.LENGTH_SHORT).show();
@@ -242,6 +367,73 @@ public class ChatActivity extends AppCompatActivity {
         boolean inMode = fileAdapter.isSelectionMode();
         if (selectionToolbar != null) selectionToolbar.setVisibility(inMode ? View.VISIBLE : View.GONE);
         if (tvSelectionCount != null) tvSelectionCount.setText(count + " selected");
+    }
+
+    // ── View-mode picker (Large / Medium / Details) ──────────────────────────
+
+    /** Read the persisted view mode from SharedPreferences (default DETAILS). */
+    private FileMessageAdapter.ViewMode readPersistedViewMode() {
+        String stored = getSharedPreferences("magizhchi_prefs", MODE_PRIVATE)
+                .getString(PREF_VIEW_MODE, FileMessageAdapter.ViewMode.DETAILS.name());
+        try { return FileMessageAdapter.ViewMode.valueOf(stored); }
+        catch (IllegalArgumentException e) { return FileMessageAdapter.ViewMode.DETAILS; }
+    }
+
+    private void persistViewMode(FileMessageAdapter.ViewMode mode) {
+        getSharedPreferences("magizhchi_prefs", MODE_PRIVATE)
+                .edit().putString(PREF_VIEW_MODE, mode.name()).apply();
+    }
+
+    /**
+     * Swap the RecyclerView's LayoutManager and tell the adapter to redraw
+     * with cells of the right shape:
+     *   DETAILS → linear vertical list (current behaviour)
+     *   LARGE   → 2-column grid with big icons
+     *   MEDIUM  → 3-column grid with smaller icons
+     */
+    private void applyViewModeToRecycler() {
+        if (recyclerFiles == null || fileAdapter == null) return;
+        RecyclerView.LayoutManager lm;
+        switch (currentViewMode) {
+            case LARGE:  lm = new GridLayoutManager(this, 2); break;
+            case MEDIUM: lm = new GridLayoutManager(this, 3); break;
+            case DETAILS:
+            default:     lm = new LinearLayoutManager(this);  break;
+        }
+        recyclerFiles.setLayoutManager(lm);
+        fileAdapter.setViewMode(currentViewMode);
+        if (btnViewMode != null) btnViewMode.setText(viewModeIcon(currentViewMode));
+    }
+
+    private String viewModeIcon(FileMessageAdapter.ViewMode mode) {
+        switch (mode) {
+            case LARGE:  return "▦ Large";
+            case MEDIUM: return "▤ Medium";
+            case DETAILS:
+            default:     return "≡ Details";
+        }
+    }
+
+    private void showViewModePicker(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(0, 1, 0, "▦ Large icons");
+        popup.getMenu().add(0, 2, 1, "▤ Medium icons");
+        popup.getMenu().add(0, 3, 2, "≡ Details");
+        popup.setOnMenuItemClickListener(item -> {
+            FileMessageAdapter.ViewMode picked;
+            switch (item.getItemId()) {
+                case 1: picked = FileMessageAdapter.ViewMode.LARGE;  break;
+                case 2: picked = FileMessageAdapter.ViewMode.MEDIUM; break;
+                default: picked = FileMessageAdapter.ViewMode.DETAILS; break;
+            }
+            if (picked != currentViewMode) {
+                currentViewMode = picked;
+                applyViewModeToRecycler();
+                persistViewMode(picked);
+            }
+            return true;
+        });
+        popup.show();
     }
 
     private void exitSelectionMode() {
@@ -352,14 +544,13 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
 
-        List<FileMessageAdapter.Row> rows = new ArrayList<>();
-        // Folder rows first — newest-folder first (driven by max sentAt of files inside)
-        List<Map.Entry<String, List<FileMessageResponse>>> folderEntries =
-                new ArrayList<>(folderBuckets.entrySet());
-        folderEntries.sort(Comparator.comparing(
-                (Map.Entry<String, List<FileMessageResponse>> e) -> e.getValue().get(0).getSentAt(),
-                Comparator.nullsLast(Comparator.reverseOrder())));
-        for (Map.Entry<String, List<FileMessageResponse>> e : folderEntries) {
+        // Build BOTH folder rows AND loose-file rows into one combined list,
+        // each tagged with its activity timestamp, then sort the combined list
+        // newest-first. Folders use the timestamp of their newest member, so a
+        // folder that just received a file outranks an older standalone file.
+        List<Object[]> tagged = new ArrayList<>(); // each entry: [Row, String sortKey]
+
+        for (Map.Entry<String, List<FileMessageResponse>> e : folderBuckets.entrySet()) {
             String path = e.getKey();
             String name = path.replaceAll("/$", "");
             int slash = name.lastIndexOf('/');
@@ -372,12 +563,88 @@ public class ChatActivity extends AppCompatActivity {
                     latest = f.getSentAt();
                 }
             }
-            rows.add(FileMessageAdapter.Row.folder(path, name, e.getValue().size(), total, latest));
+            tagged.add(new Object[]{
+                    FileMessageAdapter.Row.folder(path, name, e.getValue().size(), total, latest),
+                    latest
+            });
         }
-        // Then files at this level
-        for (FileMessageResponse f : looseFiles) rows.add(FileMessageAdapter.Row.file(f));
+        for (FileMessageResponse f : looseFiles) {
+            tagged.add(new Object[]{ FileMessageAdapter.Row.file(f), f.getSentAt() });
+        }
 
+        tagged.sort((a, b) -> {
+            String sa = (String) a[1], sb = (String) b[1];
+            if (sa == null && sb == null) return 0;
+            if (sa == null) return 1;
+            if (sb == null) return -1;
+            return sb.compareTo(sa);   // newest first
+        });
+
+        List<FileMessageAdapter.Row> rows = new ArrayList<>();
+        for (Object[] o : tagged) rows.add((FileMessageAdapter.Row) o[0]);
         fileAdapter.setRows(rows);
+        renderBreadcrumb();
+    }
+
+    /**
+     * Draw the folder-navigation breadcrumb below the toolbar. Always visible
+     * — at root it shows just "🏠 All Files" so the user knows where they
+     * are. Each path segment becomes a clickable TextView that jumps to that
+     * depth (the deepest segment is bold + non-tappable).
+     */
+    private void renderBreadcrumb() {
+        if (breadcrumb == null || breadcrumbScroll == null) return;
+        breadcrumb.removeAllViews();
+        breadcrumbScroll.setVisibility(View.VISIBLE);
+
+        boolean atRoot = (currentFolderPath == null || currentFolderPath.isEmpty());
+
+        // Home chip — bold + non-tappable when we're already at root.
+        breadcrumb.addView(makeCrumb("🏠 All Files", !atRoot, atRoot ? null : () -> {
+            currentFolderPath = null;
+            applyFilterAndSearch();
+        }));
+
+        if (atRoot) return;
+
+        String[] segs = currentFolderPath.replaceAll("/$", "").split("/");
+        StringBuilder built = new StringBuilder();
+        for (int i = 0; i < segs.length; i++) {
+            built.append(segs[i]).append("/");
+            String pathToHere = built.toString();
+            boolean isLast = i == segs.length - 1;
+            breadcrumb.addView(makeSeparator());
+            breadcrumb.addView(makeCrumb(segs[i], !isLast, isLast ? null : () -> {
+                currentFolderPath = pathToHere;
+                applyFilterAndSearch();
+            }));
+        }
+    }
+
+    private TextView makeCrumb(String label, boolean clickable, Runnable onClick) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(clickable ? 0xCCFFFFFF : 0xFFFFFFFF);
+        tv.setTextSize(12);
+        tv.setTypeface(null, clickable ? android.graphics.Typeface.NORMAL : android.graphics.Typeface.BOLD);
+        int padH = (int) (8 * getResources().getDisplayMetrics().density);
+        int padV = (int) (4 * getResources().getDisplayMetrics().density);
+        tv.setPadding(padH, padV, padH, padV);
+        if (clickable && onClick != null) {
+            tv.setBackgroundResource(android.R.drawable.list_selector_background);
+            tv.setOnClickListener(v -> onClick.run());
+        }
+        return tv;
+    }
+
+    private TextView makeSeparator() {
+        TextView tv = new TextView(this);
+        tv.setText("›");
+        tv.setTextColor(0x66FFFFFF);
+        tv.setTextSize(13);
+        int pad = (int) (4 * getResources().getDisplayMetrics().density);
+        tv.setPadding(pad, 0, pad, 0);
+        return tv;
     }
 
     /** All files whose folderPath starts with the given prefix (used for batch download). */
@@ -403,8 +670,9 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
         if (requestCode == REQUEST_PICK_FILES && resultCode == Activity.RESULT_OK && data != null) {
-            List<Uri> uris = new ArrayList<>();
+            ArrayList<Uri> uris = new ArrayList<>();
             if (data.getClipData() != null) {
                 int count = data.getClipData().getItemCount();
                 for (int i = 0; i < count; i++) {
@@ -413,26 +681,35 @@ public class ChatActivity extends AppCompatActivity {
             } else if (data.getData() != null) {
                 uris.add(data.getData());
             }
-            if (!uris.isEmpty()) {
-                showCaptionDialog(uris);
+            if (!uris.isEmpty()) launchUploadComposer(uris);
+            return;
+        }
+
+        if (requestCode == REQUEST_UPLOAD && resultCode == Activity.RESULT_OK) {
+            // UploadActivity reports back the upload count — refresh the list.
+            int count = data != null ? data.getIntExtra(UploadActivity.EXTRA_UPLOAD_COUNT, 0) : 0;
+            if (count > 0) {
+                Toast.makeText(this, count + " file" + (count != 1 ? "s" : "") + " uploaded.",
+                        Toast.LENGTH_SHORT).show();
+                loadFiles(0, true);
             }
         }
     }
 
-    private void showCaptionDialog(List<Uri> uris) {
-        EditText etCaption = new EditText(this);
-        etCaption.setHint("Add a caption (optional)");
-        new AlertDialog.Builder(this)
-                .setTitle("Upload " + uris.size() + " file(s)")
-                .setView(etCaption)
-                .setPositiveButton("Upload", (dialog, which) -> {
-                    String caption = etCaption.getText().toString().trim();
-                    for (Uri uri : uris) {
-                        uploadFile(uri, caption);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+    /**
+     * Launch the full-screen UploadActivity (web-style upload modal) with
+     * the picked URIs + the destination conversation/folder so the user can
+     * pick a download permission and add a description before sending.
+     */
+    private void launchUploadComposer(ArrayList<Uri> uris) {
+        Intent i = new Intent(this, UploadActivity.class);
+        i.putExtra(UploadActivity.EXTRA_CONVERSATION_ID,   conversation.getId());
+        i.putExtra(UploadActivity.EXTRA_CONVERSATION_TYPE, conversation.getType());
+        i.putExtra(UploadActivity.EXTRA_FOLDER_PATH,       currentFolderPath);
+        i.putParcelableArrayListExtra(UploadActivity.EXTRA_URIS, uris);
+        // Forward the read permission grant so UploadActivity can openInputStream.
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivityForResult(i, REQUEST_UPLOAD);
     }
 
     private void uploadFile(Uri uri, String caption) {
@@ -542,6 +819,150 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Open the New Folder composer — port of the web dialog. Lets the user
+     * pick a name + description + default download permission. Posts to
+     * /api/folders and refreshes the list on success.
+     */
+    private void showCreateFolderDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_new_folder, null);
+
+        EditText etName = dialogView.findViewById(R.id.etFolderName);
+        EditText etDesc = dialogView.findViewById(R.id.etFolderDescription);
+        TextView tvDest = dialogView.findViewById(R.id.tvFolderDestination);
+        LinearLayout pAnyone = dialogView.findViewById(R.id.folderPermAnyone);
+        LinearLayout pView   = dialogView.findViewById(R.id.folderPermViewOnly);
+        LinearLayout pAdmins = dialogView.findViewById(R.id.folderPermAdmins);
+        Button btnCreate = dialogView.findViewById(R.id.btnFolderCreate);
+        Button btnCancel = dialogView.findViewById(R.id.btnFolderCancel);
+
+        // Show where the folder will be created
+        tvDest.setText(currentFolderPath != null && !currentFolderPath.isEmpty()
+                ? "Inside " + currentFolderPath
+                : "At the top level");
+
+        final String[] permRef = { "CAN_DOWNLOAD" };
+        final boolean groupChat = "GROUP".equalsIgnoreCase(conversation.getType());
+
+        Runnable applyPills = () -> {
+            applyPermPill(pAnyone,  "CAN_DOWNLOAD".equals(permRef[0]));
+            applyPermPill(pView,    "VIEW_ONLY".equals(permRef[0]));
+            applyPermPill(pAdmins,  "ADMIN_ONLY_DOWNLOAD".equals(permRef[0]));
+        };
+        applyPills.run();
+        if (!groupChat) pAdmins.setAlpha(0.45f);
+
+        pAnyone.setOnClickListener(v -> { permRef[0] = "CAN_DOWNLOAD";        applyPills.run(); });
+        pView.setOnClickListener(v   -> { permRef[0] = "VIEW_ONLY";           applyPills.run(); });
+        pAdmins.setOnClickListener(v -> {
+            if (!groupChat) {
+                Toast.makeText(this, "Available only inside group conversations.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            permRef[0] = "ADMIN_ONLY_DOWNLOAD"; applyPills.run();
+        });
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnCreate.setOnClickListener(v -> {
+            String name = etName.getText().toString().trim();
+            if (name.isEmpty()) { etName.setError("Folder name is required"); return; }
+            if (name.contains("/") || name.contains("\\")) {
+                etName.setError("Folder name cannot contain '/' or '\\'");
+                return;
+            }
+            createFolderOnServer(name, etDesc.getText().toString().trim(), permRef[0], dialog);
+        });
+
+        dialog.show();
+    }
+
+    /** Restyle a permission pill based on selection state. */
+    private void applyPermPill(LinearLayout pill, boolean active) {
+        pill.setBackgroundResource(active
+                ? R.drawable.bg_perm_pill_active
+                : R.drawable.bg_perm_pill_inactive);
+        int color    = active ? android.graphics.Color.parseColor("#0284C7") : 0xFFFFFFFF;
+        int subColor = active ? android.graphics.Color.parseColor("#0284C7") : 0xCCFFFFFF;
+        for (int i = 0; i < pill.getChildCount(); i++) {
+            View c = pill.getChildAt(i);
+            if (c instanceof TextView) ((TextView) c).setTextColor(i <= 1 ? color : subColor);
+        }
+    }
+
+    private void createFolderOnServer(String name, String description, String permission,
+                                       AlertDialog dialog) {
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("name", name);
+        // The backend expects conversationId as a numeric Long; our Android
+        // model stores it as a String, so parse defensively.
+        try { body.put("conversationId", Long.parseLong(conversation.getId())); }
+        catch (NumberFormatException e) { body.put("conversationId", conversation.getId()); }
+        body.put("defaultPermission", permission);
+        if (description != null && !description.isEmpty()) body.put("description", description);
+        // Note: parentFolderId left null — we don't track folder IDs on Android
+        // yet, so all folders create at root. The web's hierarchy support is
+        // left for a future port.
+
+        ApiService api = ApiClient.getInstance(this).getApiService();
+        api.createFolder(body).enqueue(new Callback<com.magizhchi.share.model.FolderResponse>() {
+            @Override public void onResponse(Call<com.magizhchi.share.model.FolderResponse> call,
+                                              Response<com.magizhchi.share.model.FolderResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Toast.makeText(ChatActivity.this,
+                            "📁 \"" + name + "\" created.", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                    loadFiles(0, true);
+                } else {
+                    // Show the actual backend reason — usually means
+                    // "you are not a member of this conversation" or a
+                    // validation issue with the conversationId type.
+                    String reason = readErrorBody(response);
+                    Toast.makeText(ChatActivity.this,
+                            "Could not create folder: " + reason,
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+            @Override public void onFailure(Call<com.magizhchi.share.model.FolderResponse> call, Throwable t) {
+                Toast.makeText(ChatActivity.this,
+                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /**
+     * Open the file's INLINE preview URL in the browser. The backend's
+     * /preview-url endpoint returns a presigned link with inline
+     * Content-Disposition, so PDFs, images, and videos render in the browser
+     * tab instead of triggering a download. View-only files are previewable.
+     */
+    private void previewFile(FileMessageResponse file) {
+        ApiService apiService = ApiClient.getInstance(this).getApiService();
+        apiService.getPreviewUrl(file.getId()).enqueue(new Callback<Map<String, String>>() {
+            @Override public void onResponse(Call<Map<String, String>> call, Response<Map<String, String>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String url = response.body().get("url");
+                    if (url == null) url = response.body().get("previewUrl");
+                    if (url != null) {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                        return;
+                    }
+                }
+                Toast.makeText(ChatActivity.this, "Couldn't open preview", Toast.LENGTH_SHORT).show();
+            }
+            @Override public void onFailure(Call<Map<String, String>> call, Throwable t) {
+                Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void downloadFile(FileMessageResponse file) {
         ApiService apiService = ApiClient.getInstance(this).getApiService();
         apiService.getDownloadUrl(file.getId()).enqueue(new Callback<Map<String, String>>() {
@@ -638,15 +1059,25 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void unfriend() {
+        String otherId = conversation.getOtherUserId();
+        if (otherId == null || otherId.isEmpty()) {
+            Toast.makeText(this, "Cannot unfriend: missing user id.", Toast.LENGTH_LONG).show();
+            return;
+        }
         ApiService apiService = ApiClient.getInstance(this).getApiService();
-        apiService.unfriend(conversation.getOtherUserId()).enqueue(new Callback<ResponseBody>() {
+        apiService.unfriend(otherId).enqueue(new Callback<ResponseBody>() {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                 if (response.isSuccessful()) {
-                    Toast.makeText(ChatActivity.this, "Unfriended", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, "Unfriended.", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
-                    Toast.makeText(ChatActivity.this, "Failed to unfriend", Toast.LENGTH_SHORT).show();
+                    // Show the actual server-side reason instead of a generic
+                    // "Failed to unfriend" — e.g. 404 means "not connected",
+                    // 403 means "blocked", etc.
+                    Toast.makeText(ChatActivity.this,
+                            "Failed to unfriend: " + readErrorBody(response),
+                            Toast.LENGTH_LONG).show();
                 }
             }
 
@@ -655,6 +1086,23 @@ public class ChatActivity extends AppCompatActivity {
                 Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    /** Pull a friendly message out of a Retrofit error body. */
+    private static String readErrorBody(Response<?> response) {
+        if (response == null) return "no response";
+        try {
+            String raw = response.errorBody() != null ? response.errorBody().string() : "";
+            if (raw.isEmpty()) return "HTTP " + response.code();
+            try {
+                com.google.gson.JsonObject obj = new com.google.gson.Gson().fromJson(raw, com.google.gson.JsonObject.class);
+                if (obj != null && obj.has("message")) return obj.get("message").getAsString();
+                if (obj != null && obj.has("error"))   return obj.get("error").getAsString();
+            } catch (Exception ignored) {}
+            return raw.length() > 160 ? raw.substring(0, 160) + "…" : raw;
+        } catch (Exception e) {
+            return "HTTP " + response.code();
+        }
     }
 
     private void confirmBlock() {

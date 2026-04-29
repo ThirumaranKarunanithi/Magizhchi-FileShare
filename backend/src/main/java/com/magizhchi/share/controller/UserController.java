@@ -27,8 +27,21 @@ public class UserController {
 
     // ── Profile ───────────────────────────────────────────────────────────────
 
+    /**
+     * Refresh the stored presigned profile-photo URL so the caller always
+     * gets a non-expired link. This avoids the "blank avatar after a few
+     * hours" bug — the DB stores a presigned URL that expires after the
+     * configured duration; we regenerate it from the s3 key on every read.
+     */
+    private void refreshPhoto(User user) {
+        if (user == null || user.getProfilePhotoUrl() == null) return;
+        String fresh = storage.refreshProfilePhotoUrl(user.getProfilePhotoUrl());
+        if (fresh != null) user.setProfilePhotoUrl(fresh);
+    }
+
     @GetMapping("/me")
     public ResponseEntity<User> getMe(@AuthenticationPrincipal User user) {
+        refreshPhoto(user);
         return ResponseEntity.ok(user);
     }
 
@@ -50,7 +63,9 @@ public class UserController {
             }
             user.setEmail(email);
         }
-        return ResponseEntity.ok(userRepo.save(user));
+        User saved = userRepo.save(user);
+        refreshPhoto(saved);
+        return ResponseEntity.ok(saved);
     }
 
     @PostMapping("/me/photo")
@@ -79,8 +94,9 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<User> getById(@PathVariable Long id) {
-        return userRepo.findById(id)
-                .map(ResponseEntity::ok)
+        User u = userRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found."));
+        refreshPhoto(u);
+        return ResponseEntity.ok(u);
     }
 }

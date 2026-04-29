@@ -24,13 +24,14 @@ com.magizhchi.share.app-lifecycle-livedata-2.6.1-22 C:\Users\tiruk\.gradle\cache
 com.magizhchi.share.app-drawerlayout-1.1.1-23 C:\Users\tiruk\.gradle\caches\8.9\transforms\cd8b931d954f081ee1b9d79d282fb106\transformed\drawerlayout-1.1.1\res
 com.magizhchi.share.app-jetified-lifecycle-process-2.6.1-24 C:\Users\tiruk\.gradle\caches\8.9\transforms\e8d29a830078e08380df9aa8b376df3a\transformed\jetified-lifecycle-process-2.6.1\res
 com.magizhchi.share.app-lifecycle-viewmodel-2.6.1-25 C:\Users\tiruk\.gradle\caches\8.9\transforms\ea523f70b593d2682615b5acb2e87e10\transformed\lifecycle-viewmodel-2.6.1\res
-com.magizhchi.share.app-jetified-glide-4.16.0-26 C:\Users\tiruk\.gradle\caches\8.9\transforms\ec42cef21be08f9197b121eedec3e557\transformed\jetified-glide-4.16.0\res
-com.magizhchi.share.app-lifecycle-livedata-core-2.6.1-27 C:\Users\tiruk\.gradle\caches\8.9\transforms\ee47885033673a8bbabbdbc912e6083a\transformed\lifecycle-livedata-core-2.6.1\res
-com.magizhchi.share.app-jetified-viewpager2-1.1.0-beta02-28 C:\Users\tiruk\.gradle\caches\8.9\transforms\f14e0988b1a956afd9ce5e23c414cb2c\transformed\jetified-viewpager2-1.1.0-beta02\res
-com.magizhchi.share.app-pngs-29 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\generated\res\pngs\debug
-com.magizhchi.share.app-resValues-30 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\generated\res\resValues\debug
-com.magizhchi.share.app-packageDebugResources-31 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
-com.magizhchi.share.app-packageDebugResources-32 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
-com.magizhchi.share.app-merged_res-33 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\intermediates\merged_res\debug
-com.magizhchi.share.app-debug-34 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\debug\res
-com.magizhchi.share.app-main-35 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\res
+com.magizhchi.share.app-swiperefreshlayout-1.1.0-26 C:\Users\tiruk\.gradle\caches\8.9\transforms\ea7aa88a3f6cddcea9e113704e66e440\transformed\swiperefreshlayout-1.1.0\res
+com.magizhchi.share.app-jetified-glide-4.16.0-27 C:\Users\tiruk\.gradle\caches\8.9\transforms\ec42cef21be08f9197b121eedec3e557\transformed\jetified-glide-4.16.0\res
+com.magizhchi.share.app-lifecycle-livedata-core-2.6.1-28 C:\Users\tiruk\.gradle\caches\8.9\transforms\ee47885033673a8bbabbdbc912e6083a\transformed\lifecycle-livedata-core-2.6.1\res
+com.magizhchi.share.app-jetified-viewpager2-1.1.0-beta02-29 C:\Users\tiruk\.gradle\caches\8.9\transforms\f14e0988b1a956afd9ce5e23c414cb2c\transformed\jetified-viewpager2-1.1.0-beta02\res
+com.magizhchi.share.app-pngs-30 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\generated\res\pngs\debug
+com.magizhchi.share.app-resValues-31 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\generated\res\resValues\debug
+com.magizhchi.share.app-packageDebugResources-32 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.magizhchi.share.app-packageDebugResources-33 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.magizhchi.share.app-merged_res-34 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\build\intermediates\merged_res\debug
+com.magizhchi.share.app-debug-35 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\debug\res
+com.magizhchi.share.app-main-36 D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\res
