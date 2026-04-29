@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function ProfileModal({ onClose }) {
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, refreshMe } = useAuth();
 
   const [displayName,    setDisplayName]    = useState(currentUser?.displayName || '');
   const [statusMessage,  setStatusMessage]  = useState(currentUser?.statusMessage || '');
@@ -60,7 +60,18 @@ export default function ProfileModal({ onClose }) {
               <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-sky-400 to-sky-600
                               flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                 {currentUser?.profilePhotoUrl
-                  ? <img src={currentUser.profilePhotoUrl} alt="" className="w-full h-full object-cover"/>
+                  ? <img src={currentUser.profilePhotoUrl}
+                         alt=""
+                         className="w-full h-full object-cover"
+                         onError={e => {
+                           // Presigned URL expired — hide the broken <img> so
+                           // the gradient + initial-letter fallback (which is
+                           // the parent <div>'s text content) shows through,
+                           // and refreshMe() to fetch a new URL for the next
+                           // render. AuthContext throttles refreshMe to 30 s.
+                           e.currentTarget.style.display = 'none';
+                           refreshMe();
+                         }}/>
                   : currentUser?.displayName?.[0]?.toUpperCase()}
               </div>
               <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center

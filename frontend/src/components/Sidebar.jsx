@@ -105,7 +105,7 @@ function markOpened(convId) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, refreshMe } = useAuth();
 
   const [convList,         setConvList]         = useState([]);
   const [search,           setSearch]           = useState('');
@@ -484,7 +484,18 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
               <img src={currentUser.profilePhotoUrl}
                    alt={currentUser.displayName ?? ''}
                    className="w-full h-full object-cover"
-                   onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}/>
+                   onError={e => {
+                     // S3 presigned URL probably expired mid-session. Hide the
+                     // broken image, surface initials, and ask AuthContext for
+                     // a fresh getMe — that swaps in a new presigned URL and
+                     // the next render restores the photo. refreshMe is
+                     // throttled to once per 30 s so this won't loop.
+                     e.currentTarget.style.display = 'none';
+                     if (e.currentTarget.nextSibling) {
+                       e.currentTarget.nextSibling.style.display = 'flex';
+                     }
+                     refreshMe();
+                   }}/>
             ) : null}
             {/* initials fallback — always rendered, hidden when photo loads */}
             <div className={`w-full h-full bg-gradient-to-br from-sky-400 to-sky-600
@@ -714,7 +725,8 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                   }}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-semibold text-slate-800/80">
-                      💾 {Math.round(pct)}% used
+                      {/* Use 1 decimal so sub-1% usage doesn't render as "0% used" — matches StorageModal. */}
+                      💾 {pct < 0.05 ? '0' : pct.toFixed(1)}% used
                     </span>
                     <span className={`text-[10px] font-bold ${textColor}`}>
                       {fmtStorage(storageData.usedBytes)} / {fmtStorage(storageData.limitBytes)}
@@ -724,7 +736,8 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
                        style={{ background: 'rgba(255,255,255,0.30)',
                                 boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.10)' }}>
                     <div className={`h-full rounded-full transition-all ${barColor}`}
-                         style={{ width: `${Math.min(100, pct)}%` }}/>
+                         /* Sub-1% usage would be invisible at 1.5px height — clamp to a 2% min so the bar shows something. */
+                         style={{ width: `${Math.min(100, pct > 0 && pct < 2 ? 2 : pct)}%` }}/>
                   </div>
                   {pct >= 90 && (
                     <p className="text-[10px] text-red-700 font-semibold mt-1">
