@@ -1,90 +1,98 @@
 [
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_file_card_medium.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_file_card_medium.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_register.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_register.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/dialog_storage_usage.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/dialog_storage_usage.xml"
+        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_friend_search.xml",
+        "source": "com.magizhchi.share.app-main-36:/layout/item_friend_search.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_user_search.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_user_search.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_profile.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_profile.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_chat.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_chat.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\dialog_storage_usage.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\dialog_storage_usage.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_profile.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_profile.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_file_card_medium.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_file_card_medium.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_shared_files.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_shared_files.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_notifications.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_notifications.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_file_message.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_file_message.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_conversation.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_conversation.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_shared_file.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_shared_file.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_file_message.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_file_message.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_register.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_register.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_group_info.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_group_info.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_file_card_large.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_file_card_large.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_notification_request.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_notification_request.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_group_info.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_group_info.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_otp.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_otp.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_notifications.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_notifications.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_login.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_login.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_conversation.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_conversation.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/dialog_new_folder.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/dialog_new_folder.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_member.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_member.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/item_notification_share.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/item_notification_share.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/view_chat_toolbar_title.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/view_chat_toolbar_title.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_file_card_large.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_file_card_large.xml"
     },
     {
         "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_main.xml",
         "source": "com.magizhchi.share.app-main-36:/layout/activity_main.xml"
     },
     {
-        "merged": "com.magizhchi.share.app-mergeDebugResources-33:/layout/activity_upload.xml",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_upload.xml"
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_chat.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_chat.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_user_search.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_user_search.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_notification_request.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_notification_request.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_shared_files.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_shared_files.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_member.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_member.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_notification_share.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_notification_share.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\view_chat_toolbar_title.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\view_chat_toolbar_title.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_upload.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_upload.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\item_shared_file.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_shared_file.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_login.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_login.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\activity_otp.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_otp.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-mergeDebugResources-33:\\layout\\dialog_new_folder.xml",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\dialog_new_folder.xml"
     }
 ]

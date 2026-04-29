@@ -27,10 +27,13 @@ import android.graphics.Color;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
 import com.magizhchi.share.adapter.ConversationAdapter;
+import com.magizhchi.share.adapter.FriendSearchAdapter;
 import com.magizhchi.share.model.AuthResponse;
+import com.magizhchi.share.model.ConnectionRequestResponse;
 import com.magizhchi.share.model.ConversationResponse;
 import com.magizhchi.share.model.StorageUsageResponse;
 import com.magizhchi.share.model.FileMessageResponse;
+import com.magizhchi.share.model.UserSearchResponse;
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
 import com.magizhchi.share.network.TokenManager;
@@ -52,6 +55,18 @@ public class MainActivity extends AppCompatActivity {
 
     private ConversationAdapter conversationAdapter;
     private List<ConversationResponse> allConversations = new ArrayList<>();
+    private FriendSearchAdapter friendSearchAdapter;
+    private LinearLayout friendSearchSection;
+    private RecyclerView recyclerFriendSearch;
+    private ProgressBar friendSearchProgress;
+    private TextView tvFriendSearchHeader;
+    private TextView tvFriendSearchEmpty;
+
+    /** Token used to abandon stale friend-search responses when the user keeps typing. */
+    private long friendSearchSeq = 0;
+    /** Pending debounced search Runnable so we can cancel it when the user keeps typing. */
+    private Runnable pendingFriendSearch;
+    private final android.os.Handler friendSearchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private ProgressBar progressBar;
     private TextView tvWelcome;
     private ImageView ivAvatar;
@@ -158,6 +173,21 @@ public class MainActivity extends AppCompatActivity {
             storageProgressContainer.setOnClickListener(v -> openStorageUsagePopup());
         }
         recyclerConversations = findViewById(R.id.recyclerConversations);
+
+        // Friend-search section — hidden until the user types ≥ 2 chars.
+        friendSearchSection   = findViewById(R.id.friendSearchSection);
+        recyclerFriendSearch  = findViewById(R.id.recyclerFriendSearch);
+        friendSearchProgress  = findViewById(R.id.friendSearchProgress);
+        tvFriendSearchHeader  = findViewById(R.id.tvFriendSearchHeader);
+        tvFriendSearchEmpty   = findViewById(R.id.tvFriendSearchEmpty);
+        friendSearchAdapter   = new FriendSearchAdapter(this);
+        recyclerFriendSearch.setLayoutManager(new LinearLayoutManager(this));
+        recyclerFriendSearch.setAdapter(friendSearchAdapter);
+        friendSearchAdapter.setListener(new FriendSearchAdapter.OnActionListener() {
+            @Override public void onOpenChat(UserSearchResponse u)     { openDirectChatWith(u); }
+            @Override public void onSendRequest(UserSearchResponse u)  { sendConnectionRequestTo(u); }
+            @Override public void onAcceptRequest(UserSearchResponse u) { acceptConnectionRequestFrom(u); }
+        });
 
         // Bell — open the full Notifications activity (connection requests +
         // recent shares). The badge clears immediately so the user doesn't
@@ -269,7 +299,25 @@ public class MainActivity extends AppCompatActivity {
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterConversations(s.toString());
+                String q = s.toString().trim();
+                filterConversations(q);
+
+                // Cancel any in-flight debounce so we don't fire stale searches.
+                if (pendingFriendSearch != null) {
+                    friendSearchHandler.removeCallbacks(pendingFriendSearch);
+                    pendingFriendSearch = null;
+                }
+
+                if (q.length() >= 2) {
+                    showFriendSearchSection();
+                    friendSearchProgress.setVisibility(View.VISIBLE);
+                    tvFriendSearchEmpty.setVisibility(View.GONE);
+                    pendingFriendSearch = () -> performFriendSearch(q);
+                    // 300 ms debounce — matches the web's 350 ms feel.
+                    friendSearchHandler.postDelayed(pendingFriendSearch, 300);
+                } else {
+                    hideFriendSearchSection();
+                }
             }
             @Override public void afterTextChanged(Editable s) {}
         });
@@ -299,6 +347,169 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         conversationAdapter.setConversations(filtered);
+    }
+
+    // ── Friend search ────────────────────────────────────────────────────────
+
+    /** Reveal the search-results section and hide the conversation list. */
+    private void showFriendSearchSection() {
+        if (friendSearchSection != null) friendSearchSection.setVisibility(View.VISIBLE);
+        if (recyclerConversations != null) recyclerConversations.setVisibility(View.GONE);
+    }
+
+    private void hideFriendSearchSection() {
+        if (friendSearchSection != null) friendSearchSection.setVisibility(View.GONE);
+        if (recyclerConversations != null) recyclerConversations.setVisibility(View.VISIBLE);
+        friendSearchAdapter.setUsers(new ArrayList<>());
+    }
+
+    /**
+     * Hit /api/users/search. The {@code seq} token is bumped on every call;
+     * the response handler ignores results from a stale call so a slow
+     * response can't paint over a fresher query.
+     */
+    private void performFriendSearch(String query) {
+        final long mySeq = ++friendSearchSeq;
+        ApiClient.getInstance(this).getApiService().searchUsers(query)
+                .enqueue(new Callback<List<UserSearchResponse>>() {
+            @Override
+            public void onResponse(Call<List<UserSearchResponse>> call,
+                                   Response<List<UserSearchResponse>> response) {
+                if (mySeq != friendSearchSeq) return;     // stale — newer query in flight
+                friendSearchProgress.setVisibility(View.GONE);
+
+                if (!response.isSuccessful() || response.body() == null) {
+                    friendSearchAdapter.setUsers(new ArrayList<>());
+                    tvFriendSearchEmpty.setVisibility(View.VISIBLE);
+                    tvFriendSearchEmpty.setText("Search failed (" + response.code() + ").");
+                    tvFriendSearchHeader.setText("👤 People");
+                    return;
+                }
+
+                // Filter out SELF and BLOCKED_BY_ME — they shouldn't appear
+                // in friend-search results (matches the backend's web semantics).
+                List<UserSearchResponse> visible = new ArrayList<>();
+                for (UserSearchResponse u : response.body()) {
+                    String s = u.getConnectionStatus();
+                    if ("SELF".equalsIgnoreCase(s) || "BLOCKED_BY_ME".equalsIgnoreCase(s)) continue;
+                    visible.add(u);
+                }
+
+                friendSearchAdapter.setUsers(visible);
+                tvFriendSearchHeader.setText("👤 People · " + visible.size());
+                tvFriendSearchEmpty.setVisibility(visible.isEmpty() ? View.VISIBLE : View.GONE);
+                if (visible.isEmpty()) {
+                    tvFriendSearchEmpty.setText("No people match \"" + query + "\".");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<UserSearchResponse>> call, Throwable t) {
+                if (mySeq != friendSearchSeq) return;
+                friendSearchProgress.setVisibility(View.GONE);
+                friendSearchAdapter.setUsers(new ArrayList<>());
+                tvFriendSearchEmpty.setVisibility(View.VISIBLE);
+                tvFriendSearchEmpty.setText("Network error: " + t.getMessage());
+            }
+        });
+    }
+
+    /** CONNECTED row tapped — open / create the direct chat with that user. */
+    private void openDirectChatWith(UserSearchResponse u) {
+        if (u == null || u.getId() == null) return;
+        progressBar.setVisibility(View.VISIBLE);
+        ApiClient.getInstance(this).getApiService()
+                .openDirectConversation(u.getId())
+                .enqueue(new Callback<ConversationResponse>() {
+            @Override
+            public void onResponse(Call<ConversationResponse> call,
+                                   Response<ConversationResponse> response) {
+                progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    // Clear search so the conversation list is showing when
+                    // the user comes back from the chat screen.
+                    etSearch.setText("");
+                    Intent intent = new Intent(MainActivity.this, ChatActivity.class);
+                    intent.putExtra(ChatActivity.EXTRA_CONVERSATION,
+                            new Gson().toJson(response.body()));
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "Could not open chat: " + readErrorBody(response),
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<ConversationResponse> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this,
+                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /** NONE row's "🤝 Connect" tapped — fire a connection request. */
+    private void sendConnectionRequestTo(UserSearchResponse u) {
+        if (u == null || u.getId() == null) return;
+        ApiClient.getInstance(this).getApiService()
+                .sendConnectionRequest(u.getId())
+                .enqueue(new Callback<ConnectionRequestResponse>() {
+            @Override
+            public void onResponse(Call<ConnectionRequestResponse> call,
+                                   Response<ConnectionRequestResponse> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(MainActivity.this,
+                            "Request sent to " + u.getDisplayName(), Toast.LENGTH_SHORT).show();
+                    // Re-run the search so the row's status / button updates.
+                    String q = etSearch.getText().toString().trim();
+                    if (q.length() >= 2) performFriendSearch(q);
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "Could not send request: " + readErrorBody(response),
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<ConnectionRequestResponse> call, Throwable t) {
+                Toast.makeText(MainActivity.this,
+                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /** PENDING_RECEIVED row's "✓ Accept" tapped — accept the request. */
+    private void acceptConnectionRequestFrom(UserSearchResponse u) {
+        if (u == null || u.getConnectionRequestId() == null) {
+            Toast.makeText(this, "Could not find the connection request.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ApiClient.getInstance(this).getApiService()
+                .acceptRequest(u.getConnectionRequestId())
+                .enqueue(new Callback<ConnectionRequestResponse>() {
+            @Override
+            public void onResponse(Call<ConnectionRequestResponse> call,
+                                   Response<ConnectionRequestResponse> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(MainActivity.this,
+                            "Connected with " + u.getDisplayName(),
+                            Toast.LENGTH_SHORT).show();
+                    String q = etSearch.getText().toString().trim();
+                    if (q.length() >= 2) performFriendSearch(q);
+                    // Reload conversations so the new direct chat appears.
+                    loadConversations();
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "Could not accept: " + readErrorBody(response),
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<ConnectionRequestResponse> call, Throwable t) {
+                Toast.makeText(MainActivity.this,
+                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void setupStorageCards() {

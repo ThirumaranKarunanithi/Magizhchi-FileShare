@@ -7,8 +7,10 @@ import com.magizhchi.share.dto.response.AuthResponse;
 import com.magizhchi.share.exception.AppException;
 import com.magizhchi.share.model.OtpCode;
 import com.magizhchi.share.model.PendingRegistration;
+import com.magizhchi.share.model.Plan;
 import com.magizhchi.share.model.User;
 import com.magizhchi.share.repository.PendingRegistrationRepository;
+import com.magizhchi.share.repository.PlanRepository;
 import com.magizhchi.share.repository.UserRepository;
 import com.magizhchi.share.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class AuthService {
 
     private final UserRepository                userRepo;
     private final PendingRegistrationRepository pendingRepo;
+    private final PlanRepository                planRepo;
     private final OtpService                    otpService;
     private final JwtTokenProvider              jwtProvider;
     private final FileStorageService            fileStorage;
@@ -143,6 +146,18 @@ public class AuthService {
         user.setDisplayName(pending.getDisplayName());
         user.setIsVerified(true);
         user.setLastSeenAt(Instant.now());
+
+        // Assign the FREE plan to brand-new accounts. PlanCatalogInitializer
+        // guarantees a default exists; if for some reason it doesn't, fall
+        // back to the existing maxStorageBytes default (5 GB) so signup
+        // never blocks on a misconfigured catalog.
+        if (user.getPlan() == null) {
+            planRepo.findFirstByIsDefaultTrue().ifPresent(free -> {
+                user.setPlan(free);
+                user.setMaxStorageBytes(free.getStorageBytes());
+            });
+        }
+
         User saved = userRepo.save(user);
 
         // Pending row done its job — drop it.

@@ -496,7 +496,11 @@ export default function Sidebar({ selected, onSelect, refreshSignal = 0 }) {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="w-80 flex-shrink-0 border-r border-sky-100 flex flex-col h-screen"
+    // Sidebar width — w-72 (18rem) on tablets (md, 768–1023 px e.g. iPad
+    // portrait) so the chat window has enough breathing room for file cards;
+    // w-80 (20rem) on desktop (lg, ≥1024 px). Below md the MobilePhoneGate
+    // has already taken over, so we don't need a sub-768 rule here.
+    <div className="w-72 lg:w-80 flex-shrink-0 border-r border-sky-100 flex flex-col h-screen"
          style={{
            backgroundColor: '#e0f2fe',
            backgroundImage:

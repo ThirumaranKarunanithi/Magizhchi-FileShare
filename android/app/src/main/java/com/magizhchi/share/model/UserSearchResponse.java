@@ -26,6 +26,14 @@ public class UserSearchResponse {
     @SerializedName("email")
     private String email;
 
+    /**
+     * Present when {@code connectionStatus} is PENDING_SENT or PENDING_RECEIVED —
+     * the request id used to accept / reject / cancel without a separate
+     * lookup. Null for every other status.
+     */
+    @SerializedName("connectionRequestId")
+    private String connectionRequestId;
+
     public UserSearchResponse() {}
 
     public String getId() { return id; }
@@ -48,4 +56,7 @@ public class UserSearchResponse {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getConnectionRequestId() { return connectionRequestId; }
+    public void setConnectionRequestId(String connectionRequestId) { this.connectionRequestId = connectionRequestId; }
 }

@@ -1,5 +1,6 @@
 package com.magizhchi.share.service;
 
+import com.magizhchi.share.dto.response.PlanResponse;
 import com.magizhchi.share.dto.response.StorageResponse;
 import com.magizhchi.share.exception.AppException;
 import com.magizhchi.share.model.Conversation.ConversationType;
@@ -82,6 +83,11 @@ public class StorageService {
                 .groupBytes(groupBytes)
                 .groupBreakdown(groupItems)
                 .topFiles(topFiles)
+                // Surface the user's plan so the client can render the
+                // current-tier badge ("Free · 5 GB" / "100 GB Pro") next to
+                // the storage card. Null is fine — clients fall back to a
+                // generic "Free" label.
+                .currentPlan(PlanResponse.from(user.getPlan()))
                 .build();
     }
 }

@@ -1111,9 +1111,14 @@ export default function ChatWindow({ conversation, onLeave }) {
       <div className="relative z-10 flex flex-col flex-1 overflow-hidden">
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-6 py-4">
-        {/* Conversation identity */}
-        <div className="flex items-center gap-3">
+      {/* Tighter horizontal padding on tablets — at md width the sidebar already
+          eats ~288 px, so px-6 here was leaving too little room for the
+          right-side action cluster. */}
+      <div className="flex items-center justify-between gap-2 px-3 lg:px-6 py-4">
+        {/* Conversation identity. min-w-0 + truncation lets a long group
+            name shrink instead of pushing the action buttons off-screen
+            on tablet. */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {conversation.type === 'GROUP' ? (
             <div className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden
                             bg-white/20 flex items-center justify-center text-lg">
@@ -1132,8 +1137,9 @@ export default function ChatWindow({ conversation, onLeave }) {
                     size="md"
                     className="ring-2 ring-white/30"/>
           )}
-          <div>
-            <h2 className="text-white font-bold text-lg leading-tight">{conversation.name}</h2>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-white font-bold text-lg leading-tight truncate"
+                title={conversation.name}>{conversation.name}</h2>
             {/* For DIRECT chats, surface the other user's status message
                 under their name (mail-/WhatsApp-style). Falls back to the
                 generic "Direct file share" label when no status is set. */}
@@ -1154,36 +1160,50 @@ export default function ChatWindow({ conversation, onLeave }) {
           </div>
         </div>
 
-        {/* Right: upload buttons + settings gear */}
-        <div className="flex items-center gap-2">
+        {/* Right: upload buttons + settings gear.
+            On tablets (md, 768–1023 px) the three buttons collapse to
+            icon-only so they fit alongside the conversation header. The
+            full labels return at lg (≥1024 px). Tooltips via title= keep
+            the icons discoverable. Transient "Uploading…" / progress text
+            stays visible at every breakpoint because it's status, not
+            chrome. */}
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
 
           {/* Upload Files (single or multiple) */}
           <button onClick={() => fileInputRef.current?.click()}
                   disabled={uploading || !!folderProgress || !!multiProgress}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-sky-700
+                  title="Upload files"
+                  aria-label="Upload files"
+                  className="flex items-center gap-2 px-3 lg:px-4 py-2.5 rounded-xl bg-white text-sky-700
                              font-bold text-sm shadow-lg hover:bg-sky-50
                              disabled:opacity-60 transition-all active:scale-95">
             <span className={uploading || multiProgress ? 'animate-spin' : ''}>
               {uploading || multiProgress ? '⏳' : '⬆'}
             </span>
-            {multiProgress
-              ? `${multiProgress.done}/${multiProgress.total} Uploading…`
-              : uploading
-                ? 'Uploading…'
-                : 'Upload Files'}
+            {multiProgress ? (
+              <span>{multiProgress.done}/{multiProgress.total} Uploading…</span>
+            ) : uploading ? (
+              <span>Uploading…</span>
+            ) : (
+              <span className="hidden lg:inline">Upload Files</span>
+            )}
           </button>
 
           {/* Upload Folder */}
           <button onClick={() => folderInputRef.current?.click()}
                   disabled={uploading || !!folderProgress}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl
+                  title="Upload folder"
+                  aria-label="Upload folder"
+                  className="flex items-center gap-2 px-3 lg:px-4 py-2.5 rounded-xl
                              bg-white/20 text-white border border-white/40
                              font-bold text-sm shadow hover:bg-white/30
                              disabled:opacity-60 transition-all active:scale-95">
-            {folderProgress
-              ? <><span className="animate-spin">⏳</span> {folderProgress.done}/{folderProgress.total}</>
-              : <><span>📁</span> Upload Folder</>
-            }
+            {folderProgress ? (
+              <><span className="animate-spin">⏳</span>
+                <span>{folderProgress.done}/{folderProgress.total}</span></>
+            ) : (
+              <><span>📁</span><span className="hidden lg:inline">Upload Folder</span></>
+            )}
           </button>
 
           {/* New Folder — creates a virtual folder you can upload into */}
@@ -1201,11 +1221,12 @@ export default function ChatWindow({ conversation, onLeave }) {
                   title={currentFolderPath
                     ? `Create a sub-folder inside "${currentFolderPath}"`
                     : 'Create a new folder'}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl
+                  aria-label="New folder"
+                  className="flex items-center gap-2 px-3 lg:px-4 py-2.5 rounded-xl
                              bg-white/20 text-white border border-white/40
                              font-bold text-sm shadow hover:bg-white/30
                              disabled:opacity-60 transition-all active:scale-95">
-            <span>➕</span> New Folder
+            <span>➕</span><span className="hidden lg:inline">New Folder</span>
           </button>
 
           {/* View-mode picker — Windows-Explorer-style 8-mode menu */}
@@ -1219,7 +1240,9 @@ export default function ChatWindow({ conversation, onLeave }) {
                             ? 'bg-white text-slate-800 border-white shadow-lg'
                             : 'bg-white/15 text-white border-white/30 hover:bg-white/25'}`}>
               <span className="text-base leading-none">{currentView.icon}</span>
-              <span className="hidden md:inline text-xs">{currentView.label}</span>
+              {/* Hide the long mode label until lg so the toolbar fits on
+                  iPad-portrait widths (was hidden md:inline before). */}
+              <span className="hidden lg:inline text-xs">{currentView.label}</span>
               <span className="text-[10px] opacity-70">▾</span>
             </button>
             {showViewMenu && (
@@ -1278,7 +1301,9 @@ export default function ChatWindow({ conversation, onLeave }) {
                            2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51
                            1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
                 </svg>
-                Settings
+                {/* Hide the "Settings" label on tablet — the gear icon +
+                    title attribute carry the meaning. Shows again at lg. */}
+                <span className="hidden lg:inline">Settings</span>
               </button>
 
               {/* Dropdown */}
@@ -1401,7 +1426,7 @@ export default function ChatWindow({ conversation, onLeave }) {
       </div>
 
       {/* ── Filter pills ── */}
-      <div className="px-6 pb-2 flex gap-2 overflow-x-auto">
+      <div className="px-3 lg:px-6 pb-2 flex gap-2 overflow-x-auto">
         {CATEGORIES.map(cat => (
           <button key={cat} onClick={() => setFilter(cat)}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all

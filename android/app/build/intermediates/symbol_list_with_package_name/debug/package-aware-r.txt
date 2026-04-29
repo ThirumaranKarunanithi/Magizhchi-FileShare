@@ -3248,6 +3248,7 @@ id bounceStart
 id breadcrumb
 id breadcrumbScroll
 id btnAccept
+id btnAction
 id btnAdd
 id btnBack
 id btnBell
@@ -3284,6 +3285,7 @@ id cache_measures
 id callMeasure
 id cancel_button
 id cardConversation
+id cardFriend
 id cardShared
 id cardStorage
 id carryVelocity
@@ -3402,6 +3404,8 @@ id folderPermAnyone
 id folderPermViewOnly
 id forever
 id fragment_container_view_tag
+id friendSearchProgress
+id friendSearchSection
 id frost
 id fullscreen_header
 id ghost_view
@@ -3592,6 +3596,7 @@ id ratio
 id rectangles
 id recyclerConversations
 id recyclerFiles
+id recyclerFriendSearch
 id recyclerMembers
 id recyclerSearchResults
 id recyclerShared
@@ -3745,6 +3750,8 @@ id tvFileCount
 id tvFileName
 id tvFolderDestination
 id tvFree
+id tvFriendSearchEmpty
+id tvFriendSearchHeader
 id tvFrom
 id tvIcon
 id tvInitials
@@ -3944,6 +3951,7 @@ layout item_conversation
 layout item_file_card_large
 layout item_file_card_medium
 layout item_file_message
+layout item_friend_search
 layout item_member
 layout item_notification_request
 layout item_notification_share

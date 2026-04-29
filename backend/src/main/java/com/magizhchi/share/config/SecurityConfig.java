@@ -46,6 +46,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 // WebSocket handshake
                 .requestMatchers("/ws/**").permitAll()
+                // Plan catalog — shown on the upgrade picker, including
+                // pre-login marketing surfaces, so it's intentionally public.
+                .requestMatchers("/api/plans").permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )

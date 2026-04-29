@@ -34,6 +34,14 @@ public class StorageResponse {
     /** Top 10 largest files uploaded by this user */
     private List<TopFileItem> topFiles;
 
+    /**
+     * The user's current plan (FREE / PRO_100 / …) so the client can render
+     * a plan badge next to the storage card and decide which tiers to offer
+     * in the upgrade picker. Null only for legacy rows that haven't been
+     * backfilled yet — the client should default to "Free 5 GB" in that case.
+     */
+    private PlanResponse currentPlan;
+
     // ── Nested DTOs ──────────────────────────────────────────────────────────
 
     @Data @Builder

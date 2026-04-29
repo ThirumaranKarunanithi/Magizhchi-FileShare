@@ -215,6 +215,18 @@ public interface ApiService {
     @POST("api/users/{userId}/block")
     Call<ResponseBody> blockUser(@Path("userId") String userId);
 
+    /**
+     * Open (or create) the direct-chat conversation between the caller and
+     * the target user. Returns the conversation; clients launch ChatActivity
+     * with this. Mirrors the web's {@code openDirect}.
+     */
+    @POST("api/conversations/direct/{targetUserId}")
+    Call<ConversationResponse> openDirectConversation(@Path("targetUserId") String targetUserId);
+
+    /** Send a connection request to another user. */
+    @POST("api/connections/request/{userId}")
+    Call<ConnectionRequestResponse> sendConnectionRequest(@Path("userId") String userId);
+
     // ── Notifications (connection requests inbox) ─────────────────────────────
 
     /** Pending requests other users have sent to me. Drives NotificationsActivity. */

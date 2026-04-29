@@ -49,6 +49,12 @@ public final class ActivityMainBinding implements ViewBinding {
   public final FloatingActionButton fabNewGroup;
 
   @NonNull
+  public final ProgressBar friendSearchProgress;
+
+  @NonNull
+  public final LinearLayout friendSearchSection;
+
+  @NonNull
   public final ImageView ivAvatar;
 
   @NonNull
@@ -56,6 +62,9 @@ public final class ActivityMainBinding implements ViewBinding {
 
   @NonNull
   public final RecyclerView recyclerConversations;
+
+  @NonNull
+  public final RecyclerView recyclerFriendSearch;
 
   @NonNull
   public final CoordinatorLayout rootHome;
@@ -76,6 +85,12 @@ public final class ActivityMainBinding implements ViewBinding {
   public final TextView tvBellBadge;
 
   @NonNull
+  public final TextView tvFriendSearchEmpty;
+
+  @NonNull
+  public final TextView tvFriendSearchHeader;
+
+  @NonNull
   public final TextView tvSharedSubtitle;
 
   @NonNull
@@ -87,13 +102,15 @@ public final class ActivityMainBinding implements ViewBinding {
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView, @NonNull ImageButton btnBell,
       @NonNull LinearLayout cardShared, @NonNull LinearLayout cardStorage,
       @NonNull TextView chipGroups, @NonNull TextView chipPeople, @NonNull EditText etSearch,
-      @NonNull FloatingActionButton fabNewGroup, @NonNull ImageView ivAvatar,
+      @NonNull FloatingActionButton fabNewGroup, @NonNull ProgressBar friendSearchProgress,
+      @NonNull LinearLayout friendSearchSection, @NonNull ImageView ivAvatar,
       @NonNull ProgressBar progressBar, @NonNull RecyclerView recyclerConversations,
-      @NonNull CoordinatorLayout rootHome, @NonNull ProgressBar storageProgressBar,
-      @NonNull FrameLayout storageProgressContainer, @NonNull LinearLayout tabsRow,
-      @NonNull TextView tvAvatarInitials, @NonNull TextView tvBellBadge,
-      @NonNull TextView tvSharedSubtitle, @NonNull TextView tvStorageUsed,
-      @NonNull TextView tvWelcome) {
+      @NonNull RecyclerView recyclerFriendSearch, @NonNull CoordinatorLayout rootHome,
+      @NonNull ProgressBar storageProgressBar, @NonNull FrameLayout storageProgressContainer,
+      @NonNull LinearLayout tabsRow, @NonNull TextView tvAvatarInitials,
+      @NonNull TextView tvBellBadge, @NonNull TextView tvFriendSearchEmpty,
+      @NonNull TextView tvFriendSearchHeader, @NonNull TextView tvSharedSubtitle,
+      @NonNull TextView tvStorageUsed, @NonNull TextView tvWelcome) {
     this.rootView = rootView;
     this.btnBell = btnBell;
     this.cardShared = cardShared;
@@ -102,15 +119,20 @@ public final class ActivityMainBinding implements ViewBinding {
     this.chipPeople = chipPeople;
     this.etSearch = etSearch;
     this.fabNewGroup = fabNewGroup;
+    this.friendSearchProgress = friendSearchProgress;
+    this.friendSearchSection = friendSearchSection;
     this.ivAvatar = ivAvatar;
     this.progressBar = progressBar;
     this.recyclerConversations = recyclerConversations;
+    this.recyclerFriendSearch = recyclerFriendSearch;
     this.rootHome = rootHome;
     this.storageProgressBar = storageProgressBar;
     this.storageProgressContainer = storageProgressContainer;
     this.tabsRow = tabsRow;
     this.tvAvatarInitials = tvAvatarInitials;
     this.tvBellBadge = tvBellBadge;
+    this.tvFriendSearchEmpty = tvFriendSearchEmpty;
+    this.tvFriendSearchHeader = tvFriendSearchHeader;
     this.tvSharedSubtitle = tvSharedSubtitle;
     this.tvStorageUsed = tvStorageUsed;
     this.tvWelcome = tvWelcome;
@@ -185,6 +207,18 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.friendSearchProgress;
+      ProgressBar friendSearchProgress = ViewBindings.findChildViewById(rootView, id);
+      if (friendSearchProgress == null) {
+        break missingId;
+      }
+
+      id = R.id.friendSearchSection;
+      LinearLayout friendSearchSection = ViewBindings.findChildViewById(rootView, id);
+      if (friendSearchSection == null) {
+        break missingId;
+      }
+
       id = R.id.ivAvatar;
       ImageView ivAvatar = ViewBindings.findChildViewById(rootView, id);
       if (ivAvatar == null) {
@@ -200,6 +234,12 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.recyclerConversations;
       RecyclerView recyclerConversations = ViewBindings.findChildViewById(rootView, id);
       if (recyclerConversations == null) {
+        break missingId;
+      }
+
+      id = R.id.recyclerFriendSearch;
+      RecyclerView recyclerFriendSearch = ViewBindings.findChildViewById(rootView, id);
+      if (recyclerFriendSearch == null) {
         break missingId;
       }
 
@@ -235,6 +275,18 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tvFriendSearchEmpty;
+      TextView tvFriendSearchEmpty = ViewBindings.findChildViewById(rootView, id);
+      if (tvFriendSearchEmpty == null) {
+        break missingId;
+      }
+
+      id = R.id.tvFriendSearchHeader;
+      TextView tvFriendSearchHeader = ViewBindings.findChildViewById(rootView, id);
+      if (tvFriendSearchHeader == null) {
+        break missingId;
+      }
+
       id = R.id.tvSharedSubtitle;
       TextView tvSharedSubtitle = ViewBindings.findChildViewById(rootView, id);
       if (tvSharedSubtitle == null) {
@@ -254,9 +306,10 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, btnBell, cardShared, cardStorage,
-          chipGroups, chipPeople, etSearch, fabNewGroup, ivAvatar, progressBar,
-          recyclerConversations, rootHome, storageProgressBar, storageProgressContainer, tabsRow,
-          tvAvatarInitials, tvBellBadge, tvSharedSubtitle, tvStorageUsed, tvWelcome);
+          chipGroups, chipPeople, etSearch, fabNewGroup, friendSearchProgress, friendSearchSection,
+          ivAvatar, progressBar, recyclerConversations, recyclerFriendSearch, rootHome,
+          storageProgressBar, storageProgressContainer, tabsRow, tvAvatarInitials, tvBellBadge,
+          tvFriendSearchEmpty, tvFriendSearchHeader, tvSharedSubtitle, tvStorageUsed, tvWelcome);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

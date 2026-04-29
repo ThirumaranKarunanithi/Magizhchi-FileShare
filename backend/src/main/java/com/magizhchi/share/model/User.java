@@ -66,10 +66,31 @@ public class User {
     @Builder.Default
     private Long storageUsedBytes = 0L;
 
-    /** Per-user cap. Default 5 GB (free plan). */
+    /**
+     * Per-user storage cap in bytes. Default 5 GB (free plan).
+     *
+     * <p>Kept in sync with {@link #plan}'s {@code storageBytes} whenever the
+     * user upgrades / downgrades, so existing enforcement code that reads
+     * this column directly continues to work without a change. It also
+     * doubles as a per-user override for staff / admin grants — if you
+     * want to give a specific user extra room without changing their
+     * subscription, bump this column.
+     */
     @Column(nullable = false)
     @Builder.Default
     private Long maxStorageBytes = 5_368_709_120L;   // 5 * 1024^3
+
+    /**
+     * Subscription plan the user is on. Null for legacy rows created before
+     * the plan catalog existed — {@code PlanCatalogInitializer} backfills
+     * those to FREE on first boot. New accounts default to FREE in
+     * {@code AuthService.verifyRegistrationOtp()}.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "plan_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Plan plan;
 
     /** One-directional: contacts this user has added */
     @JsonIgnore            // prevent LazyInitializationException during Jackson serialization

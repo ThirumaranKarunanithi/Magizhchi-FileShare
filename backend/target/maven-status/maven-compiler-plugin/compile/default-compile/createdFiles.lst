@@ -11,6 +11,7 @@ com\magizhchi\share\model\UserFolderPin$UserFolderPinBuilder.class
 com\magizhchi\share\config\SecurityConfig.class
 com\magizhchi\share\model\ConversationMember.class
 com\magizhchi\share\model\OtpCode$OtpCodeBuilder.class
+com\magizhchi\share\service\PlanCatalogInitializer.class
 com\magizhchi\share\dto\response\FolderResponse.class
 com\magizhchi\share\model\ConnectionRequest$RequestStatus.class
 com\magizhchi\share\dto\request\CreateGroupRequest.class
@@ -27,11 +28,13 @@ com\magizhchi\share\repository\PendingRegistrationRepository.class
 com\magizhchi\share\dto\response\StorageResponse$TopFileItem.class
 com\magizhchi\share\security\JwtAuthenticationFilter.class
 com\magizhchi\share\model\ActivityEvent$ActivityEventBuilder.class
+com\magizhchi\share\repository\PlanRepository.class
 com\magizhchi\share\dto\response\ActivityEventResponse.class
 com\magizhchi\share\service\ConnectionService.class
 com\magizhchi\share\model\UserFilePin.class
 com\magizhchi\share\dto\response\ConnectionRequestResponse$ConnectionRequestResponseBuilder.class
 com\magizhchi\share\model\Folder$FolderBuilder.class
+com\magizhchi\share\dto\response\PlanResponse.class
 com\magizhchi\share\dto\response\ConversationResponse$ConversationResponseBuilder.class
 com\magizhchi\share\model\Conversation.class
 com\magizhchi\share\model\PendingRegistration$PendingRegistrationBuilder.class
@@ -61,6 +64,7 @@ com\magizhchi\share\repository\UserFilePinRepository.class
 com\magizhchi\share\controller\AuthController.class
 com\magizhchi\share\dto\request\ShareRequest.class
 com\magizhchi\share\dto\response\StorageResponse$StorageResponseBuilder.class
+com\magizhchi\share\controller\PlanController.class
 com\magizhchi\share\dto\response\GroupMemberResponse.class
 com\magizhchi\share\dto\response\StorageResponse$GroupItem$GroupItemBuilder.class
 com\magizhchi\share\repository\OtpCodeRepository.class
@@ -68,6 +72,7 @@ com\magizhchi\share\dto\response\SharedResourceResponse.class
 com\magizhchi\share\dto\response\GroupMemberResponse$GroupMemberResponseBuilder.class
 com\magizhchi\share\service\AuthService.class
 com\magizhchi\share\model\Block.class
+com\magizhchi\share\dto\response\PlanResponse$PlanResponseBuilder.class
 com\magizhchi\share\repository\ConnectionRequestRepository.class
 com\magizhchi\share\model\UserFilePin$UserFilePinBuilder.class
 com\magizhchi\share\model\FileMessage$FileMessageBuilder.class
@@ -82,6 +87,7 @@ com\magizhchi\share\model\ActivityEvent.class
 com\magizhchi\share\model\ConnectionRequest$ConnectionRequestBuilder.class
 com\magizhchi\share\service\FileStorageService.class
 com\magizhchi\share\MagizhchiShareApplication.class
+com\magizhchi\share\model\Plan.class
 com\magizhchi\share\model\Folder.class
 com\magizhchi\share\repository\FileMessageRepository.class
 com\magizhchi\share\dto\response\ConversationResponse.class
@@ -100,6 +106,7 @@ com\magizhchi\share\controller\FileController.class
 com\magizhchi\share\dto\response\AuthResponse$AuthResponseBuilder.class
 com\magizhchi\share\model\Conversation$ConversationBuilder.class
 com\magizhchi\share\model\ConversationMember$ConversationMemberBuilder.class
+com\magizhchi\share\model\Plan$PlanBuilder.class
 com\magizhchi\share\service\EmailService.class
 com\magizhchi\share\service\SharingService.class
 com\magizhchi\share\dto\response\ConnectionRequestResponse.class

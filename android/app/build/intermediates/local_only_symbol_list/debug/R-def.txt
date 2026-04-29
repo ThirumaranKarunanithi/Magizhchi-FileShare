@@ -84,6 +84,7 @@ id avatarFrame
 id breadcrumb
 id breadcrumbScroll
 id btnAccept
+id btnAction
 id btnAdd
 id btnBack
 id btnBell
@@ -116,6 +117,7 @@ id btnUpload
 id btnVerify
 id btnViewMode
 id cardConversation
+id cardFriend
 id cardShared
 id cardStorage
 id chatRoot
@@ -140,6 +142,8 @@ id fileList
 id folderPermAdmins
 id folderPermAnyone
 id folderPermViewOnly
+id friendSearchProgress
+id friendSearchSection
 id ivAvatar
 id loginCard
 id loginRoot
@@ -167,6 +171,7 @@ id profileStorageUsed
 id progressBar
 id recyclerConversations
 id recyclerFiles
+id recyclerFriendSearch
 id recyclerMembers
 id recyclerSearchResults
 id recyclerShared
@@ -205,6 +210,8 @@ id tvFileCount
 id tvFileName
 id tvFolderDestination
 id tvFree
+id tvFriendSearchEmpty
+id tvFriendSearchHeader
 id tvFrom
 id tvIcon
 id tvInitials
@@ -251,6 +258,7 @@ layout item_conversation
 layout item_file_card_large
 layout item_file_card_medium
 layout item_file_message
+layout item_friend_search
 layout item_member
 layout item_notification_request
 layout item_notification_share

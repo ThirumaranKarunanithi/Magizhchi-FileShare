@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { useViewport } from './hooks/useViewport';
+import MobilePhoneGate, { isPhoneGateBypassed } from './components/MobilePhoneGate';
 import Login    from './pages/Login';
 import Register from './pages/Register';
 import Home     from './pages/Home';
@@ -37,6 +40,16 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+  // Mobile-phone gate. iPads / large Android tablets fall through (isPhone is
+  // false for them) — the layout adapts via responsive breakpoints inside
+  // Sidebar / ChatWindow. The user can dismiss the gate per-session via the
+  // "Continue to the web anyway" link inside MobilePhoneGate.
+  const { isPhone } = useViewport();
+  const [bypassed, setBypassed] = useState(() => isPhoneGateBypassed());
+  if (isPhone && !bypassed) {
+    return <MobilePhoneGate onContinueAnyway={() => setBypassed(true)}/>;
+  }
+
   return (
     <Routes>
       <Route path="/login"    element={<PublicRoute><Login/></PublicRoute>}/>

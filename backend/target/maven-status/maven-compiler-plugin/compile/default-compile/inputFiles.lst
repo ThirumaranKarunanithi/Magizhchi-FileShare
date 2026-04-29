@@ -1,4 +1,5 @@
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\response\AuthResponse.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\PlanController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\ConversationMember.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\OtpService.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\ConversationService.java
@@ -9,6 +10,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\LoginRequest.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\ConversationRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\PendingRegistrationRepository.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\PlanRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\Folder.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\security\JwtTokenProvider.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\response\FolderResponse.java
@@ -16,6 +18,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\FileStorageService.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\ActivityEvent.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\response\GroupMemberResponse.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\response\PlanResponse.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\BlockRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\SharedResource.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\FileMessageService.java
@@ -24,6 +27,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\repository\SharedResourceRepository.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\FolderController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\dto\request\CreateGroupRequest.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\Plan.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\websocket\NotificationEvent.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\config\SecurityConfig.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\FolderService.java
@@ -63,6 +67,7 @@ D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\controller\SharingController.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\UserFilePin.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\AuthService.java
+D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\service\PlanCatalogInitializer.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\Block.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\FileMessage.java
 D:\Magizhchi SOftware\Source\Magizhchi-Share\backend\src\main\java\com\magizhchi\share\model\OtpCode.java
