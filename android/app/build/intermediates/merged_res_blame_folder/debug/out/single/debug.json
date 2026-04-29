@@ -24,6 +24,10 @@
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\gradient_bg.xml"
     },
     {
+        "merged": "com.magizhchi.share.app-merged_res-34:/layout_item_member.xml.flat",
+        "source": "com.magizhchi.share.app-main-36:/layout/item_member.xml"
+    },
+    {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_folder_icon.xml.flat",
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\bg_folder_icon.xml"
     },
@@ -56,6 +60,10 @@
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_group_info.xml"
     },
     {
+        "merged": "com.magizhchi.share.app-merged_res-34:/layout_activity_avatar_viewer.xml.flat",
+        "source": "com.magizhchi.share.app-main-36:/layout/activity_avatar_viewer.xml"
+    },
+    {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_logo.png.flat",
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\logo.png"
     },
@@ -74,6 +82,10 @@
     {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_card_dark.xml.flat",
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\bg_card_dark.xml"
+    },
+    {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\layout_activity_file_properties.xml.flat",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_file_properties.xml"
     },
     {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_close_circle.xml.flat",
@@ -112,6 +124,10 @@
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\activity_notifications.xml"
     },
     {
+        "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\layout_item_friend_search.xml.flat",
+        "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\layout\\item_friend_search.xml"
+    },
+    {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_glass_progress.xml.flat",
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\bg_glass_progress.xml"
     },
@@ -142,6 +158,10 @@
     {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_pill_inactive.xml.flat",
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\bg_pill_inactive.xml"
+    },
+    {
+        "merged": "com.magizhchi.share.app-merged_res-34:/layout_item_conversation.xml.flat",
+        "source": "com.magizhchi.share.app-main-36:/layout/item_conversation.xml"
     },
     {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_card_shared.xml.flat",
@@ -258,10 +278,6 @@
     {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\drawable_bg_card_violet_glass.xml.flat",
         "source": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-main-36:\\drawable\\bg_card_violet_glass.xml"
-    },
-    {
-        "merged": "com.magizhchi.share.app-merged_res-34:/layout_activity_main.xml.flat",
-        "source": "com.magizhchi.share.app-main-36:/layout/activity_main.xml"
     },
     {
         "merged": "C:\\Users\\tiruk\\.gradle\\daemon\\8.9\\com.magizhchi.share.app-merged_res-34:\\mipmap-xhdpi_ic_launcher_round.png.flat",

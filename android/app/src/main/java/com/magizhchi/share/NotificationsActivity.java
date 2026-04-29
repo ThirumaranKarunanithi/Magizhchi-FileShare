@@ -29,7 +29,7 @@ import com.bumptech.glide.request.target.Target;
 import com.google.gson.Gson;
 import com.magizhchi.share.model.ConnectionRequestResponse;
 import com.magizhchi.share.model.ConversationResponse;
-import com.magizhchi.share.model.FileMessageResponse;
+import com.magizhchi.share.model.SharedResourceResponse;
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
 import com.magizhchi.share.utils.DottedGradientDrawable;
@@ -234,19 +234,24 @@ public class NotificationsActivity extends AppCompatActivity {
 
     private void fetchSharedFiles() {
         ApiService api = ApiClient.getInstance(this).getApiService();
-        api.getSharedWithMe().enqueue(new Callback<List<FileMessageResponse>>() {
+        api.getSharedWithMe().enqueue(new Callback<List<SharedResourceResponse>>() {
             @Override
-            public void onResponse(Call<List<FileMessageResponse>> call,
-                                   Response<List<FileMessageResponse>> response) {
+            public void onResponse(Call<List<SharedResourceResponse>> call,
+                                   Response<List<SharedResourceResponse>> response) {
                 sharesContainer.removeAllViews();
                 if (response.isSuccessful() && response.body() != null
                         && !response.body().isEmpty()) {
                     emptyShares.setVisibility(View.GONE);
-                    // Newest first (matches the web sidebar)
-                    List<FileMessageResponse> sorted = new java.util.ArrayList<>(response.body());
+                    // Newest first (matches the web sidebar). Prefer
+                    // sharedAt (when the share was created) so the most
+                    // recently shared item is on top regardless of when
+                    // the file itself was uploaded.
+                    List<SharedResourceResponse> sorted = new java.util.ArrayList<>(response.body());
                     sorted.sort((a, b) -> {
-                        String ad = a.getSentAt() == null ? "" : a.getSentAt();
-                        String bd = b.getSentAt() == null ? "" : b.getSentAt();
+                        String ad = a.getSharedAt() != null ? a.getSharedAt() :
+                                    (a.getFileSentAt() != null ? a.getFileSentAt() : "");
+                        String bd = b.getSharedAt() != null ? b.getSharedAt() :
+                                    (b.getFileSentAt() != null ? b.getFileSentAt() : "");
                         return bd.compareTo(ad);
                     });
                     int max = Math.min(sorted.size(), 50);
@@ -260,7 +265,7 @@ public class NotificationsActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<List<FileMessageResponse>> call, Throwable t) {
+            public void onFailure(Call<List<SharedResourceResponse>> call, Throwable t) {
                 emptyShares.setVisibility(View.VISIBLE);
                 emptyShares.setText("Could not load recent shares: " + t.getMessage());
                 stopRefreshIfDone();
@@ -268,7 +273,7 @@ public class NotificationsActivity extends AppCompatActivity {
         });
     }
 
-    private View buildShareCard(FileMessageResponse f) {
+    private View buildShareCard(SharedResourceResponse s) {
         View card = LayoutInflater.from(this).inflate(
                 R.layout.item_notification_share, sharesContainer, false);
 
@@ -276,36 +281,49 @@ public class NotificationsActivity extends AppCompatActivity {
         TextView tvName = card.findViewById(R.id.tvFileName);
         TextView tvSub  = card.findViewById(R.id.tvSubtitle);
 
-        tvIcon.setText(FormatUtils.fileIcon(f.getCategory(), f.getContentType()));
-        tvName.setText(f.getOriginalFileName() != null ? f.getOriginalFileName() : "(unnamed)");
+        tvIcon.setText(FormatUtils.fileIcon(s.getCategory(), s.getContentType()));
+        tvName.setText(s.getFileName() != null ? s.getFileName() : "(unnamed)");
 
         StringBuilder sub = new StringBuilder();
-        if (f.getSenderName() != null && !f.getSenderName().isEmpty()) {
-            sub.append(f.getSenderName());
+        if (s.getOwnerName() != null && !s.getOwnerName().isEmpty()) {
+            sub.append(s.getOwnerName());
         }
         if (sub.length() > 0) sub.append(" · ");
-        sub.append(FormatUtils.formatBytes(f.getFileSizeBytes()));
-        if (f.getSentAt() != null) {
-            sub.append(" · ").append(FormatUtils.formatDate(f.getSentAt()));
+        sub.append(FormatUtils.formatBytes(s.getSizeBytes()));
+        String when = s.getSharedAt() != null ? s.getSharedAt() : s.getFileSentAt();
+        if (when != null) {
+            sub.append(" · ").append(FormatUtils.formatDate(when));
         }
         tvSub.setText(sub.toString());
 
-        card.setOnClickListener(v -> openConversationFor(f));
+        card.setOnClickListener(v -> openConversationFor(s));
         return card;
     }
 
-    /** Resolve the ConversationResponse for a shared file and launch chat. */
-    private void openConversationFor(FileMessageResponse f) {
-        String convId = f.getConversationId();
-        if (convId == null) {
-            Toast.makeText(this, "This file isn't linked to a conversation.",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
+    /**
+     * Resolve the conversation for a shared resource and launch chat.
+     * SharedResourceResponse doesn't carry a conversation id directly:
+     *   - GROUP shares: targetId is the group's conversation id
+     *   - USER shares:  ownerId is the person who shared with me — find
+     *                   the existing direct chat in the cache by otherUserId.
+     */
+    private void openConversationFor(SharedResourceResponse s) {
         ConversationResponse target = null;
         if (conversationCache != null) {
             for (ConversationResponse c : conversationCache) {
-                if (convId.equals(c.getId())) { target = c; break; }
+                if ("GROUP".equalsIgnoreCase(s.getShareType())) {
+                    if (s.getTargetId() != null
+                            && s.getTargetId().equals(c.getId())
+                            && "GROUP".equalsIgnoreCase(c.getType())) {
+                        target = c; break;
+                    }
+                } else { // USER share
+                    if (s.getOwnerId() != null
+                            && s.getOwnerId().equals(c.getOtherUserId())
+                            && "DIRECT".equalsIgnoreCase(c.getType())) {
+                        target = c; break;
+                    }
+                }
             }
         }
         if (target == null) {

@@ -3234,6 +3234,9 @@ id autoComplete
 id autoCompleteToEnd
 id autoCompleteToStart
 id avatarFrame
+id avatarImage
+id avatarInitials
+id avatarRoot
 id barrier
 id baseline
 id beginOnFirstDraw
@@ -3591,6 +3594,8 @@ id profileStorageUsed
 id progressBar
 id progress_circular
 id progress_horizontal
+id propertiesContainer
+id propertiesRoot
 id radio
 id ratio
 id rectangles
@@ -3686,6 +3691,7 @@ id tabMode
 id tabOverview
 id tabTopFiles
 id tabsRow
+id tagAvatarBoundKey
 id tag_accessibility_actions
 id tag_accessibility_clickable_spans
 id tag_accessibility_heading
@@ -3919,7 +3925,9 @@ layout abc_search_dropdown_item_icons_2line
 layout abc_search_view
 layout abc_select_dialog_material
 layout abc_tooltip
+layout activity_avatar_viewer
 layout activity_chat
+layout activity_file_properties
 layout activity_group_info
 layout activity_login
 layout activity_main
@@ -4767,6 +4775,7 @@ style Theme_Design_Light_BottomSheetDialog
 style Theme_Design_Light_NoActionBar
 style Theme_Design_NoActionBar
 style Theme_MagizhchiShare
+style Theme_MagizhchiShare_AvatarViewer
 style Theme_MagizhchiShare_PopupDark
 style Theme_Material3_Dark
 style Theme_Material3_Dark_BottomSheetDialog

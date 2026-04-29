@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-93:12
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-104:12
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-104:12
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-104:12
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:2:1-104:12
 MERGED from [androidx.databinding:viewbinding:8.2.2] C:\Users\tiruk\.gradle\caches\8.9\transforms\5e957ca505542b511ee39d2e249e36fb\transformed\jetified-viewbinding-8.2.2\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bc55ece3a38c21d5b7e8cab4d4caeb8b\transformed\material-1.11.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\tiruk\.gradle\caches\8.9\transforms\3083fbcbf701c73d09cc65af0a0c99d0\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
@@ -102,8 +102,8 @@ ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\And
 	android:name
 		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:20:9-47
 application
-ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:5-91:19
-INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:5-91:19
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:5-102:19
+INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:23:5-102:19
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bc55ece3a38c21d5b7e8cab4d4caeb8b\transformed\material-1.11.0\AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\tiruk\.gradle\caches\8.9\transforms\bc55ece3a38c21d5b7e8cab4d4caeb8b\transformed\material-1.11.0\AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\tiruk\.gradle\caches\8.9\transforms\3083fbcbf701c73d09cc65af0a0c99d0\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -236,6 +236,24 @@ ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\And
 		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:87:13-37
 	android:name
 		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:86:13-50
+activity#com.magizhchi.share.FilePropertiesActivity
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:91:9-95:55
+	android:parentActivityName
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:94:13-55
+	android:windowSoftInputMode
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:95:13-52
+	android:exported
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:93:13-37
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:92:13-51
+activity#com.magizhchi.share.AvatarViewerActivity
+ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:97:9-100:72
+	android:exported
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:99:13-37
+	android:theme
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:100:13-69
+	android:name
+		ADDED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml:98:13-49
 uses-sdk
 INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from D:\Magizhchi SOftware\Source\Magizhchi-Share\android\app\src\main\AndroidManifest.xml

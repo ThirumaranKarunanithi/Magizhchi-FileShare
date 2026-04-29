@@ -5,11 +5,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.cardview.widget.CardView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.magizhchi.share.R;
@@ -19,13 +20,16 @@ import java.lang.String;
 
 public final class ItemFriendSearchBinding implements ViewBinding {
   @NonNull
-  private final CardView rootView;
+  private final LinearLayout rootView;
+
+  @NonNull
+  public final FrameLayout avatarFrame;
 
   @NonNull
   public final Button btnAction;
 
   @NonNull
-  public final CardView cardFriend;
+  public final LinearLayout cardFriend;
 
   @NonNull
   public final ImageView ivAvatar;
@@ -39,10 +43,11 @@ public final class ItemFriendSearchBinding implements ViewBinding {
   @NonNull
   public final TextView tvSubtitle;
 
-  private ItemFriendSearchBinding(@NonNull CardView rootView, @NonNull Button btnAction,
-      @NonNull CardView cardFriend, @NonNull ImageView ivAvatar, @NonNull TextView tvInitials,
-      @NonNull TextView tvName, @NonNull TextView tvSubtitle) {
+  private ItemFriendSearchBinding(@NonNull LinearLayout rootView, @NonNull FrameLayout avatarFrame,
+      @NonNull Button btnAction, @NonNull LinearLayout cardFriend, @NonNull ImageView ivAvatar,
+      @NonNull TextView tvInitials, @NonNull TextView tvName, @NonNull TextView tvSubtitle) {
     this.rootView = rootView;
+    this.avatarFrame = avatarFrame;
     this.btnAction = btnAction;
     this.cardFriend = cardFriend;
     this.ivAvatar = ivAvatar;
@@ -53,7 +58,7 @@ public final class ItemFriendSearchBinding implements ViewBinding {
 
   @Override
   @NonNull
-  public CardView getRoot() {
+  public LinearLayout getRoot() {
     return rootView;
   }
 
@@ -78,13 +83,19 @@ public final class ItemFriendSearchBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.avatarFrame;
+      FrameLayout avatarFrame = ViewBindings.findChildViewById(rootView, id);
+      if (avatarFrame == null) {
+        break missingId;
+      }
+
       id = R.id.btnAction;
       Button btnAction = ViewBindings.findChildViewById(rootView, id);
       if (btnAction == null) {
         break missingId;
       }
 
-      CardView cardFriend = (CardView) rootView;
+      LinearLayout cardFriend = (LinearLayout) rootView;
 
       id = R.id.ivAvatar;
       ImageView ivAvatar = ViewBindings.findChildViewById(rootView, id);
@@ -110,8 +121,8 @@ public final class ItemFriendSearchBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemFriendSearchBinding((CardView) rootView, btnAction, cardFriend, ivAvatar,
-          tvInitials, tvName, tvSubtitle);
+      return new ItemFriendSearchBinding((LinearLayout) rootView, avatarFrame, btnAction,
+          cardFriend, ivAvatar, tvInitials, tvName, tvSubtitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

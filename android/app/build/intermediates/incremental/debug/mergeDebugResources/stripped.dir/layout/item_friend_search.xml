@@ -1,91 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Friend search result card — used by the home screen when the user types
-     in the search bar. Mirrors the conversation row styling so the search
-     results visually fit alongside the conversation list, but adds a
-     context-aware action button (Open / Send Request / Accept / Pending). -->
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+     in the search bar. Uses a plain LinearLayout (not CardView) because
+     CardView's own drawing logic ignores android:background, which left the
+     card looking transparent against the light grid wallpaper. The
+     bg_card_direct drawable already paints rounded corners + gradient. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/cardFriend"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="3dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:background="@drawable/bg_card_direct"
-    app:cardBackgroundColor="@android:color/transparent"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp">
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp">
+    <FrameLayout
+        android:id="@+id/avatarFrame"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginEnd="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackgroundBorderless">
 
-        <FrameLayout
+        <ImageView
+            android:id="@+id/ivAvatar"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:layout_marginEnd="12dp">
+            android:visibility="gone"
+            android:contentDescription="Avatar" />
 
-            <ImageView
-                android:id="@+id/ivAvatar"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:visibility="gone"
-                android:contentDescription="Avatar" />
+        <TextView
+            android:id="@+id/tvInitials"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_avatar_glass"
+            android:gravity="center"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </FrameLayout>
 
-            <TextView
-                android:id="@+id/tvInitials"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/bg_avatar_glass"
-                android:gravity="center"
-                android:textColor="@android:color/white"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-        </FrameLayout>
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tvName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#CCffffff"
-                android:textSize="11sp" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnAction"
+        <TextView
+            android:id="@+id/tvName"
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
-            android:layout_marginStart="6dp"
-            android:backgroundTint="@android:color/white"
-            android:minWidth="0dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:textColor="@color/primaryMid"
-            android:textSize="11sp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E6FFFFFF"
+            android:textSize="11sp" />
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+
+    <Button
+        android:id="@+id/btnAction"
+        android:layout_width="wrap_content"
+        android:layout_height="34dp"
+        android:layout_marginStart="6dp"
+        android:backgroundTint="@android:color/white"
+        android:minWidth="0dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textColor="@color/primaryMid"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+</LinearLayout>

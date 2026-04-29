@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,6 +21,9 @@ import java.lang.String;
 public final class ItemMemberBinding implements ViewBinding {
   @NonNull
   private final LinearLayout rootView;
+
+  @NonNull
+  public final FrameLayout avatarFrame;
 
   @NonNull
   public final Button btnMakeAdmin;
@@ -42,10 +46,12 @@ public final class ItemMemberBinding implements ViewBinding {
   @NonNull
   public final TextView tvRoleBadge;
 
-  private ItemMemberBinding(@NonNull LinearLayout rootView, @NonNull Button btnMakeAdmin,
-      @NonNull Button btnRemove, @NonNull Button btnRemoveAdmin, @NonNull ImageView ivAvatar,
-      @NonNull TextView tvInitials, @NonNull TextView tvName, @NonNull TextView tvRoleBadge) {
+  private ItemMemberBinding(@NonNull LinearLayout rootView, @NonNull FrameLayout avatarFrame,
+      @NonNull Button btnMakeAdmin, @NonNull Button btnRemove, @NonNull Button btnRemoveAdmin,
+      @NonNull ImageView ivAvatar, @NonNull TextView tvInitials, @NonNull TextView tvName,
+      @NonNull TextView tvRoleBadge) {
     this.rootView = rootView;
+    this.avatarFrame = avatarFrame;
     this.btnMakeAdmin = btnMakeAdmin;
     this.btnRemove = btnRemove;
     this.btnRemoveAdmin = btnRemoveAdmin;
@@ -82,6 +88,12 @@ public final class ItemMemberBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.avatarFrame;
+      FrameLayout avatarFrame = ViewBindings.findChildViewById(rootView, id);
+      if (avatarFrame == null) {
+        break missingId;
+      }
+
       id = R.id.btnMakeAdmin;
       Button btnMakeAdmin = ViewBindings.findChildViewById(rootView, id);
       if (btnMakeAdmin == null) {
@@ -124,8 +136,8 @@ public final class ItemMemberBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemMemberBinding((LinearLayout) rootView, btnMakeAdmin, btnRemove, btnRemoveAdmin,
-          ivAvatar, tvInitials, tvName, tvRoleBadge);
+      return new ItemMemberBinding((LinearLayout) rootView, avatarFrame, btnMakeAdmin, btnRemove,
+          btnRemoveAdmin, ivAvatar, tvInitials, tvName, tvRoleBadge);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

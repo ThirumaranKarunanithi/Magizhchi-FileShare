@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
+import com.magizhchi.share.AvatarViewerActivity;
 import com.magizhchi.share.R;
 import com.magizhchi.share.model.ConversationResponse;
 import com.magizhchi.share.utils.FormatUtils;
@@ -107,6 +109,17 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
         holder.tvInitials.setBackgroundResource(
                 isDirect ? R.drawable.bg_avatar_direct : R.drawable.bg_avatar_group);
         holder.ivAvatar.setVisibility(View.GONE);
+        // CRITICAL: cancel any in-flight Glide request on this recycled
+        // ImageView before deciding what to do. Without this, a row whose
+        // user has no photo will inherit the previous bind's still-loading
+        // image and paint it on top of the wrong user's row — the "Anandh's
+        // photo on Karnishh's row" bug. We also tag the ImageView with the
+        // conversation id so the listener can verify it's still bound to
+        // the right row before applying the result (defence in depth).
+        Glide.with(context).clear(holder.ivAvatar);
+        holder.ivAvatar.setImageDrawable(null);
+        final String boundConvId = conv.getId();
+        holder.ivAvatar.setTag(R.id.tagAvatarBoundKey, boundConvId);
 
         if (conv.getIconUrl() != null && !conv.getIconUrl().isEmpty()) {
             Glide.with(context)
@@ -127,6 +140,14 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
                                                                  com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
                                                                  com.bumptech.glide.load.DataSource dataSource,
                                                                  boolean isFirstResource) {
+                            // Stale-bind guard — if the holder has been
+                            // recycled into a different conversation while
+                            // this load was in flight, drop the result
+                            // instead of painting it onto the wrong row.
+                            Object currentTag = holder.ivAvatar.getTag(R.id.tagAvatarBoundKey);
+                            if (currentTag != null && !currentTag.equals(boundConvId)) {
+                                return true;
+                            }
                             holder.ivAvatar.setVisibility(View.VISIBLE);
                             holder.tvInitials.setVisibility(View.GONE);
                             return false;
@@ -175,6 +196,21 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
             if (listener != null) listener.onConversationLongPress(conv, v);
             return true;
         });
+
+        // Tap on JUST the avatar opens the photo viewer instead of the
+        // conversation. The avatar FrameLayout has its own clickable=true
+        // so the touch is consumed here and doesn't bubble up to the row.
+        // Pass otherUserId for DIRECT chats so the viewer can re-fetch a
+        // fresh presigned URL if the cached one has expired (the "AS"
+        // initials instead of Aswin's photo bug). Group icons aren't tied
+        // to a single user, so userId stays null for groups — the viewer
+        // just shows initials if the icon URL is stale.
+        if (holder.avatarFrame != null) {
+            String userIdForRefresh = isDirect ? conv.getOtherUserId() : null;
+            holder.avatarFrame.setOnClickListener(v ->
+                    AvatarViewerActivity.launch(context,
+                            conv.getIconUrl(), conv.getName(), userIdForRefresh));
+        }
     }
 
     @Override
@@ -184,6 +220,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         CardView cardView;
+        FrameLayout avatarFrame;
         ImageView ivAvatar;
         TextView tvInitials;
         TextView tvName;
@@ -195,6 +232,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
         ViewHolder(View itemView) {
             super(itemView);
             cardView      = itemView.findViewById(R.id.cardConversation);
+            avatarFrame   = itemView.findViewById(R.id.avatarFrame);
             ivAvatar      = itemView.findViewById(R.id.ivAvatar);
             tvInitials    = itemView.findViewById(R.id.tvInitials);
             tvName        = itemView.findViewById(R.id.tvName);

@@ -4,6 +4,7 @@ package com.magizhchi.share.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -19,6 +20,9 @@ import java.lang.String;
 public final class ItemConversationBinding implements ViewBinding {
   @NonNull
   private final CardView rootView;
+
+  @NonNull
+  public final FrameLayout avatarFrame;
 
   @NonNull
   public final CardView cardConversation;
@@ -44,11 +48,12 @@ public final class ItemConversationBinding implements ViewBinding {
   @NonNull
   public final View unreadDot;
 
-  private ItemConversationBinding(@NonNull CardView rootView, @NonNull CardView cardConversation,
-      @NonNull ImageView ivAvatar, @NonNull TextView tvDate, @NonNull TextView tvInitials,
-      @NonNull TextView tvName, @NonNull TextView tvSubtitle, @NonNull TextView tvUnreadBadge,
-      @NonNull View unreadDot) {
+  private ItemConversationBinding(@NonNull CardView rootView, @NonNull FrameLayout avatarFrame,
+      @NonNull CardView cardConversation, @NonNull ImageView ivAvatar, @NonNull TextView tvDate,
+      @NonNull TextView tvInitials, @NonNull TextView tvName, @NonNull TextView tvSubtitle,
+      @NonNull TextView tvUnreadBadge, @NonNull View unreadDot) {
     this.rootView = rootView;
+    this.avatarFrame = avatarFrame;
     this.cardConversation = cardConversation;
     this.ivAvatar = ivAvatar;
     this.tvDate = tvDate;
@@ -86,6 +91,12 @@ public final class ItemConversationBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.avatarFrame;
+      FrameLayout avatarFrame = ViewBindings.findChildViewById(rootView, id);
+      if (avatarFrame == null) {
+        break missingId;
+      }
+
       CardView cardConversation = (CardView) rootView;
 
       id = R.id.ivAvatar;
@@ -130,8 +141,8 @@ public final class ItemConversationBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemConversationBinding((CardView) rootView, cardConversation, ivAvatar, tvDate,
-          tvInitials, tvName, tvSubtitle, tvUnreadBadge, unreadDot);
+      return new ItemConversationBinding((CardView) rootView, avatarFrame, cardConversation,
+          ivAvatar, tvDate, tvInitials, tvName, tvSubtitle, tvUnreadBadge, unreadDot);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

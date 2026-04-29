@@ -25,6 +25,40 @@ export default function GroupInfoModal({ conversation, onClose, onUpdated }) {
   // Is the current user an admin of this group?
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Inline group-name editor — entered by clicking the pencil next to the
+  // header name. Admin-only; the input is pre-seeded with the current name
+  // so a user can do a quick fix-typo edit without retyping.
+  const [editingName,   setEditingName]   = useState(false);
+  const [draftName,     setDraftName]     = useState(conversation.name ?? '');
+  const [savingName,    setSavingName]    = useState(false);
+  const [currentName,   setCurrentName]   = useState(conversation.name ?? '');
+  // If the parent passes a new conversation prop, reset our local copy.
+  useEffect(() => {
+    setCurrentName(conversation.name ?? '');
+    setDraftName(conversation.name ?? '');
+  }, [conversation.id, conversation.name]);
+
+  const submitNameChange = async () => {
+    const trimmed = draftName.trim();
+    if (!trimmed) { toast.error('Group name cannot be empty.'); return; }
+    if (trimmed === currentName) { setEditingName(false); return; }
+    setSavingName(true);
+    try {
+      const { data } = await conversations.rename(conversation.id, trimmed);
+      // Update local view immediately so the user sees the change without
+      // a re-mount, then ping the parent so the sidebar's conversation list
+      // reflects the new name.
+      setCurrentName(data?.name ?? trimmed);
+      setEditingName(false);
+      toast.success('Group renamed.');
+      onUpdated?.();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not rename group.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   // ── Load members ────────────────────────────────────────────────────────────
   const loadMembers = async () => {
     setLoadingM(true);
@@ -151,7 +185,59 @@ export default function GroupInfoModal({ conversation, onClose, onUpdated }) {
               : '👥'}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-white font-bold text-base truncate">{conversation.name}</h2>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={draftName}
+                  onChange={e => setDraftName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') submitNameChange();
+                    else if (e.key === 'Escape') {
+                      setEditingName(false);
+                      setDraftName(currentName);
+                    }
+                  }}
+                  maxLength={80}
+                  disabled={savingName}
+                  className="flex-1 min-w-0 px-2 py-1 rounded-lg text-sm font-bold text-white
+                             outline-none focus:ring-2 focus:ring-sky-400/50 disabled:opacity-60"
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.18)',
+                  }}/>
+                <button onClick={submitNameChange} disabled={savingName}
+                        title="Save"
+                        className="text-sm font-bold w-7 h-7 flex items-center justify-center
+                                   rounded-lg text-emerald-300 hover:bg-emerald-400/20
+                                   transition-all disabled:opacity-40">
+                  {savingName ? '…' : '✓'}
+                </button>
+                <button onClick={() => { setEditingName(false); setDraftName(currentName); }}
+                        disabled={savingName}
+                        title="Cancel"
+                        className="text-sm font-bold w-7 h-7 flex items-center justify-center
+                                   rounded-lg text-white/60 hover:text-white hover:bg-white/10
+                                   transition-all disabled:opacity-40">
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h2 className="text-white font-bold text-base truncate" title={currentName}>
+                  {currentName}
+                </h2>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setDraftName(currentName); setEditingName(true); }}
+                    title="Rename group"
+                    className="text-white/50 hover:text-white text-xs w-6 h-6 flex items-center
+                               justify-center rounded-md hover:bg-white/10 transition-all flex-shrink-0">
+                    ✎
+                  </button>
+                )}
+              </div>
+            )}
             <p className="text-xs text-white/50">{members.length} member{members.length !== 1 ? 's' : ''}</p>
           </div>
           <button onClick={onClose}

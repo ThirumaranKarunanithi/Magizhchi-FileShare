@@ -17,7 +17,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.magizhchi.share.model.FileMessageResponse;
+import com.magizhchi.share.model.SharedResourceResponse;
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
 import com.magizhchi.share.utils.FormatUtils;
@@ -42,7 +42,7 @@ public class SharedFilesActivity extends AppCompatActivity {
     private RecyclerView recycler;
     private ProgressBar progressBar;
     private TextView tvEmpty, tvCount, tvTotal;
-    private final List<FileMessageResponse> items = new ArrayList<>();
+    private final List<SharedResourceResponse> items = new ArrayList<>();
     private SharedAdapter adapter;
 
     @Override
@@ -80,9 +80,9 @@ public class SharedFilesActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         tvEmpty.setVisibility(View.GONE);
         ApiClient.getInstance(this).getApiService().getSharedWithMe()
-                .enqueue(new Callback<List<FileMessageResponse>>() {
-            @Override public void onResponse(Call<List<FileMessageResponse>> call,
-                                              Response<List<FileMessageResponse>> response) {
+                .enqueue(new Callback<List<SharedResourceResponse>>() {
+            @Override public void onResponse(Call<List<SharedResourceResponse>> call,
+                                              Response<List<SharedResourceResponse>> response) {
                 progressBar.setVisibility(View.GONE);
                 if (!response.isSuccessful()) {
                     String msg = response.code() == 401
@@ -93,13 +93,13 @@ public class SharedFilesActivity extends AppCompatActivity {
                     Toast.makeText(SharedFilesActivity.this, msg, Toast.LENGTH_LONG).show();
                     return;
                 }
-                List<FileMessageResponse> body = response.body() != null
+                List<SharedResourceResponse> body = response.body() != null
                         ? response.body() : new ArrayList<>();
                 items.clear();
                 items.addAll(body);
 
                 long total = 0;
-                for (FileMessageResponse f : items) total += f.getFileSizeBytes();
+                for (SharedResourceResponse s : items) total += s.getSizeBytes();
                 tvCount.setText(items.size() + " file" + (items.size() != 1 ? "s" : ""));
                 tvTotal.setText(items.isEmpty()
                         ? "No shared files yet"
@@ -112,7 +112,7 @@ public class SharedFilesActivity extends AppCompatActivity {
                 }
                 adapter.notifyDataSetChanged();
             }
-            @Override public void onFailure(Call<List<FileMessageResponse>> call, Throwable t) {
+            @Override public void onFailure(Call<List<SharedResourceResponse>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Toast.makeText(SharedFilesActivity.this,
                         "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
@@ -120,9 +120,16 @@ public class SharedFilesActivity extends AppCompatActivity {
         });
     }
 
-    private void downloadFile(FileMessageResponse f) {
+    /** Download a shared file. Uses the SharedResource's fileMessageId to
+     *  hit the existing {@code /api/files/{id}/download-url} endpoint. */
+    private void downloadFile(SharedResourceResponse s) {
+        if (s.getFileMessageId() == null) {
+            Toast.makeText(this, "This share has no underlying file.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         ApiService apiService = ApiClient.getInstance(this).getApiService();
-        apiService.getDownloadUrl(f.getId()).enqueue(new Callback<Map<String, String>>() {
+        apiService.getDownloadUrl(s.getFileMessageId()).enqueue(new Callback<Map<String, String>>() {
             @Override public void onResponse(Call<Map<String, String>> call, Response<Map<String, String>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     String url = response.body().get("url");
@@ -152,14 +159,20 @@ public class SharedFilesActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull VH h, int position) {
-            FileMessageResponse f = items.get(position);
-            h.tvIcon.setText(FormatUtils.fileIcon(f.getCategory(), f.getContentType()));
-            h.tvFileName.setText(f.getOriginalFileName() != null ? f.getOriginalFileName() : "Untitled");
-            h.tvMeta.setText(FormatUtils.formatBytes(f.getFileSizeBytes())
-                    + "  ·  " + FormatUtils.formatDateTime(f.getSentAt()));
-            h.tvFrom.setText("📥 From " + (f.getSenderName() != null ? f.getSenderName() : "Someone"));
-            h.btnDownload.setOnClickListener(v -> downloadFile(f));
-            h.itemView.setOnClickListener(v -> downloadFile(f));
+            SharedResourceResponse s = items.get(position);
+            h.tvIcon.setText(FormatUtils.fileIcon(s.getCategory(), s.getContentType()));
+            h.tvFileName.setText(s.getFileName() != null ? s.getFileName() : "Untitled");
+            // Prefer the share's sentAt — when the file was originally
+            // uploaded — falling back to sharedAt (when the share was
+            // created) since either is informative for the user.
+            String when = s.getFileSentAt() != null ? s.getFileSentAt() : s.getSharedAt();
+            h.tvMeta.setText(FormatUtils.formatBytes(s.getSizeBytes())
+                    + "  ·  " + FormatUtils.formatDateTime(when));
+            // Use ownerName (the person who shared it with me), NOT
+            // senderName — SharedResourceResponse has no senderName field.
+            h.tvFrom.setText("📥 From " + (s.getOwnerName() != null ? s.getOwnerName() : "Someone"));
+            h.btnDownload.setOnClickListener(v -> downloadFile(s));
+            h.itemView.setOnClickListener(v -> downloadFile(s));
         }
 
         @Override public int getItemCount() { return items.size(); }

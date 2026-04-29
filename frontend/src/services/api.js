@@ -60,6 +60,8 @@ export const conversations = {
   get:            id               => api.get(`/api/conversations/${id}`),
   openDirect:     targetUserId     => api.post(`/api/conversations/direct/${targetUserId}`),
   createGroup:    formData         => api.post('/api/conversations/group', formData),
+  /** Rename a group conversation. Admin-only on the server. */
+  rename:         (cid, name)      => api.patch(`/api/conversations/${cid}`, { name }),
   addMember:      (cid, uid)       => api.post(`/api/conversations/${cid}/members/${uid}`),
   removeMember:   (cid, uid)       => api.delete(`/api/conversations/${cid}/members/${uid}`),
   setMemberRole:  (cid, uid, role) => api.patch(`/api/conversations/${cid}/members/${uid}/role`, null, { params: { role } }),

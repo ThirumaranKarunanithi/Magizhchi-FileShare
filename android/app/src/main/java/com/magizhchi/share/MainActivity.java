@@ -33,6 +33,7 @@ import com.magizhchi.share.model.ConnectionRequestResponse;
 import com.magizhchi.share.model.ConversationResponse;
 import com.magizhchi.share.model.StorageUsageResponse;
 import com.magizhchi.share.model.FileMessageResponse;
+import com.magizhchi.share.model.SharedResourceResponse;
 import com.magizhchi.share.model.UserSearchResponse;
 import com.magizhchi.share.network.ApiClient;
 import com.magizhchi.share.network.ApiService;
@@ -409,9 +410,34 @@ public class MainActivity extends AppCompatActivity {
                 friendSearchProgress.setVisibility(View.GONE);
                 friendSearchAdapter.setUsers(new ArrayList<>());
                 tvFriendSearchEmpty.setVisibility(View.VISIBLE);
-                tvFriendSearchEmpty.setText("Network error: " + t.getMessage());
+                // Map common transient failures to actionable copy. The raw
+                // exception text ("Unable to resolve host …") is correct but
+                // unhelpful — most users just need to know "your phone lost
+                // signal for a moment, try again."
+                tvFriendSearchEmpty.setText(friendlyNetworkError(t));
             }
         });
+    }
+
+    /**
+     * Translate a Throwable from a network call into a one-line message a
+     * non-engineer can act on. Falls back to {@code t.getMessage()} for
+     * exception types we don't recognise.
+     */
+    private static String friendlyNetworkError(Throwable t) {
+        if (t instanceof java.net.UnknownHostException) {
+            return "Couldn't reach the server. Check your internet connection and try again.";
+        }
+        if (t instanceof java.net.SocketTimeoutException) {
+            return "The server took too long to respond. Try again in a moment.";
+        }
+        if (t instanceof java.net.ConnectException) {
+            return "Couldn't connect to the server. Check your network and try again.";
+        }
+        if (t instanceof javax.net.ssl.SSLException) {
+            return "Secure connection failed. Check your network and try again.";
+        }
+        return "Network error: " + (t.getMessage() != null ? t.getMessage() : "please try again.");
     }
 
     /** CONNECTED row tapped — open / create the direct chat with that user. */
@@ -443,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
             public void onFailure(Call<ConversationResponse> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Toast.makeText(MainActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                        friendlyNetworkError(t), Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -472,7 +498,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ConnectionRequestResponse> call, Throwable t) {
                 Toast.makeText(MainActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                        friendlyNetworkError(t), Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -507,7 +533,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ConnectionRequestResponse> call, Throwable t) {
                 Toast.makeText(MainActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                        friendlyNetworkError(t), Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -567,91 +593,21 @@ public class MainActivity extends AppCompatActivity {
      * download it from the chat view). Surfaces the count + total size in
      * the title so the dialog reads like a mini Storage card.
      */
-    private void openSharedFiles() {
-        progressBar.setVisibility(View.VISIBLE);
-        ApiClient.getInstance(this).getApiService().getSharedWithMe()
-                .enqueue(new Callback<List<FileMessageResponse>>() {
-            @Override
-            public void onResponse(Call<List<FileMessageResponse>> call,
-                                   Response<List<FileMessageResponse>> response) {
-                progressBar.setVisibility(View.GONE);
-                if (!response.isSuccessful()) {
-                    String msg = "Couldn't load shared files (" + response.code() + ").";
-                    if (response.code() == 401)      msg = "Session expired. Please log in again.";
-                    else if (response.code() >= 500) msg = "Server unavailable. Please try later.";
-                    Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-                    return;
-                }
-                List<FileMessageResponse> shared = response.body();
-                if (shared == null || shared.isEmpty()) {
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("🔗 Shared Files")
-                            .setMessage("Nothing has been shared with you yet. When someone shares a file using the share button, it will appear here.")
-                            .setPositiveButton("OK", null).show();
-                    return;
-                }
-                CharSequence[] rows = new CharSequence[shared.size()];
-                long total = 0;
-                for (int i = 0; i < shared.size(); i++) {
-                    FileMessageResponse f = shared.get(i);
-                    String name   = f.getOriginalFileName() != null ? f.getOriginalFileName() : "Untitled";
-                    String sender = f.getSenderName() != null ? f.getSenderName() : "Someone";
-                    String size   = FormatUtils.formatBytes(f.getFileSizeBytes());
-                    rows[i] = "📄  " + name + "\n     " + size + "  ·  from " + sender;
-                    total += f.getFileSizeBytes();
-                }
-                String header = shared.size() + " file" + (shared.size() != 1 ? "s" : "")
-                        + " · " + FormatUtils.formatBytes(total) + " total";
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("🔗 Shared Files — " + header)
-                        .setItems(rows, (dialog, which) -> openFileConversation(shared.get(which)))
-                        .setNegativeButton("Close", null)
-                        .show();
-            }
-            @Override
-            public void onFailure(Call<List<FileMessageResponse>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                Toast.makeText(MainActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    /** Open the conversation that hosts a shared file, so the user can view it. */
-    private void openFileConversation(FileMessageResponse f) {
-        if (f == null) return;
-        // Try to find the conversation in the cached list; fall back to a Toast.
-        if (f.getConversationId() != null) {
-            for (ConversationResponse c : allConversations) {
-                if (String.valueOf(c.getId()).equals(String.valueOf(f.getConversationId()))) {
-                    Intent i = new Intent(this, ChatActivity.class);
-                    i.putExtra(ChatActivity.EXTRA_CONVERSATION, new Gson().toJson(c));
-                    startActivity(i);
-                    return;
-                }
-            }
-        }
-        Toast.makeText(this,
-                "Opening conversations… please tap " + (f.getSenderName() != null ? f.getSenderName() : "the sender")
-                        + " in the list to find this file.",
-                Toast.LENGTH_LONG).show();
-    }
-
     /** Refresh the Shared Files card subtitle (count + total size). */
     private void loadSharedFilesStats() {
         ApiClient.getInstance(this).getApiService().getSharedWithMe()
-                .enqueue(new Callback<List<FileMessageResponse>>() {
+                .enqueue(new Callback<List<SharedResourceResponse>>() {
             @Override
-            public void onResponse(Call<List<FileMessageResponse>> call,
-                                   Response<List<FileMessageResponse>> response) {
+            public void onResponse(Call<List<SharedResourceResponse>> call,
+                                   Response<List<SharedResourceResponse>> response) {
                 if (tvSharedSubtitle == null) return;
                 if (response.isSuccessful() && response.body() != null) {
-                    List<FileMessageResponse> list = response.body();
+                    List<SharedResourceResponse> list = response.body();
                     if (list.isEmpty()) {
                         tvSharedSubtitle.setText("No shared files yet");
                     } else {
                         long total = 0;
-                        for (FileMessageResponse f : list) total += f.getFileSizeBytes();
+                        for (SharedResourceResponse s : list) total += s.getSizeBytes();
                         tvSharedSubtitle.setText(list.size() + " file"
                                 + (list.size() != 1 ? "s" : "")
                                 + " · " + FormatUtils.formatBytes(total));
@@ -661,7 +617,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             @Override
-            public void onFailure(Call<List<FileMessageResponse>> call, Throwable t) {
+            public void onFailure(Call<List<SharedResourceResponse>> call, Throwable t) {
                 if (tvSharedSubtitle != null) tvSharedSubtitle.setText("Browse shared");
             }
         });

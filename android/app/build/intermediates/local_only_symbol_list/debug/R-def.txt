@@ -81,6 +81,9 @@ id action_new_folder
 id action_select
 id action_unfriend
 id avatarFrame
+id avatarImage
+id avatarInitials
+id avatarRoot
 id breadcrumb
 id breadcrumbScroll
 id btnAccept
@@ -169,6 +172,8 @@ id profileStorageBar
 id profileStorageCard
 id profileStorageUsed
 id progressBar
+id propertiesContainer
+id propertiesRoot
 id recyclerConversations
 id recyclerFiles
 id recyclerFriendSearch
@@ -191,6 +196,7 @@ id tabGroups
 id tabOverview
 id tabTopFiles
 id tabsRow
+id tagAvatarBoundKey
 id toolbar
 id toolbarAvatar
 id toolbarAvatarBox
@@ -242,7 +248,9 @@ id tvWelcome
 id unreadDot
 id uploadProgress
 id uploadRoot
+layout activity_avatar_viewer
 layout activity_chat
+layout activity_file_properties
 layout activity_group_info
 layout activity_login
 layout activity_main
@@ -302,4 +310,5 @@ string loading
 string login_subtitle
 string otp_title
 style Theme.MagizhchiShare
+style Theme.MagizhchiShare.AvatarViewer
 style Theme.MagizhchiShare.PopupDark

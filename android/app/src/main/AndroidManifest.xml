@@ -88,6 +88,17 @@
             android:parentActivityName=".MainActivity"
             android:windowSoftInputMode="adjustPan" />
 
+        <activity
+            android:name=".FilePropertiesActivity"
+            android:exported="false"
+            android:parentActivityName=".ChatActivity"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".AvatarViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MagizhchiShare.AvatarViewer" />
+
     </application>
 
 </manifest>

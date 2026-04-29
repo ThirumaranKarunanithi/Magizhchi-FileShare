@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.request.RequestOptions;
+import com.magizhchi.share.AvatarViewerActivity;
 import com.magizhchi.share.R;
 import com.magizhchi.share.model.UserSearchResponse;
 import com.magizhchi.share.utils.FormatUtils;
@@ -80,6 +82,15 @@ public class FriendSearchAdapter extends RecyclerView.Adapter<FriendSearchAdapte
         h.tvInitials.setVisibility(View.VISIBLE);
         h.tvInitials.setText(FormatUtils.initials(name));
         h.ivAvatar.setVisibility(View.GONE);
+        // Cancel any in-flight Glide load on this recycled ImageView before
+        // deciding what to do; tag the view with the bound user id so the
+        // listener can drop a result that arrives after the holder has been
+        // re-bound to a different user (the "wrong user's photo" leak).
+        Glide.with(context).clear(h.ivAvatar);
+        h.ivAvatar.setImageDrawable(null);
+        final String boundUserId = user.getId();
+        h.ivAvatar.setTag(R.id.tagAvatarBoundKey, boundUserId);
+
         if (user.getProfilePhotoUrl() != null && !user.getProfilePhotoUrl().isEmpty()) {
             Glide.with(context)
                     .load(user.getProfilePhotoUrl())
@@ -96,6 +107,12 @@ public class FriendSearchAdapter extends RecyclerView.Adapter<FriendSearchAdapte
                                                                  com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
                                                                  com.bumptech.glide.load.DataSource dataSource,
                                                                  boolean isFirstResource) {
+                            // Stale-bind guard — drop the result if the
+                            // holder has moved to a different user.
+                            Object currentTag = h.ivAvatar.getTag(R.id.tagAvatarBoundKey);
+                            if (currentTag != null && !currentTag.equals(boundUserId)) {
+                                return true;
+                            }
                             h.ivAvatar.setVisibility(View.VISIBLE);
                             h.tvInitials.setVisibility(View.GONE);
                             return false;
@@ -105,6 +122,17 @@ public class FriendSearchAdapter extends RecyclerView.Adapter<FriendSearchAdapte
         }
 
         h.tvName.setText(name);
+
+        // Tap on JUST the avatar opens the photo viewer. The avatar
+        // FrameLayout has clickable=true so the touch is consumed and
+        // doesn't fire the row's other handlers. Passing user.getId()
+        // lets the viewer re-fetch a fresh presigned photo URL if the
+        // cached one has expired.
+        if (h.avatarFrame != null) {
+            h.avatarFrame.setOnClickListener(v ->
+                    AvatarViewerActivity.launch(context,
+                            user.getProfilePhotoUrl(), name, user.getId()));
+        }
 
         String status = user.getConnectionStatus();
         h.tvSubtitle.setText(subtitleFor(user, status));
@@ -150,6 +178,7 @@ public class FriendSearchAdapter extends RecyclerView.Adapter<FriendSearchAdapte
     public int getItemCount() { return users.size(); }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
+        FrameLayout avatarFrame;
         ImageView ivAvatar;
         TextView  tvInitials;
         TextView  tvName;
@@ -158,11 +187,12 @@ public class FriendSearchAdapter extends RecyclerView.Adapter<FriendSearchAdapte
 
         ViewHolder(View v) {
             super(v);
-            ivAvatar   = v.findViewById(R.id.ivAvatar);
-            tvInitials = v.findViewById(R.id.tvInitials);
-            tvName     = v.findViewById(R.id.tvName);
-            tvSubtitle = v.findViewById(R.id.tvSubtitle);
-            btnAction  = v.findViewById(R.id.btnAction);
+            avatarFrame = v.findViewById(R.id.avatarFrame);
+            ivAvatar    = v.findViewById(R.id.ivAvatar);
+            tvInitials  = v.findViewById(R.id.tvInitials);
+            tvName      = v.findViewById(R.id.tvName);
+            tvSubtitle  = v.findViewById(R.id.tvSubtitle);
+            btnAction   = v.findViewById(R.id.btnAction);
         }
     }
 }

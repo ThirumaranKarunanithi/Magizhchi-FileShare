@@ -39,6 +39,11 @@ public class ApiClient {
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
+                // Retry transient DNS / connect / read-timeout failures
+                // before they surface to the UI. Order matters: this sits
+                // OUTSIDE auth + refresh so it retries the whole chain
+                // (including a fresh token-refresh attempt) on each attempt.
+                .addInterceptor(new NetworkRetryInterceptor())
                 .addInterceptor(new AuthInterceptor())
                 .addInterceptor(new TokenRefreshInterceptor())
                 .addInterceptor(logging)

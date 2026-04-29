@@ -69,6 +69,19 @@ public class ConversationController {
         return ResponseEntity.ok(convService.createGroup(user.getId(), req, icon));
     }
 
+    /**
+     * Rename a group conversation. Body: {@code {"name": "New name"}}.
+     * Caller must be an admin of the group; non-groups can't be renamed.
+     */
+    @PatchMapping("/{id}")
+    public ResponseEntity<ConversationResponse> rename(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(
+                convService.renameGroup(id, user.getId(), body.get("name")));
+    }
+
     @PostMapping("/{id}/members/{userId}")
     public ResponseEntity<ConversationResponse> addMember(
             @PathVariable Long id,

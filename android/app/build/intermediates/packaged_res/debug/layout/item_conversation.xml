@@ -4,7 +4,7 @@
     android:id="@+id/cardConversation"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="3dp"
     app:cardBackgroundColor="@android:color/transparent"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp">
@@ -19,11 +19,18 @@
         android:paddingTop="13dp"
         android:paddingBottom="13dp">
 
-        <!-- Circular avatar -->
+        <!-- Circular avatar. Tappable as a separate hit target — the host
+             adapter wires it to AvatarViewerActivity so a tap on just the
+             avatar opens the photo viewer, while a tap anywhere else on
+             the row opens the chat. -->
         <FrameLayout
+            android:id="@+id/avatarFrame"
             android:layout_width="46dp"
             android:layout_height="46dp"
-            android:layout_marginEnd="12dp">
+            android:layout_marginEnd="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless">
 
             <ImageView
                 android:id="@+id/ivAvatar"

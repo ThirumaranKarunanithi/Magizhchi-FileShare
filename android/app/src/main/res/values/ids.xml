@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tag ids used to attach a "currently bound key" to a recycled ImageView so
+  in-flight Glide requests can verify the ViewHolder is still bound to the
+  same conversation / user before painting their result.
+  Without this, slow image loads can leak the previous user's photo onto a
+  recycled row (the "Anandh's photo on Karnishh's row" bug).
+-->
+<resources>
+    <item name="tagAvatarBoundKey" type="id" />
+</resources>

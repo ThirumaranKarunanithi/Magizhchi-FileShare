@@ -98,6 +98,15 @@
             android:exported="false"
             android:parentActivityName="com.magizhchi.share.MainActivity"
             android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name="com.magizhchi.share.FilePropertiesActivity"
+            android:exported="false"
+            android:parentActivityName="com.magizhchi.share.ChatActivity"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name="com.magizhchi.share.AvatarViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MagizhchiShare.AvatarViewer" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

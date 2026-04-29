@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
+import com.magizhchi.share.AvatarViewerActivity;
 import com.magizhchi.share.R;
 import com.magizhchi.share.model.GroupMemberResponse;
 import com.magizhchi.share.utils.FormatUtils;
@@ -95,6 +97,17 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
             holder.tvInitials.setText(FormatUtils.initials(member.getDisplayName()));
         }
 
+        // Tap on the avatar opens the full-screen photo viewer. The
+        // member's userId lets the viewer refresh the URL if the cached
+        // one has expired.
+        if (holder.avatarFrame != null) {
+            holder.avatarFrame.setOnClickListener(v ->
+                    AvatarViewerActivity.launch(context,
+                            member.getProfilePhotoUrl(),
+                            member.getDisplayName(),
+                            member.getUserId()));
+        }
+
         // Name
         holder.tvName.setText(member.getDisplayName() != null ? member.getDisplayName() : "Unknown");
 
@@ -143,6 +156,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
+        FrameLayout avatarFrame;
         ImageView ivAvatar;
         TextView tvInitials;
         TextView tvName;
@@ -153,6 +167,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
 
         ViewHolder(View itemView) {
             super(itemView);
+            avatarFrame   = itemView.findViewById(R.id.avatarFrame);
             ivAvatar      = itemView.findViewById(R.id.ivAvatar);
             tvInitials    = itemView.findViewById(R.id.tvInitials);
             tvName        = itemView.findViewById(R.id.tvName);

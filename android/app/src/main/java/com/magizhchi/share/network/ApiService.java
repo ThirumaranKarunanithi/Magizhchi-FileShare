@@ -6,6 +6,7 @@ import com.magizhchi.share.model.ConversationResponse;
 import com.magizhchi.share.model.FileMessageResponse;
 import com.magizhchi.share.model.FolderResponse;
 import com.magizhchi.share.model.GroupMemberResponse;
+import com.magizhchi.share.model.SharedResourceResponse;
 import com.magizhchi.share.model.StorageUsageResponse;
 import com.magizhchi.share.model.UserSearchResponse;
 
@@ -61,9 +62,15 @@ public interface ApiService {
     @GET("api/conversations/personal")
     Call<ConversationResponse> getPersonalConversation();
 
-    /** Files shared WITH the current user — used for the Shared Files card stats. */
+    /**
+     * Files shared WITH the current user. The backend returns
+     * {@code SharedResourceResponse[]}, NOT {@code FileMessageResponse[]} —
+     * the field names differ ({@code sizeBytes} not {@code fileSizeBytes},
+     * {@code ownerName} not {@code senderName}, etc.). Using the wrong
+     * model silently zeros the file sizes and shows "Someone" as the sender.
+     */
     @GET("api/share/shared-with-me")
-    Call<List<FileMessageResponse>> getSharedWithMe();
+    Call<List<SharedResourceResponse>> getSharedWithMe();
 
     /**
      * Returns a Page<FileMessageResponse>. Use ResponseBody + manual Gson parsing
@@ -114,6 +121,16 @@ public interface ApiService {
     Call<ConversationResponse> createGroupWithData(
             @Part("data") RequestBody data,
             @Part MultipartBody.Part icon
+    );
+
+    /**
+     * Rename a group conversation. Body: {@code {"name": "New name"}}.
+     * Server enforces admin-only and rejects empty / over-80-char names.
+     */
+    @PATCH("api/conversations/{id}")
+    Call<ConversationResponse> renameGroup(
+            @Path("id") String conversationId,
+            @Body Map<String, String> body
     );
 
     // ── Files ─────────────────────────────────────────────────────────────────

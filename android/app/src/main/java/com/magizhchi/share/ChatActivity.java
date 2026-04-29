@@ -157,6 +157,21 @@ public class ChatActivity extends AppCompatActivity {
         }
         if (avatar != null) avatar.setVisibility(View.GONE);
 
+        // Tap on either the photo or the initials block opens the
+        // full-screen avatar viewer. PERSONAL conversations are skipped
+        // because there's no user-facing photo to enlarge. For DIRECT
+        // chats we pass otherUserId so the viewer can refresh the photo
+        // URL if the cached one has expired.
+        if (!"PERSONAL".equalsIgnoreCase(conversation.getType())) {
+            String userIdForRefresh = "DIRECT".equalsIgnoreCase(conversation.getType())
+                    ? conversation.getOtherUserId() : null;
+            View.OnClickListener openViewer = v ->
+                    AvatarViewerActivity.launch(this,
+                            conversation.getIconUrl(), name, userIdForRefresh);
+            if (avatar != null)        avatar.setOnClickListener(openViewer);
+            if (avatarLetters != null) avatarLetters.setOnClickListener(openViewer);
+        }
+
         // Try the conversation's own iconUrl first (cached on the home screen).
         loadAvatarInto(conversation.getIconUrl(), avatar, avatarLetters);
 
@@ -177,6 +192,15 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                     loadAvatarInto(u.getProfilePhotoUrl(), avatar, avatarLetters);
+                    // Re-bind the avatar tap with the freshly-presigned URL
+                    // and the user id so the viewer can refresh on failure.
+                    final String freshUrl = u.getProfilePhotoUrl();
+                    final String freshUserId = u.getId();
+                    View.OnClickListener openViewer = v ->
+                            AvatarViewerActivity.launch(ChatActivity.this,
+                                    freshUrl, name, freshUserId);
+                    if (avatar != null)        avatar.setOnClickListener(openViewer);
+                    if (avatarLetters != null) avatarLetters.setOnClickListener(openViewer);
                 }
                 @Override public void onFailure(Call<UserSearchResponse> call, Throwable t) { /* keep cached values */ }
             });
@@ -1206,57 +1230,29 @@ public class ChatActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ── Properties dialogs ───────────────────────────────────────────────────
+    // ── Properties screen ────────────────────────────────────────────────────
 
+    /**
+     * Launch the dedicated FilePropertiesActivity instead of showing an
+     * AlertDialog. The activity handles both files and folders behind a
+     * single intent extra, so this method just packages the FileMessageResponse
+     * as JSON and starts it.
+     */
     private void showFileProperties(FileMessageResponse f) {
-        StringBuilder b = new StringBuilder();
-        appendRow(b, "Name",        f.getOriginalFileName());
-        appendRow(b, "Extension",   extensionOf(f.getOriginalFileName()));
-        appendRow(b, "Type",        f.getCategory());
-        appendRow(b, "Status",      "⬆ Uploaded");
-        appendRow(b, "Size",        FormatUtils.formatBytes(f.getFileSizeBytes()));
-        appendRow(b, "Description", f.getCaption() != null && !f.getCaption().isEmpty() ? f.getCaption() : "—");
-        appendRow(b, "Permission",  permissionLabel(safe(f.getDownloadPermission())));
-        appendRow(b, "Uploaded by", f.getSenderName());
-        appendRow(b, "Uploaded on", FormatUtils.formatDateTime(f.getSentAt()));
-        if (f.getFolderPath() != null) appendRow(b, "Folder", f.getFolderPath());
-        new AlertDialog.Builder(this)
-                .setTitle("📄 File properties")
-                .setMessage(b.toString())
-                .setPositiveButton("Close", null)
-                .show();
+        Intent intent = new Intent(this, FilePropertiesActivity.class);
+        intent.putExtra(FilePropertiesActivity.EXTRA_MODE, FilePropertiesActivity.MODE_FILE);
+        intent.putExtra(FilePropertiesActivity.EXTRA_FILE_JSON, new Gson().toJson(f));
+        startActivity(intent);
     }
 
     private void showFolderProperties(FileMessageAdapter.Row r) {
-        StringBuilder b = new StringBuilder();
-        appendRow(b, "Name",        r.folderName);
-        appendRow(b, "Path",        r.folderPath);
-        appendRow(b, "Status",      "📁 Folder");
-        appendRow(b, "Items",       r.folderItemCount + " file" + (r.folderItemCount != 1 ? "s" : ""));
-        appendRow(b, "Total size",  FormatUtils.formatBytes(r.folderTotalBytes));
-        appendRow(b, "Updated",     FormatUtils.formatDateTime(r.folderLatestSentAt));
-        new AlertDialog.Builder(this)
-                .setTitle("📁 Folder properties")
-                .setMessage(b.toString())
-                .setPositiveButton("Close", null)
-                .show();
-    }
-
-    private static void appendRow(StringBuilder b, String label, String value) {
-        b.append(label).append(":  ").append(value == null || value.isEmpty() ? "—" : value).append("\n");
-    }
-
-    private static String extensionOf(String name) {
-        if (name == null) return "—";
-        int i = name.lastIndexOf('.');
-        return (i <= 0 || i == name.length() - 1) ? "—" : name.substring(i + 1).toUpperCase();
-    }
-
-    private static String safe(String s) { return s == null ? "" : s; }
-
-    private static String permissionLabel(String p) {
-        if ("VIEW_ONLY".equals(p))           return "👁 View only · downloads disabled";
-        if ("ADMIN_ONLY_DOWNLOAD".equals(p)) return "🛡 Admin only · only group admins can download";
-        return "⬇ Anyone with access can download";
+        Intent intent = new Intent(this, FilePropertiesActivity.class);
+        intent.putExtra(FilePropertiesActivity.EXTRA_MODE, FilePropertiesActivity.MODE_FOLDER);
+        intent.putExtra(FilePropertiesActivity.EXTRA_FOLDER_NAME,        r.folderName);
+        intent.putExtra(FilePropertiesActivity.EXTRA_FOLDER_PATH,        r.folderPath);
+        intent.putExtra(FilePropertiesActivity.EXTRA_FOLDER_ITEM_COUNT,  r.folderItemCount);
+        intent.putExtra(FilePropertiesActivity.EXTRA_FOLDER_TOTAL_BYTES, r.folderTotalBytes);
+        intent.putExtra(FilePropertiesActivity.EXTRA_FOLDER_LATEST_AT,   r.folderLatestSentAt);
+        startActivity(intent);
     }
 }

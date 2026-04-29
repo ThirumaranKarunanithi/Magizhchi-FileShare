@@ -234,6 +234,38 @@ public class ConversationService {
      * Only an existing admin can perform this.
      * Demoting the last admin is blocked — the group must always have at least one admin.
      */
+    /**
+     * Rename a group conversation. Only group admins can do this; DIRECT and
+     * PERSONAL conversations don't have a user-facing name to rename.
+     *
+     * <p>The new name is trimmed and length-clamped to mirror the validation
+     * on {@link com.magizhchi.share.dto.request.CreateGroupRequest} so the
+     * UPDATE path matches the CREATE path. Whitespace-only names are
+     * rejected with a 400.
+     */
+    @Transactional
+    public ConversationResponse renameGroup(Long conversationId, Long requesterId, String newName) {
+        Conversation conv = getConversation(conversationId);
+
+        if (conv.getType() != Conversation.ConversationType.GROUP) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Only group conversations can be renamed.");
+        }
+        requireAdmin(conv, requesterId);
+
+        String trimmed = newName == null ? "" : newName.trim();
+        if (trimmed.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Group name cannot be empty.");
+        }
+        if (trimmed.length() > 80) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Group name must be 80 characters or fewer.");
+        }
+
+        conv.setName(trimmed);
+        return toResponse(convRepo.save(conv), requesterId);
+    }
+
     @Transactional
     public void setMemberRole(Long conversationId, Long requesterId,
                               Long targetUserId, ConversationMember.MemberRole newRole) {

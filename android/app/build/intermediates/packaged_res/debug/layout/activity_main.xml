@@ -20,7 +20,7 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="14dp">
+            android:paddingBottom="8dp">
 
             <!-- Circular Avatar -->
             <FrameLayout
@@ -121,7 +121,7 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="14dp">
+            android:paddingBottom="8dp">
 
             <!-- My Storage -->
             <LinearLayout
@@ -225,7 +225,7 @@
             android:orientation="vertical"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="10dp">
+            android:paddingBottom="6dp">
 
             <EditText
                 android:id="@+id/etSearch"
@@ -248,7 +248,7 @@
                 android:id="@+id/tabsRow"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="6dp"
                 android:background="@drawable/bg_input"
                 android:orientation="horizontal"
                 android:padding="3dp">
@@ -293,23 +293,26 @@
 
         <!-- Friend-search section. Hidden by default; revealed when the
              search query is ≥ 2 chars. Mirrors the web sidebar's "People"
-             section so users can find friends who aren't yet a connection. -->
+             section so users can find friends who aren't yet a connection.
+             Section itself has no horizontal padding so the result rows can
+             render edge-to-edge; the header / empty / progress pieces add
+             their own padding so they're not flush with the screen edge. -->
         <LinearLayout
             android:id="@+id/friendSearchSection"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:visibility="gone">
 
             <TextView
                 android:id="@+id/tvFriendSearchHeader"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
                 android:layout_marginTop="2dp"
-                android:layout_marginBottom="6dp"
+                android:layout_marginBottom="4dp"
                 android:text="👤 People"
                 android:textColor="#475569"
                 android:textSize="11sp"
@@ -320,7 +323,9 @@
                 android:id="@+id/tvFriendSearchEmpty"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:layout_marginTop="16dp"
                 android:gravity="center"
                 android:text="No people match your search."
                 android:textColor="#64748B"
@@ -332,7 +337,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="16dp"
                 android:indeterminateTint="@color/primaryMid"
                 android:visibility="gone" />
 
@@ -344,14 +349,15 @@
                 android:paddingBottom="80dp" />
         </LinearLayout>
 
+        <!-- Edge-to-edge conversation list. Side padding is intentionally 0
+             so the row backgrounds extend to the screen edge; rows handle
+             their own internal padding. -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerConversations"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:clipToPadding="false"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:paddingBottom="80dp" />
 
     </LinearLayout>
